@@ -3,23 +3,86 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Projeto caça-níqueis | Arandua</title>
+    <meta name="description" content="Jogue e explore um caça-níqueis construído com contadores, comparadores e displays digitais.">
+    <title>Projeto Final — Caça-Níqueis Arandua</title>
     <link rel="stylesheet" href="../assets/css/base.css">
     <link rel="stylesheet" href="../assets/css/components.css">
+    <link rel="stylesheet" href="../assets/css/modulos.css">
   </head>
   <body>
-    <header class="cabecalho">
-      <div class="container cabecalho__conteudo">
-        <a class="marca" href="../index.html">
-          <span class="marca__nome">Arandua</span>
-          <span class="marca__subtitulo">Laboratório de Sistemas Digitais</span>
-        </a>
-        <a class="btn btn--ghost" href="../index.html">← Voltar ao início</a>
-      </div>
+    <header class="modulo-header container">
+      <span class="badge">Projeto Final</span>
+      <h1>Caça-Níqueis Arandua</h1>
+      <a class="btn btn--ghost" href="../index.html">← Voltar</a>
     </header>
-    <main class="container hero">
-      <h1>Projeto integrador: caça-níqueis</h1>
-      <p>Em construção</p>
+    <main class="container modulo-conteudo">
+      <section class="modulo-secao modulo-teoria" aria-labelledby="cacaniqueis-intro">
+        <h2 id="cacaniqueis-intro">O que você vai construir</h2>
+        <p>Você vai jogar e explorar um caça-níqueis digital formado por três roletas, displays de sete segmentos, comparadores, uma máquina de estados e um contador de créditos.</p>
+        <p>O circuito reúne conceitos dos módulos anteriores: entradas digitais, contagem, decodificação, comparação e memória sequencial. Observe o comportamento do sistema e investigue como cada bloco participa de uma rodada.</p>
+      </section>
+      <section class="modulo-secao" aria-labelledby="cacaniqueis-circuito">
+        <h2 id="cacaniqueis-circuito">O circuito</h2>
+        <div id="cacaniqueis"></div>
+      </section>
+      <section class="modulo-secao" aria-labelledby="cacaniqueis-funcionamento">
+        <h2 id="cacaniqueis-funcionamento">Como funciona</h2>
+        <p>Selecione um bloco no diagrama para ver sua função. Os blocos também indicam o módulo em que o conceito foi apresentado.</p>
+        <div class="cacaniqueis-diagrama-area">
+          <svg class="cacaniqueis-diagrama" id="cacaniqueis-diagrama-explicativo" data-painel="cacaniqueis-diagrama-explicacao"></svg>
+        </div>
+        <p class="cacaniqueis-diagrama-info" id="cacaniqueis-diagrama-explicacao" aria-live="polite">Clique em um bloco para ver sua função e o módulo relacionado.</p>
+        <div class="cacaniqueis-explicacoes">
+          <article class="cacaniqueis-explicacao">
+            <h3>Contadores — Módulo 5</h3>
+            <p>Três contadores de 4 bits avançam as roletas enquanto elas estão girando.</p>
+          </article>
+          <article class="cacaniqueis-explicacao">
+            <h3>Decodificador BCD — Módulo 4</h3>
+            <p>Cada decodificador transforma o valor binário da roleta nos segmentos que formam o algarismo.</p>
+          </article>
+          <article class="cacaniqueis-explicacao">
+            <h3>Comparador — Módulo 4</h3>
+            <p>Comparadores de 4 bits verificam se os valores das roletas são iguais e determinam o prêmio.</p>
+          </article>
+          <article class="cacaniqueis-explicacao">
+            <h3>Máquina de estados — Módulo 5</h3>
+            <p>Dois flip-flops D representam IDLE, GIRANDO e RESULTADO e organizam as etapas da rodada.</p>
+          </article>
+          <article class="cacaniqueis-explicacao">
+            <h3>Displays — Módulo 4</h3>
+            <p>Os displays de sete segmentos mostram os símbolos decodificados durante e após cada giro.</p>
+          </article>
+        </div>
+      </section>
+      <section class="modulo-secao" aria-labelledby="cacaniqueis-desafios">
+        <h2 id="cacaniqueis-desafios">Desafios</h2>
+        <p>Use o editor livre para planejar como você ampliaria o circuito:</p>
+        <div class="cacaniqueis-desafios">
+          <article class="cacaniqueis-desafio">
+            <h3>Adicionar som de vitória</h3>
+            <p>Acrescente um buzzer que toque quando houver um par ou jackpot.</p>
+          </article>
+          <article class="cacaniqueis-desafio">
+            <h3>Aumentar para 5 símbolos</h3>
+            <p>Amplie as roletas e adapte a comparação para cinco posições.</p>
+          </article>
+          <article class="cacaniqueis-desafio">
+            <h3>Implementar aposta variável</h3>
+            <p>Permita escolher o valor apostado e ajuste os prêmios de acordo.</p>
+          </article>
+        </div>
+      </section>
+      <section class="modulo-secao modulo-projeto" aria-labelledby="cacaniqueis-proximos-passos">
+        <h2 id="cacaniqueis-proximos-passos">Próximos passos</h2>
+        <p>Agora experimente criar ou modificar circuitos por conta própria.</p>
+        <a class="btn btn--primary" href="../sandbox/editor.html">Abrir o editor livre</a>
+      </section>
     </main>
+    <script type="module">
+      import { inicializarCacaniqueis } from '../assets/js/projeto/cacaniqueis.js';
+
+      inicializarCacaniqueis(document.getElementById('cacaniqueis'));
+    </script>
   </body>
 </html>
