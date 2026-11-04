@@ -341,6 +341,112 @@
   padding-top: var(--esp-4);
 }
 
+.simulador-grade {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.8fr) minmax(0, 1.2fr);
+  align-items: start;
+  gap: var(--esp-4);
+}
+
+.simulador-painel {
+  display: grid;
+  align-content: start;
+  gap: var(--esp-3);
+  min-width: 0;
+}
+
+.simulador-canvas {
+  display: block;
+  width: 100%;
+  height: 300px;
+  min-width: 0;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-sm);
+  background: var(--cor-fundo);
+}
+
+.simulador-chaves,
+.simulador-leituras,
+.simulador-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--esp-2);
+}
+
+.simulador-chave,
+.simulador-indicador {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--esp-2);
+  padding: var(--esp-2) var(--esp-3);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-sm);
+  background: var(--cor-superficie-alta);
+  color: var(--cor-texto);
+  font: 700 0.875rem var(--fonte-mono);
+}
+
+.simulador-chave {
+  cursor: pointer;
+}
+
+.simulador-chave:hover,
+.simulador-chave:focus-visible {
+  border-color: var(--cor-acento);
+}
+
+.simulador-chave:focus-visible {
+  outline: 3px solid var(--cor-acento-2);
+  outline-offset: 2px;
+}
+
+.simulador-chave.ativo,
+.simulador-indicador.aceso {
+  border-color: var(--cor-acento-2);
+  background: #12362f;
+  color: var(--cor-acento-2);
+}
+
+.simulador-chave.selecionado {
+  border-color: var(--cor-acento);
+  box-shadow: 0 0 0 2px rgb(79 140 255 / 28%);
+}
+
+.simulador-indicador {
+  color: var(--cor-texto-sec);
+}
+
+.simulador-display {
+  display: block;
+  width: 96px;
+  height: 152px;
+  justify-self: center;
+}
+
+.simulador-display .display-fundo {
+  fill: var(--cor-superficie-alta);
+  stroke: var(--cor-borda);
+}
+
+.simulador-display [data-segmento] {
+  fill: #3a4052;
+  transition: fill 120ms ease, filter 120ms ease;
+}
+
+.simulador-display [data-segmento].aceso {
+  fill: var(--cor-acento-2);
+  filter: drop-shadow(0 0 4px var(--cor-acento-2));
+}
+
+.widget-tabela-verdade tr.linha-ativa td {
+  background: rgb(0 212 160 / 16%);
+  color: var(--cor-acento-2);
+  font-weight: 800;
+}
+
 @media (max-width: 767px) {
   .modulo-header {
     grid-template-columns: auto minmax(0, 1fr);
@@ -360,6 +466,14 @@
   .widget-controles,
   .widget-bases {
     grid-template-columns: 1fr;
+  }
+
+  .simulador-grade {
+    grid-template-columns: 1fr;
+  }
+
+  .simulador-canvas {
+    height: 260px;
   }
 
   .widget-karnaugh-legenda,
