@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Explore portas lógicas, tabelas-verdade e simplificação com mapas de Karnaugh.">
+    <title>Módulo 3 — Álgebra de Boole e Portas Lógicas | Arandua</title>
+    <link rel="stylesheet" href="../assets/css/base.css">
+    <link rel="stylesheet" href="../assets/css/components.css">
+    <link rel="stylesheet" href="../assets/css/modulos.css">
+  </head>
+  <body>
+    <header class="modulo-header container">
+      <span class="badge">Módulo 3</span>
+      <h1>Álgebra de Boole e Portas Lógicas</h1>
+      <a class="btn btn--ghost" href="../index.html">← Voltar</a>
+    </header>
+    <main class="container modulo-conteudo">
+      <section class="modulo-secao modulo-teoria" aria-labelledby="m3-teoria">
+        <h2 id="m3-teoria">Teoria</h2>
+        <p>A álgebra de Boole descreve operações com valores lógicos 0 e 1. Em circuitos, esses valores representam sinais desligados e ligados.</p>
+        <p>Portas como AND, OR e NOT aplicam regras simples às entradas. Por exemplo, AND só produz 1 quando todas as entradas valem 1; NOT inverte o valor recebido.</p>
+        <p>Uma tabela-verdade lista todas as combinações possíveis de entradas e mostra a saída correspondente. Ela ajuda a entender e testar o comportamento de uma função lógica.</p>
+        <p>Um mapa de Karnaugh reorganiza os resultados da tabela para agrupar saídas 1 vizinhas. Cada grupo elimina variáveis que mudam, produzindo uma expressão equivalente com menos termos.</p>
+      </section>
+      <section class="modulo-secao" aria-labelledby="m3-experimente">
+        <h2 id="m3-experimente">Experimente</h2>
+        <div class="widget-container" id="widget-m3"></div>
+      </section>
+      <section class="modulo-secao" aria-labelledby="m3-exercicios">
+        <h2 id="m3-exercicios">Exercício</h2>
+        <form class="widget-exercicio" data-resposta="a">
+          <fieldset>
+            <legend>1. Qual é a saída de AND quando suas entradas são 1 e 1?</legend>
+            <label><input type="radio" name="m3-q1" value="a"> 1</label>
+            <label><input type="radio" name="m3-q1" value="b"> 0</label>
+            <label><input type="radio" name="m3-q1" value="c"> Indefinida</label>
+          </fieldset>
+          <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
+          <p aria-live="polite"></p>
+        </form>
+        <form class="widget-exercicio" data-resposta="c">
+          <fieldset>
+            <legend>2. Para quantas entradas a tabela-verdade tem 8 linhas?</legend>
+            <label><input type="radio" name="m3-q2" value="a"> 2 entradas</label>
+            <label><input type="radio" name="m3-q2" value="b"> 4 entradas</label>
+            <label><input type="radio" name="m3-q2" value="c"> 3 entradas</label>
+          </fieldset>
+          <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
+          <p aria-live="polite"></p>
+        </form>
+        <form class="widget-exercicio" data-resposta="b">
+          <fieldset>
+            <legend>3. O que um grupo de células 1 em um mapa de Karnaugh permite fazer?</legend>
+            <label><input type="radio" name="m3-q3" value="a"> Acrescentar novas entradas ao circuito.</label>
+            <label><input type="radio" name="m3-q3" value="b"> Simplificar a expressão lógica eliminando variáveis.</label>
+            <label><input type="radio" name="m3-q3" value="c"> Converter automaticamente decimal para hexadecimal.</label>
+          </fieldset>
+          <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
+          <p aria-live="polite"></p>
+        </form>
+      </section>
+      <section class="modulo-secao modulo-projeto" aria-labelledby="m3-projeto">
+        <h2 id="m3-projeto">Peça do projeto</h2>
+        <p>Cada símbolo do caça-níqueis é controlado por uma combinação de portas lógicas. Simplificar com Karnaugh economiza portas no seu circuito final.</p>
+      </section>
+      <nav class="modulo-nav" aria-label="Próximo módulo">
+        <a class="btn btn--primary" href="04-portas-logicas.html">Próximo módulo →</a>
+      </nav>
+    </main>
+    <script type="module">
+      import { inicializarM3 } from '../assets/js/modules/m3.js';
+
+      inicializarM3(document.getElementById('widget-m3'));
+    </script>
+  </body>
+</html>

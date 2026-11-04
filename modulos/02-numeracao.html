@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Converta números entre bases e descubra códigos binários comuns.">
+    <title>Módulo 2 — Sistemas de Numeração e Códigos | Arandua</title>
+    <link rel="stylesheet" href="../assets/css/base.css">
+    <link rel="stylesheet" href="../assets/css/components.css">
+    <link rel="stylesheet" href="../assets/css/modulos.css">
+  </head>
+  <body>
+    <header class="modulo-header container">
+      <span class="badge">Módulo 2</span>
+      <h1>Sistemas de Numeração e Códigos</h1>
+      <a class="btn btn--ghost" href="../index.html">← Voltar</a>
+    </header>
+    <main class="container modulo-conteudo">
+      <section class="modulo-secao modulo-teoria" aria-labelledby="m2-teoria">
+        <h2 id="m2-teoria">Teoria</h2>
+        <p>Nosso sistema decimal usa dez símbolos, de 0 a 9. O sistema binário usa apenas 0 e 1, e cada posição representa uma potência de dois. Assim, <code>1010₂</code> vale <code>10₁₀</code>.</p>
+        <p>Octal e hexadecimal são formas compactas de escrever valores binários: cada dígito octal corresponde a três bits, e cada dígito hexadecimal corresponde a quatro.</p>
+        <p>Códigos são convenções que associam padrões de bits a informações. Em BCD, cada algarismo decimal é representado separadamente por quatro bits; o número 25, por exemplo, vira <code>0010 0101</code>.</p>
+        <p>O código Gray organiza valores vizinhos de modo que apenas um bit mude entre um valor e o próximo. Já o ASCII associa números a caracteres, como letras e algarismos.</p>
+      </section>
+      <section class="modulo-secao" aria-labelledby="m2-experimente">
+        <h2 id="m2-experimente">Experimente</h2>
+        <div class="widget-container" id="widget-m2"></div>
+      </section>
+      <section class="modulo-secao" aria-labelledby="m2-exercicios">
+        <h2 id="m2-exercicios">Exercício</h2>
+        <form class="widget-exercicio" data-resposta="b">
+          <fieldset>
+            <legend>1. Qual é o valor decimal de <code>1010₂</code>?</legend>
+            <label><input type="radio" name="m2-q1" value="a"> 8</label>
+            <label><input type="radio" name="m2-q1" value="b"> 10</label>
+            <label><input type="radio" name="m2-q1" value="c"> 12</label>
+          </fieldset>
+          <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
+          <p aria-live="polite"></p>
+        </form>
+        <form class="widget-exercicio" data-resposta="c">
+          <fieldset>
+            <legend>2. Quantos bits representam um dígito hexadecimal?</legend>
+            <label><input type="radio" name="m2-q2" value="a"> 2 bits</label>
+            <label><input type="radio" name="m2-q2" value="b"> 3 bits</label>
+            <label><input type="radio" name="m2-q2" value="c"> 4 bits</label>
+          </fieldset>
+          <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
+          <p aria-live="polite"></p>
+        </form>
+        <form class="widget-exercicio" data-resposta="a">
+          <fieldset>
+            <legend>3. Como o BCD representa o número decimal 12?</legend>
+            <label><input type="radio" name="m2-q3" value="a"> <code>0001 0010</code>, um grupo de quatro bits por algarismo</label>
+            <label><input type="radio" name="m2-q3" value="b"> <code>1100</code>, como binário puro</label>
+            <label><input type="radio" name="m2-q3" value="c"> <code>0011 0000</code></label>
+          </fieldset>
+          <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
+          <p aria-live="polite"></p>
+        </form>
+      </section>
+      <section class="modulo-secao modulo-projeto" aria-labelledby="m2-projeto">
+        <h2 id="m2-projeto">Peça do projeto</h2>
+        <p>O contador do caça-níqueis conta em binário. O display mostra em decimal. Você precisa saber converter entre os dois para fazer o circuito funcionar.</p>
+      </section>
+      <nav class="modulo-nav" aria-label="Próximo módulo">
+        <a class="btn btn--primary" href="03-boole.html">Próximo módulo →</a>
+      </nav>
+    </main>
+    <script type="module">
+      import { inicializarM2 } from '../assets/js/modules/m2.js';
+
+      inicializarM2(document.getElementById('widget-m2'));
+    </script>
+  </body>
+</html>
