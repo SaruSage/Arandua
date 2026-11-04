@@ -15,6 +15,7 @@ const RAIO_PINO = 6;
 export function criarCanvasFiel(elemento) {
   const ctx = elemento.getContext('2d');
   const view = { zoom: 1, panX: 0, panY: 0 };
+  let circuitoAtual = { componentes: [], fios: [] };
 
   function redimensionar() {
     const dpr = window.devicePixelRatio || 1;
@@ -131,6 +132,7 @@ export function criarCanvasFiel(elemento) {
   }
 
   function render(circuito, selecionadoId, fioSelecionadoId, fioFantasma) {
+    circuitoAtual = circuito;
     desenharGrade();
 
     // Fios primeiro (atrás dos componentes)
@@ -165,11 +167,36 @@ export function criarCanvasFiel(elemento) {
   }
 
   function componenteEm(x, y) {
-    for (let i = 0; i < 0; i++) {} // placeholder
+    for (let i = circuitoAtual.componentes.length - 1; i >= 0; i--) {
+      const c = circuitoAtual.componentes[i];
+      const dim = dimensoesSimbolo(c.tipo);
+      if (x >= c.posicao.x && x <= c.posicao.x + dim.w
+          && y >= c.posicao.y && y <= c.posicao.y + dim.h) {
+        return c;
+      }
+    }
     return null;
   }
 
   function pinoEm(x, y) {
+    const comp = componenteEm(x, y);
+    if (!comp) return null;
+    const RAIO = 10;
+
+    for (const pino of comp.entradas) {
+      const pos = posicaoPinoTela(comp, pino.id, 'entrada');
+      if (pos && Math.hypot(pos.x - x, pos.y - y) < RAIO) {
+        return { componente: comp, pino, direcao: 'entrada' };
+      }
+    }
+
+    for (const pino of comp.saidas) {
+      const pos = posicaoPinoTela(comp, pino.id, 'saida');
+      if (pos && Math.hypot(pos.x - x, pos.y - y) < RAIO) {
+        return { componente: comp, pino, direcao: 'saida' };
+      }
+    }
+
     return null;
   }
 

@@ -5,6 +5,7 @@
 
 import { criarCanvasFiel } from './canvas-fiel.js';
 import { criarPaletaFiel } from './paleta-fiel.js';
+import { configurarFiosFiel } from './fios-fiel.js';
 import { dimensoesSimbolo } from './simbolos.js';
 import {
   criarCircuito,
@@ -225,6 +226,8 @@ export function inicializarSimulador({ canvas: elCanvas, paleta: elPaleta, paine
   const el = elCanvas;
 
   el.addEventListener('mousedown', (e) => {
+    if (estado.fioEmConstrucao) return;
+
     const rect = el.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
@@ -349,6 +352,8 @@ export function inicializarSimulador({ canvas: elCanvas, paleta: elPaleta, paine
       y: centro.y - dim.h / 2,
     });
   });
+
+  configurarFiosFiel(canvas, editor, estado);
 
   editor.renderizar();
   atualizarPainel();
