@@ -11,26 +11,31 @@
   </head>
   <body>
     <a href="#conteudo" class="skip-link">Pular para o conteúdo</a>
-    <header class="modulo-header container">
-      <span class="badge">Módulo 3</span>
-      <span class="modulo-progresso">Módulo 3 de 7</span>
-      <h1>Álgebra de Boole e Portas Lógicas</h1>
-      <a class="btn btn--ghost" href="../index.html">← Voltar</a>
+    <header class="modulo-header">
+      <div class="modulo-header__inner">
+        <div class="modulo-header__meta">
+          <span class="badge">Módulo 3</span>
+          <span class="modulo-header__progresso">Módulo 3 de 7</span>
+        </div>
+        <h1 class="modulo-header__titulo">Álgebra de Boole e Portas Lógicas</h1>
+        <p class="modulo-header__descricao">Explore operações booleanas, tabelas-verdade e simplificação lógica.</p>
+        <a class="btn btn--ghost" href="../index.html">← Voltar</a>
+      </div>
     </header>
     <main class="container modulo-conteudo" id="conteudo" tabindex="-1">
       <section class="modulo-secao modulo-teoria" aria-labelledby="m3-teoria">
-        <h2 id="m3-teoria">Teoria</h2>
-        <p>A álgebra de Boole descreve operações com valores lógicos 0 e 1. Em circuitos, esses valores representam sinais desligados e ligados.</p>
-        <p>Portas como AND, OR e NOT aplicam regras simples às entradas. Por exemplo, AND só produz 1 quando todas as entradas valem 1; NOT inverte o valor recebido.</p>
-        <p>Uma tabela-verdade lista todas as combinações possíveis de entradas e mostra a saída correspondente. Ela ajuda a entender e testar o comportamento de uma função lógica.</p>
-        <p>Um mapa de Karnaugh reorganiza os resultados da tabela para agrupar saídas 1 vizinhas. Cada grupo elimina variáveis que mudam, produzindo uma expressão equivalente com menos termos.</p>
+        <h2 id="m3-teoria" class="modulo-secao__titulo">Teoria</h2>
+        <p class="modulo-secao__texto">A álgebra de Boole descreve operações com valores lógicos 0 e 1. Em circuitos, esses valores representam sinais desligados e ligados.</p>
+        <p class="modulo-secao__texto">Portas como AND, OR e NOT aplicam regras simples às entradas. Por exemplo, AND só produz 1 quando todas as entradas valem 1; NOT inverte o valor recebido.</p>
+        <p class="modulo-secao__texto">Uma tabela-verdade lista todas as combinações possíveis de entradas e mostra a saída correspondente. Ela ajuda a entender e testar o comportamento de uma função lógica.</p>
+        <p class="modulo-secao__texto">Um mapa de Karnaugh reorganiza os resultados da tabela para agrupar saídas 1 vizinhas. Cada grupo elimina variáveis que mudam, produzindo uma expressão equivalente com menos termos.</p>
       </section>
       <section class="modulo-secao" aria-labelledby="m3-experimente">
-        <h2 id="m3-experimente">Experimente</h2>
+        <h2 id="m3-experimente" class="modulo-secao__titulo">Experimente</h2>
         <div class="widget-container" id="widget-m3"></div>
       </section>
       <section class="modulo-secao" aria-labelledby="m3-exercicios">
-        <h2 id="m3-exercicios">Exercício</h2>
+        <h2 id="m3-exercicios" class="modulo-secao__titulo">Exercício</h2>
         <form class="widget-exercicio" data-resposta="a">
           <fieldset>
             <legend>1. Qual é a saída de AND quando suas entradas são 1 e 1?</legend>
@@ -39,7 +44,7 @@
             <label><input type="radio" name="m3-q1" value="c"> Indefinida</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p role="status" aria-live="polite"></p>
+          <p role="status" aria-live="polite" class="modulo-secao__texto"></p>
         </form>
         <form class="widget-exercicio" data-resposta="c">
           <fieldset>
@@ -49,7 +54,7 @@
             <label><input type="radio" name="m3-q2" value="c"> 3 entradas</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p role="status" aria-live="polite"></p>
+          <p role="status" aria-live="polite" class="modulo-secao__texto"></p>
         </form>
         <form class="widget-exercicio" data-resposta="b">
           <fieldset>
@@ -59,12 +64,12 @@
             <label><input type="radio" name="m3-q3" value="c"> Converter automaticamente decimal para hexadecimal.</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p role="status" aria-live="polite"></p>
+          <p role="status" aria-live="polite" class="modulo-secao__texto"></p>
         </form>
       </section>
       <section class="modulo-secao modulo-projeto" aria-labelledby="m3-projeto">
-        <h2 id="m3-projeto">Peça do projeto</h2>
-        <p>Cada símbolo do caça-níqueis é controlado por uma combinação de portas lógicas. Simplificar com Karnaugh economiza portas no seu circuito final.</p>
+        <h2 id="m3-projeto" class="modulo-secao__titulo">Peça do projeto</h2>
+        <p class="modulo-secao__texto">Cada símbolo do caça-níqueis é controlado por uma combinação de portas lógicas. Simplificar com Karnaugh economiza portas no seu circuito final.</p>
       </section>
       <nav class="modulo-nav" aria-label="Próximo módulo">
         <a class="btn btn--primary" href="04-combinacionais.html">Próximo módulo →</a>

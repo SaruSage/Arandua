@@ -11,26 +11,31 @@
   </head>
   <body>
     <a href="#conteudo" class="skip-link">Pular para o conteúdo</a>
-    <header class="modulo-header container">
-      <span class="badge">Módulo 1</span>
-      <span class="modulo-progresso">Módulo 1 de 7</span>
-      <h1>Analógico vs Digital</h1>
-      <a class="btn btn--ghost" href="../index.html">← Voltar</a>
+    <header class="modulo-header">
+      <div class="modulo-header__inner">
+        <div class="modulo-header__meta">
+          <span class="badge">Módulo 1</span>
+          <span class="modulo-header__progresso">Módulo 1 de 7</span>
+        </div>
+        <h1 class="modulo-header__titulo">Analógico vs Digital</h1>
+        <p class="modulo-header__descricao">Entenda como sinais contínuos são representados por valores digitais.</p>
+        <a class="btn btn--ghost" href="../index.html">← Voltar</a>
+      </div>
     </header>
     <main class="container modulo-conteudo" id="conteudo" tabindex="-1">
       <section class="modulo-secao modulo-teoria" aria-labelledby="m1-teoria">
-        <h2 id="m1-teoria">Teoria</h2>
-        <p>O mundo ao nosso redor é analógico: a luz, o som e a temperatura podem variar continuamente. Entre dois valores sempre podemos imaginar muitos outros.</p>
-        <p>Um computador, por outro lado, trabalha com sinais digitais. Ele representa informações usando dois estados, chamados de 0 e 1, que podem corresponder a níveis baixos e altos de tensão.</p>
-        <p>Para transformar uma medida contínua em um número digital, dividimos a faixa de valores em níveis. Essa conversão é chamada de quantização: o sinal passa a ser representado pelo nível mais próximo.</p>
-        <p>Mais bits permitem representar mais níveis e aproximar melhor a medida original. Com <code>n</code> bits existem <code>2ⁿ</code> combinações possíveis, embora a conversão ainda tenha uma pequena diferença em relação ao sinal contínuo.</p>
+        <h2 id="m1-teoria" class="modulo-secao__titulo">Teoria</h2>
+        <p class="modulo-secao__texto">O mundo ao nosso redor é analógico: a luz, o som e a temperatura podem variar continuamente. Entre dois valores sempre podemos imaginar muitos outros.</p>
+        <p class="modulo-secao__texto">Um computador, por outro lado, trabalha com sinais digitais. Ele representa informações usando dois estados, chamados de 0 e 1, que podem corresponder a níveis baixos e altos de tensão.</p>
+        <p class="modulo-secao__texto">Para transformar uma medida contínua em um número digital, dividimos a faixa de valores em níveis. Essa conversão é chamada de quantização: o sinal passa a ser representado pelo nível mais próximo.</p>
+        <p class="modulo-secao__texto">Mais bits permitem representar mais níveis e aproximar melhor a medida original. Com <code>n</code> bits existem <code>2ⁿ</code> combinações possíveis, embora a conversão ainda tenha uma pequena diferença em relação ao sinal contínuo.</p>
       </section>
       <section class="modulo-secao" aria-labelledby="m1-experimente">
-        <h2 id="m1-experimente">Experimente</h2>
+        <h2 id="m1-experimente" class="modulo-secao__titulo">Experimente</h2>
         <div class="widget-container" id="widget-m1"></div>
       </section>
       <section class="modulo-secao" aria-labelledby="m1-exercicios">
-        <h2 id="m1-exercicios">Exercício</h2>
+        <h2 id="m1-exercicios" class="modulo-secao__titulo">Exercício</h2>
         <form class="widget-exercicio" data-resposta="b">
           <fieldset>
             <legend>1. Quantos níveis diferentes podem ser representados com 3 bits?</legend>
@@ -39,7 +44,7 @@
             <label><input type="radio" name="m1-q1" value="c"> 10 níveis</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p role="status" aria-live="polite"></p>
+          <p role="status" aria-live="polite" class="modulo-secao__texto"></p>
         </form>
         <form class="widget-exercicio" data-resposta="a">
           <fieldset>
@@ -49,7 +54,7 @@
             <label><input type="radio" name="m1-q2" value="c"> Sempre usa exatamente quatro bits.</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p role="status" aria-live="polite"></p>
+          <p role="status" aria-live="polite" class="modulo-secao__texto"></p>
         </form>
         <form class="widget-exercicio" data-resposta="c">
           <fieldset>
@@ -59,12 +64,12 @@
             <label><input type="radio" name="m1-q3" value="c"> A representação pode ter mais níveis e mais fidelidade.</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p role="status" aria-live="polite"></p>
+          <p role="status" aria-live="polite" class="modulo-secao__texto"></p>
         </form>
       </section>
       <section class="modulo-secao modulo-projeto" aria-labelledby="m1-projeto">
-        <h2 id="m1-projeto">Peça do projeto</h2>
-        <p>No caça-níqueis, os botões são entradas digitais (0 ou 1). O display de 7 segmentos é uma saída digital. Este módulo é a base de toda a interação do seu projeto final.</p>
+        <h2 id="m1-projeto" class="modulo-secao__titulo">Peça do projeto</h2>
+        <p class="modulo-secao__texto">No caça-níqueis, os botões são entradas digitais (0 ou 1). O display de 7 segmentos é uma saída digital. Este módulo é a base de toda a interação do seu projeto final.</p>
       </section>
       <nav class="modulo-nav" aria-label="Próximo módulo">
         <a class="btn btn--primary" href="02-numeracao.html">Próximo módulo →</a>

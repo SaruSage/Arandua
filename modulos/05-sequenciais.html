@@ -11,28 +11,33 @@
   </head>
   <body>
     <a href="#conteudo" class="skip-link">Pular para o conteúdo</a>
-    <header class="modulo-header container">
-      <span class="badge">Módulo 5</span>
-      <span class="modulo-progresso">Módulo 5 de 7</span>
-      <h1>Circuitos Sequenciais</h1>
-      <a class="btn btn--ghost" href="../index.html">← Voltar</a>
+    <header class="modulo-header">
+      <div class="modulo-header__inner">
+        <div class="modulo-header__meta">
+          <span class="badge">Módulo 5</span>
+          <span class="modulo-header__progresso">Módulo 5 de 7</span>
+        </div>
+        <h1 class="modulo-header__titulo">Circuitos Sequenciais</h1>
+        <p class="modulo-header__descricao">Descubra como memória e clock controlam circuitos digitais.</p>
+        <a class="btn btn--ghost" href="../index.html">← Voltar</a>
+      </div>
     </header>
     <main class="container modulo-conteudo" id="conteudo" tabindex="-1">
       <section class="modulo-secao modulo-teoria" aria-labelledby="m5-teoria">
-        <h2 id="m5-teoria">Teoria</h2>
-        <p>Ao contrário dos circuitos combinacionais, circuitos sequenciais guardam informação. A saída pode depender tanto das entradas atuais quanto do estado armazenado anteriormente.</p>
-        <p>Flip-flops são elementos básicos de memória. Cada um mantém um bit até que uma condição de controle permita mudar seu estado.</p>
-        <p>O flip-flop SR permite setar ou limpar o estado. O JK aprimora esse comportamento: quando J e K estão ativos ao mesmo tempo, ele inverte o estado atual.</p>
-        <p>O flip-flop D copia sua entrada D para Q quando recebe uma borda de clock. O flip-flop T alterna o estado quando T está ativo na borda de subida.</p>
-        <p>O clock é um sinal que alterna entre 0 e 1. Em circuitos sincronizados, a borda de subida coordena o instante em que os dados são capturados.</p>
-        <p>Registradores agrupam flip-flops para guardar vários bits de uma vez. Contadores também usam memória: a cada pulso, avançam para o próximo valor binário.</p>
+        <h2 id="m5-teoria" class="modulo-secao__titulo">Teoria</h2>
+        <p class="modulo-secao__texto">Ao contrário dos circuitos combinacionais, circuitos sequenciais guardam informação. A saída pode depender tanto das entradas atuais quanto do estado armazenado anteriormente.</p>
+        <p class="modulo-secao__texto">Flip-flops são elementos básicos de memória. Cada um mantém um bit até que uma condição de controle permita mudar seu estado.</p>
+        <p class="modulo-secao__texto">O flip-flop SR permite setar ou limpar o estado. O JK aprimora esse comportamento: quando J e K estão ativos ao mesmo tempo, ele inverte o estado atual.</p>
+        <p class="modulo-secao__texto">O flip-flop D copia sua entrada D para Q quando recebe uma borda de clock. O flip-flop T alterna o estado quando T está ativo na borda de subida.</p>
+        <p class="modulo-secao__texto">O clock é um sinal que alterna entre 0 e 1. Em circuitos sincronizados, a borda de subida coordena o instante em que os dados são capturados.</p>
+        <p class="modulo-secao__texto">Registradores agrupam flip-flops para guardar vários bits de uma vez. Contadores também usam memória: a cada pulso, avançam para o próximo valor binário.</p>
       </section>
       <section class="modulo-secao" aria-labelledby="m5-experimente">
-        <h2 id="m5-experimente">Experimente</h2>
+        <h2 id="m5-experimente" class="modulo-secao__titulo">Experimente</h2>
         <div class="widget-container" id="widget-m5"></div>
       </section>
       <section class="modulo-secao" aria-labelledby="m5-exercicios">
-        <h2 id="m5-exercicios">Exercício</h2>
+        <h2 id="m5-exercicios" class="modulo-secao__titulo">Exercício</h2>
         <form class="widget-exercicio" data-resposta="b">
           <fieldset>
             <legend>1. Quando o flip-flop D captura o valor de sua entrada?</legend>
@@ -41,7 +46,7 @@
             <label><input type="radio" name="m5-q1" value="c"> Somente quando a alimentação é desligada.</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p role="status" aria-live="polite"></p>
+          <p role="status" aria-live="polite" class="modulo-secao__texto"></p>
         </form>
         <form class="widget-exercicio" data-resposta="c">
           <fieldset>
@@ -51,7 +56,7 @@
             <label><input type="radio" name="m5-q2" value="c"> O estado atual é invertido na borda do clock.</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p role="status" aria-live="polite"></p>
+          <p role="status" aria-live="polite" class="modulo-secao__texto"></p>
         </form>
         <form class="widget-exercicio" data-resposta="a">
           <fieldset>
@@ -61,12 +66,12 @@
             <label><input type="radio" name="m5-q3" value="c"> Converter um sinal analógico em digital.</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p role="status" aria-live="polite"></p>
+          <p role="status" aria-live="polite" class="modulo-secao__texto"></p>
         </form>
       </section>
       <section class="modulo-secao modulo-projeto" aria-labelledby="m5-projeto">
-        <h2 id="m5-projeto">Peça do projeto</h2>
-        <p>No caça-níqueis, contadores acompanham os passos do jogo e registradores mantêm os valores sorteados. O clock sincroniza essas mudanças para que cada etapa aconteça na hora certa.</p>
+        <h2 id="m5-projeto" class="modulo-secao__titulo">Peça do projeto</h2>
+        <p class="modulo-secao__texto">No caça-níqueis, contadores acompanham os passos do jogo e registradores mantêm os valores sorteados. O clock sincroniza essas mudanças para que cada etapa aconteça na hora certa.</p>
       </section>
       <nav class="modulo-nav" aria-label="Próximo módulo">
         <a class="btn btn--primary" href="06-fpga.html">Próximo módulo →</a>

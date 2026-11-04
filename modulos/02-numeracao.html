@@ -11,26 +11,31 @@
   </head>
   <body>
     <a href="#conteudo" class="skip-link">Pular para o conteúdo</a>
-    <header class="modulo-header container">
-      <span class="badge">Módulo 2</span>
-      <span class="modulo-progresso">Módulo 2 de 7</span>
-      <h1>Sistemas de Numeração e Códigos</h1>
-      <a class="btn btn--ghost" href="../index.html">← Voltar</a>
+    <header class="modulo-header">
+      <div class="modulo-header__inner">
+        <div class="modulo-header__meta">
+          <span class="badge">Módulo 2</span>
+          <span class="modulo-header__progresso">Módulo 2 de 7</span>
+        </div>
+        <h1 class="modulo-header__titulo">Sistemas de Numeração e Códigos</h1>
+        <p class="modulo-header__descricao">Converta valores entre sistemas numéricos e conheça códigos binários.</p>
+        <a class="btn btn--ghost" href="../index.html">← Voltar</a>
+      </div>
     </header>
     <main class="container modulo-conteudo" id="conteudo" tabindex="-1">
       <section class="modulo-secao modulo-teoria" aria-labelledby="m2-teoria">
-        <h2 id="m2-teoria">Teoria</h2>
-        <p>Nosso sistema decimal usa dez símbolos, de 0 a 9. O sistema binário usa apenas 0 e 1, e cada posição representa uma potência de dois. Assim, <code>1010₂</code> vale <code>10₁₀</code>.</p>
-        <p>Octal e hexadecimal são formas compactas de escrever valores binários: cada dígito octal corresponde a três bits, e cada dígito hexadecimal corresponde a quatro.</p>
-        <p>Códigos são convenções que associam padrões de bits a informações. Em BCD, cada algarismo decimal é representado separadamente por quatro bits; o número 25, por exemplo, vira <code>0010 0101</code>.</p>
-        <p>O código Gray organiza valores vizinhos de modo que apenas um bit mude entre um valor e o próximo. Já o ASCII associa números a caracteres, como letras e algarismos.</p>
+        <h2 id="m2-teoria" class="modulo-secao__titulo">Teoria</h2>
+        <p class="modulo-secao__texto">Nosso sistema decimal usa dez símbolos, de 0 a 9. O sistema binário usa apenas 0 e 1, e cada posição representa uma potência de dois. Assim, <code>1010₂</code> vale <code>10₁₀</code>.</p>
+        <p class="modulo-secao__texto">Octal e hexadecimal são formas compactas de escrever valores binários: cada dígito octal corresponde a três bits, e cada dígito hexadecimal corresponde a quatro.</p>
+        <p class="modulo-secao__texto">Códigos são convenções que associam padrões de bits a informações. Em BCD, cada algarismo decimal é representado separadamente por quatro bits; o número 25, por exemplo, vira <code>0010 0101</code>.</p>
+        <p class="modulo-secao__texto">O código Gray organiza valores vizinhos de modo que apenas um bit mude entre um valor e o próximo. Já o ASCII associa números a caracteres, como letras e algarismos.</p>
       </section>
       <section class="modulo-secao" aria-labelledby="m2-experimente">
-        <h2 id="m2-experimente">Experimente</h2>
+        <h2 id="m2-experimente" class="modulo-secao__titulo">Experimente</h2>
         <div class="widget-container" id="widget-m2"></div>
       </section>
       <section class="modulo-secao" aria-labelledby="m2-exercicios">
-        <h2 id="m2-exercicios">Exercício</h2>
+        <h2 id="m2-exercicios" class="modulo-secao__titulo">Exercício</h2>
         <form class="widget-exercicio" data-resposta="b">
           <fieldset>
             <legend>1. Qual é o valor decimal de <code>1010₂</code>?</legend>
@@ -39,7 +44,7 @@
             <label><input type="radio" name="m2-q1" value="c"> 12</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p role="status" aria-live="polite"></p>
+          <p role="status" aria-live="polite" class="modulo-secao__texto"></p>
         </form>
         <form class="widget-exercicio" data-resposta="c">
           <fieldset>
@@ -49,7 +54,7 @@
             <label><input type="radio" name="m2-q2" value="c"> 4 bits</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p role="status" aria-live="polite"></p>
+          <p role="status" aria-live="polite" class="modulo-secao__texto"></p>
         </form>
         <form class="widget-exercicio" data-resposta="a">
           <fieldset>
@@ -59,12 +64,12 @@
             <label><input type="radio" name="m2-q3" value="c"> <code>0011 0000</code></label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p role="status" aria-live="polite"></p>
+          <p role="status" aria-live="polite" class="modulo-secao__texto"></p>
         </form>
       </section>
       <section class="modulo-secao modulo-projeto" aria-labelledby="m2-projeto">
-        <h2 id="m2-projeto">Peça do projeto</h2>
-        <p>O contador do caça-níqueis conta em binário. O display mostra em decimal. Você precisa saber converter entre os dois para fazer o circuito funcionar.</p>
+        <h2 id="m2-projeto" class="modulo-secao__titulo">Peça do projeto</h2>
+        <p class="modulo-secao__texto">O contador do caça-níqueis conta em binário. O display mostra em decimal. Você precisa saber converter entre os dois para fazer o circuito funcionar.</p>
       </section>
       <nav class="modulo-nav" aria-label="Próximo módulo">
         <a class="btn btn--primary" href="03-boole.html">Próximo módulo →</a>
