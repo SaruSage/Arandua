@@ -6,21 +6,21 @@ export const ALTURA_COMPONENTE = 60;
 
 const TAMANHO_GRADE = 20;
 const CORES = {
-  fundo: '#0f1117',
-  superficie: '#1a1d27',
-  borda: '#2a2f3e',
-  texto: '#e8eaed',
-  textoSecundario: '#9aa0ac',
-  acento: '#4f8cff',
-  acentoSecundario: '#00d4a0',
-  pinoUm: '#00d4a0',
-  pinoZero: '#4f8cff',
-  pinoIndefinido: '#9aa0ac',
+  fundo: '#ffffff',
+  grade: '#f0f4f2',
+  gradeForte: '#e0e8e4',
+  componente: '#ffffff',
+  componenteBorda: '#d4ddd8',
+  componenteSelecionado: '#53b588',
+  texto: '#191919',
+  pino: '#53b588',
+  pinoAtivo: '#3e9670',
+  pinoIndefinido: '#9a9a9a',
 };
 
 function corDoPino(valor) {
-  if (valor === 1) return CORES.pinoUm;
-  if (valor === 0) return CORES.pinoZero;
+  if (valor === 1) return CORES.pinoAtivo;
+  if (valor === 0) return CORES.pino;
   return CORES.pinoIndefinido;
 }
 
@@ -35,7 +35,7 @@ function desenharGrade(ctx, largura, altura, telaParaMundo) {
   for (let x = inicioX; x <= fimX; x += TAMANHO_GRADE) {
     const forte = x % (TAMANHO_GRADE * 5) === 0;
     ctx.beginPath();
-    ctx.strokeStyle = forte ? '#3a4052' : '#252a37';
+    ctx.strokeStyle = forte ? CORES.gradeForte : CORES.grade;
     ctx.lineWidth = forte ? 1.5 : 1;
     ctx.moveTo(x, inicioY);
     ctx.lineTo(x, fimY);
@@ -45,7 +45,7 @@ function desenharGrade(ctx, largura, altura, telaParaMundo) {
   for (let y = inicioY; y <= fimY; y += TAMANHO_GRADE) {
     const forte = y % (TAMANHO_GRADE * 5) === 0;
     ctx.beginPath();
-    ctx.strokeStyle = forte ? '#3a4052' : '#252a37';
+    ctx.strokeStyle = forte ? CORES.gradeForte : CORES.grade;
     ctx.lineWidth = forte ? 1.5 : 1;
     ctx.moveTo(inicioX, y);
     ctx.lineTo(fimX, y);
@@ -58,10 +58,10 @@ function desenharComponente(ctx, componente, selecionado, pinoSobCursor) {
 
   ctx.beginPath();
   ctx.roundRect(x, y, LARGURA_COMPONENTE, ALTURA_COMPONENTE, 8);
-  ctx.fillStyle = CORES.superficie;
+  ctx.fillStyle = CORES.componente;
   ctx.fill();
   ctx.lineWidth = selecionado ? 2 : 1;
-  ctx.strokeStyle = selecionado ? CORES.acento : CORES.borda;
+  ctx.strokeStyle = selecionado ? CORES.componenteSelecionado : CORES.componenteBorda;
   ctx.stroke();
 
   ctx.fillStyle = CORES.texto;
@@ -81,11 +81,11 @@ function desenharComponente(ctx, componente, selecionado, pinoSobCursor) {
     ctx.arc(x, posicaoY, emHover ? 8 : 5, 0, Math.PI * 2);
     ctx.fillStyle = emHover ? '#ffffff' : corDoPino(pino.valor);
     ctx.fill();
-    ctx.strokeStyle = emHover ? CORES.acento : CORES.fundo;
+    ctx.strokeStyle = emHover ? CORES.componenteSelecionado : CORES.fundo;
     ctx.lineWidth = emHover ? 2 : 1;
     ctx.stroke();
     if (nomesEntradas[indice]) {
-      ctx.fillStyle = CORES.textoSecundario;
+      ctx.fillStyle = CORES.texto;
       ctx.font = '9px system-ui, sans-serif';
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
@@ -104,11 +104,11 @@ function desenharComponente(ctx, componente, selecionado, pinoSobCursor) {
     ctx.arc(x + LARGURA_COMPONENTE, posicaoY, emHover ? 8 : 5, 0, Math.PI * 2);
     ctx.fillStyle = emHover ? '#ffffff' : corDoPino(pino.valor);
     ctx.fill();
-    ctx.strokeStyle = emHover ? CORES.acento : CORES.fundo;
+    ctx.strokeStyle = emHover ? CORES.componenteSelecionado : CORES.fundo;
     ctx.lineWidth = emHover ? 2 : 1;
     ctx.stroke();
     if (nomesSaidas[indice]) {
-      ctx.fillStyle = CORES.textoSecundario;
+      ctx.fillStyle = CORES.texto;
       ctx.font = '9px system-ui, sans-serif';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
