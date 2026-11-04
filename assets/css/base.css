@@ -1,0 +1,137 @@
+:root {
+  color-scheme: dark;
+  --cor-fundo: #0f1117;
+  --cor-superficie: #1a1d27;
+  --cor-superficie-alta: #232736;
+  --cor-texto: #e8eaed;
+  --cor-texto-sec: #9aa0ac;
+  --cor-acento: #4f8cff;
+  --cor-acento-2: #00d4a0;
+  --cor-alerta: #ff6b6b;
+  --cor-borda: #2a2f3e;
+  --esp-1: 4px;
+  --esp-2: 8px;
+  --esp-3: 12px;
+  --esp-4: 16px;
+  --esp-5: 24px;
+  --esp-6: 32px;
+  --esp-7: 48px;
+  --esp-8: 64px;
+  --raio-sm: 6px;
+  --raio-md: 12px;
+  --raio-lg: 20px;
+  --fonte-base: system-ui, -apple-system, sans-serif;
+  --fonte-mono: ui-monospace, 'Cascadia Code', monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: var(--cor-fundo);
+  color: var(--cor-texto);
+  font-family: var(--fonte-base);
+  font-size: clamp(1rem, 0.96rem + 0.2vw, 1.125rem);
+  line-height: 1.6;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0 0 var(--esp-4);
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+
+h1 {
+  font-size: clamp(2.25rem, 1.5rem + 3vw, 4rem);
+}
+
+h2 {
+  font-size: clamp(1.75rem, 1.35rem + 1.5vw, 2.5rem);
+}
+
+h3 {
+  font-size: clamp(1.25rem, 1.1rem + 0.65vw, 1.625rem);
+}
+
+h4 {
+  font-size: clamp(1.125rem, 1.05rem + 0.35vw, 1.375rem);
+}
+
+p {
+  margin: 0 0 var(--esp-4);
+}
+
+a {
+  color: var(--cor-acento);
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.18em;
+}
+
+a:hover {
+  color: var(--cor-acento-2);
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 3px solid var(--cor-acento-2);
+  outline-offset: 3px;
+}
+
+button {
+  color: inherit;
+  font: inherit;
+}
+
+code,
+pre {
+  font-family: var(--fonte-mono);
+}
+
+code {
+  padding: 0.12em 0.35em;
+  border-radius: var(--raio-sm);
+  background: var(--cor-superficie-alta);
+}
+
+pre {
+  overflow-x: auto;
+  padding: var(--esp-4);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-md);
+  background: var(--cor-superficie);
+}
+
+pre code {
+  padding: 0;
+  background: transparent;
+}
+
+::selection {
+  background: var(--cor-acento);
+  color: var(--cor-fundo);
+}
+
+.container {
+  width: min(100%, 1200px);
+  margin-inline: auto;
+  padding-inline: var(--esp-5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

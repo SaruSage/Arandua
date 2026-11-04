@@ -1,0 +1,229 @@
+.cabecalho {
+  border-bottom: 1px solid var(--cor-borda);
+  background: var(--cor-superficie);
+}
+
+.cabecalho__conteudo {
+  display: flex;
+  min-height: 88px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-5);
+  padding-block: var(--esp-4);
+}
+
+.marca {
+  display: grid;
+  gap: 2px;
+  color: var(--cor-texto);
+  text-decoration: none;
+}
+
+.marca:hover {
+  color: var(--cor-texto);
+}
+
+.marca__nome {
+  font-size: 1.5rem;
+  font-weight: 750;
+  line-height: 1.1;
+}
+
+.marca__subtitulo {
+  color: var(--cor-texto-sec);
+  font-size: 0.875rem;
+}
+
+.navegacao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--esp-2) var(--esp-5);
+}
+
+.navegacao a {
+  color: var(--cor-texto);
+  text-decoration: none;
+}
+
+.navegacao a:hover,
+.navegacao a[aria-current="page"] {
+  color: var(--cor-acento-2);
+}
+
+.hero {
+  max-width: 920px;
+  padding-block: clamp(var(--esp-8), 12vw, 112px) var(--esp-8);
+}
+
+.hero h1 {
+  max-width: 850px;
+}
+
+.hero > p:not(.hero__sobretitulo) {
+  max-width: 760px;
+  color: var(--cor-texto-sec);
+  font-size: clamp(1.0625rem, 1rem + 0.35vw, 1.25rem);
+}
+
+.hero .btn {
+  margin-top: var(--esp-3);
+}
+
+.hero__sobretitulo {
+  margin-bottom: var(--esp-3);
+  color: var(--cor-acento-2);
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.secao {
+  padding-block: var(--esp-7);
+}
+
+.secao__cabecalho {
+  max-width: 760px;
+  margin-bottom: var(--esp-5);
+}
+
+.secao__cabecalho .hero__sobretitulo {
+  margin-bottom: var(--esp-2);
+}
+
+.card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: var(--esp-5);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-md);
+  background: var(--cor-superficie);
+}
+
+.card h2,
+.card h3 {
+  margin-top: var(--esp-4);
+}
+
+.card p {
+  color: var(--cor-texto-sec);
+}
+
+.card--destaque {
+  border-color: var(--cor-acento);
+  background:
+    linear-gradient(145deg, rgb(79 140 255 / 10%), transparent 65%),
+    var(--cor-superficie);
+}
+
+.card__link {
+  margin-top: auto;
+  padding-top: var(--esp-2);
+  font-weight: 650;
+}
+
+.btn {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--esp-2);
+  padding: var(--esp-2) var(--esp-4);
+  border: 1px solid transparent;
+  border-radius: var(--raio-sm);
+  cursor: pointer;
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: center;
+  text-decoration: none;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.btn--primary {
+  background: var(--cor-acento);
+  color: var(--cor-fundo);
+}
+
+.btn--primary:hover {
+  background: #75a5ff;
+  color: var(--cor-fundo);
+}
+
+.btn--ghost {
+  border-color: var(--cor-borda);
+  background: transparent;
+  color: var(--cor-texto);
+}
+
+.btn--ghost:hover {
+  border-color: var(--cor-acento);
+  background: var(--cor-superficie-alta);
+  color: var(--cor-texto);
+}
+
+.btn--sm {
+  min-height: 36px;
+  padding: var(--esp-1) var(--esp-3);
+  font-size: 0.875rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--esp-1) var(--esp-3);
+  border: 1px solid var(--cor-borda);
+  border-radius: 999px;
+  background: var(--cor-superficie-alta);
+  color: var(--cor-texto);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.badge--destaque {
+  border-color: var(--cor-acento);
+  color: var(--cor-acento-2);
+}
+
+.grid-modulos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: var(--esp-4);
+}
+
+.grid-modulos--experiencias {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+}
+
+.footer {
+  margin-top: var(--esp-7);
+  padding-block: var(--esp-5);
+  border-top: 1px solid var(--cor-borda);
+  color: var(--cor-texto-sec);
+  font-size: 0.9375rem;
+  text-align: center;
+}
+
+.footer p {
+  margin: 0;
+}
+
+@media (max-width: 700px) {
+  .cabecalho__conteudo {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .navegacao {
+    justify-content: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn {
+    transition: none;
+  }
+}

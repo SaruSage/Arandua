@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Aprenda Sistemas Digitais construindo circuitos e um miniprocessador para um caça-níqueis.">
+    <title>Arandua — Laboratório de Sistemas Digitais</title>
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <script type="module" src="assets/js/app.js"></script>
+  </head>
+  <body>
+    <header class="cabecalho">
+      <div class="container cabecalho__conteudo">
+        <a class="marca" href="./index.html">
+          <span class="marca__nome">Arandua</span>
+          <span class="marca__subtitulo">Laboratório de Sistemas Digitais</span>
+        </a>
+        <nav class="navegacao" aria-label="Navegação principal">
+          <a href="./index.html">Início</a>
+          <a href="#modulos">Módulos</a>
+          <a href="#projeto">Projeto integrador</a>
+          <a href="#sandbox">Editor livre</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero container" aria-labelledby="titulo-principal">
+        <p class="hero__sobretitulo">Aprenda fazendo</p>
+        <h1 id="titulo-principal">Do primeiro bit a um miniprocessador</h1>
+        <p>
+          Arandua é um laboratório interativo para aprender Sistemas Digitais
+          passo a passo, explorando conceitos e montando circuitos como em um
+          simulador.
+        </p>
+        <p>
+          Não é preciso ter experiência com eletrônica: o conteúdo foi pensado
+          para quem está começando e culmina na construção, do zero, de um
+          miniprocessador que roda um caça-níqueis.
+        </p>
+        <a class="btn btn--primary" href="#modulos">Começar a aprender</a>
+      </section>
+
+      <section class="container secao" id="modulos" aria-labelledby="titulo-modulos">
+        <div class="secao__cabecalho">
+          <p class="hero__sobretitulo">Trilha de aprendizagem</p>
+          <h2 id="titulo-modulos">Sete passos para entender sistemas digitais</h2>
+        </div>
+        <div class="grid-modulos">
+          <article class="card">
+            <span class="badge">Módulo 01</span>
+            <h3>Primeiros passos</h3>
+            <p>Conheça a trilha e descubra como os circuitos digitais representam informações.</p>
+            <a class="card__link" href="modulos/01-primeiros-passos.html">Explorar módulo 01</a>
+          </article>
+          <article class="card">
+            <span class="badge">Módulo 02</span>
+            <h3>Sistemas numéricos</h3>
+            <p>Aprenda a contar e converter números entre decimal e binário.</p>
+            <a class="card__link" href="modulos/02-sistemas-numericos.html">Explorar módulo 02</a>
+          </article>
+          <article class="card">
+            <span class="badge">Módulo 03</span>
+            <h3>Lógica binária</h3>
+            <p>Entenda os valores 0 e 1 e como eles descrevem estados digitais.</p>
+            <a class="card__link" href="modulos/03-logica-binaria.html">Explorar módulo 03</a>
+          </article>
+          <article class="card">
+            <span class="badge">Módulo 04</span>
+            <h3>Portas lógicas</h3>
+            <p>Combine operações lógicas para criar decisões simples em um circuito.</p>
+            <a class="card__link" href="modulos/04-portas-logicas.html">Explorar módulo 04</a>
+          </article>
+          <article class="card">
+            <span class="badge">Módulo 05</span>
+            <h3>Circuitos combinacionais</h3>
+            <p>Monte circuitos cuja saída depende das entradas atuais.</p>
+            <a class="card__link" href="modulos/05-circuitos-combinacionais.html">Explorar módulo 05</a>
+          </article>
+          <article class="card">
+            <span class="badge">Módulo 06</span>
+            <h3>Circuitos sequenciais</h3>
+            <p>Explore memória, estados e circuitos que evoluem ao longo do tempo.</p>
+            <a class="card__link" href="modulos/06-circuitos-sequenciais.html">Explorar módulo 06</a>
+          </article>
+          <article class="card">
+            <span class="badge">Módulo 07</span>
+            <h3>Um computador simples</h3>
+            <p>Conheça os blocos de um processador e como eles trabalham em conjunto.</p>
+            <a class="card__link" href="modulos/07-computador-simples.html">Explorar módulo 07</a>
+          </article>
+        </div>
+      </section>
+
+      <section class="container secao" aria-label="Experiências práticas">
+        <div class="grid-modulos grid-modulos--experiencias">
+          <article class="card card--destaque" id="projeto">
+            <span class="badge badge--destaque">Projeto integrador</span>
+            <h2>Construa um caça-níqueis</h2>
+            <p>Reúna o que aprendeu para montar um miniprocessador que executa um jogo do zero.</p>
+            <a class="btn btn--primary" href="projeto/cacaniqueis.html">Conhecer o projeto</a>
+          </article>
+          <article class="card" id="sandbox">
+            <span class="badge">Prática livre</span>
+            <h2>Editor Livre — monte o que quiser</h2>
+            <p>Experimente suas próprias ideias em um espaço aberto de montagem de circuitos.</p>
+            <a class="btn btn--ghost" href="sandbox/editor.html">Abrir o editor livre</a>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container">
+        <p>Arandua — um projeto para aprender Sistemas Digitais. 2026.</p>
+      </div>
+    </footer>
+  </body>
+</html>

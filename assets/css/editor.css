@@ -1,0 +1,24 @@
+:root {
+  --grade-cor: #2a2f3e;
+  --fio-cor: #9aa0ac;
+  --fio-cor-ativo: #00d4a0;
+}
+
+/* TODO: preencher os estilos do editor na Fase 2. */
+.editor-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr) 280px;
+  min-height: 70vh;
+}
+
+.editor-paleta,
+.editor-canvas,
+.editor-painel {
+  min-width: 0;
+}
+
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-2);
+}
