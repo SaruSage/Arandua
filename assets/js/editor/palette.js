@@ -1,3 +1,10 @@
+import { METADADOS_COMPOSTOS } from '../components/compostos.js';
+
+function itemComposto(tipo) {
+  const { rotulo, numEntradas, numSaidas } = METADADOS_COMPOSTOS[tipo];
+  return { tipo, rotulo, numEntradas, numSaidas };
+}
+
 export const CATALOGO = [
   {
     categoria: 'Entradas e Saídas',
@@ -17,6 +24,9 @@ export const CATALOGO = [
       { tipo: 'NOR', rotulo: 'NOR', numEntradas: 2, numSaidas: 1 },
       { tipo: 'XOR', rotulo: 'XOR', numEntradas: 2, numSaidas: 1 },
       { tipo: 'XNOR', rotulo: 'XNOR', numEntradas: 2, numSaidas: 1 },
+      itemComposto('PORTA_AND_4'),
+      itemComposto('PORTA_OR_4'),
+      itemComposto('PORTA_XOR_4'),
     ],
   },
   {
@@ -29,6 +39,30 @@ export const CATALOGO = [
       { tipo: 'COUNTER', rotulo: 'COUNTER', numEntradas: 0, numSaidas: 4 },
       { tipo: 'REGISTER', rotulo: 'REGISTER', numEntradas: 4, numSaidas: 4 },
     ],
+  },
+  {
+    categoria: 'Aritmética',
+    itens: [
+      itemComposto('MEIO_SOMADOR'),
+      itemComposto('SOMADOR_COMPLETO'),
+      itemComposto('SOMADOR_4BITS'),
+      itemComposto('SUBTRATOR_4BITS'),
+      itemComposto('COMPARADOR_4BITS'),
+    ],
+  },
+  {
+    categoria: 'Seleção e Codificação',
+    itens: [
+      itemComposto('MUX_2_1'),
+      itemComposto('MUX_4_1'),
+      itemComposto('DEMUX_1_2'),
+      itemComposto('DECODIFICADOR_2_4'),
+      itemComposto('CODIFICADOR_4_2'),
+    ],
+  },
+  {
+    categoria: 'Exibição',
+    itens: [itemComposto('DISPLAY_7SEG')],
   },
 ];
 

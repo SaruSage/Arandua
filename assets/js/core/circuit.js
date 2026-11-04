@@ -6,6 +6,7 @@
 
 import { avaliarPorta, normalizar } from './gate.js';
 import { criarFio, fioExiste } from './wire.js';
+import { AVALIADORES_COMPOSTOS } from '../components/compostos.js';
 
 let contadorComponentes = 0;
 
@@ -43,6 +44,8 @@ function estadoInicial(tipo, numSaidas) {
       return { bits: numSaidas || 4, valor: 0 };
     case 'REGISTER':
       return { bits: numSaidas || 4, valor: new Array(numSaidas || 4).fill(0) };
+    case 'DISPLAY_7SEG':
+      return { valor: 0 };
     default:
       return {};
   }
@@ -206,6 +209,16 @@ function avaliarComponente(circuito, comp) {
   }
 
   if (TIPOS_SEQUENCIAIS.has(comp.tipo)) {
+    return;
+  }
+
+  if (comp.tipo in AVALIADORES_COMPOSTOS) {
+    const entradas = comp.entradas.map((p) =>
+      lerEntrada(circuito, comp.id, p.id));
+    const saidas = AVALIADORES_COMPOSTOS[comp.tipo](entradas, comp.estado);
+    for (let i = 0; i < saidas.length; i++) {
+      comp.saidas[i].valor = saidas[i];
+    }
     return;
   }
 

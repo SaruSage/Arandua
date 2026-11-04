@@ -1,4 +1,5 @@
 import { desenharFioFantasma, desenharFios } from './wiring.js';
+import { METADADOS_COMPOSTOS } from '../components/compostos.js';
 
 export const LARGURA_COMPONENTE = 80;
 export const ALTURA_COMPONENTE = 60;
@@ -70,6 +71,7 @@ function desenharComponente(ctx, componente, selecionado, pinoSobCursor) {
   ctx.fillText(componente.rotulo, x + LARGURA_COMPONENTE / 2, y + ALTURA_COMPONENTE / 2);
 
   const entradas = componente.entradas || [];
+  const nomesEntradas = METADADOS_COMPOSTOS[componente.tipo]?.nomesEntradas || [];
   entradas.forEach((pino, indice) => {
     const posicaoY = y + ((indice + 1) * ALTURA_COMPONENTE) / (entradas.length + 1);
     const emHover = pinoSobCursor?.componenteId === componente.id
@@ -82,9 +84,17 @@ function desenharComponente(ctx, componente, selecionado, pinoSobCursor) {
     ctx.strokeStyle = emHover ? CORES.acento : CORES.fundo;
     ctx.lineWidth = emHover ? 2 : 1;
     ctx.stroke();
+    if (nomesEntradas[indice]) {
+      ctx.fillStyle = CORES.textoSecundario;
+      ctx.font = '9px system-ui, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(nomesEntradas[indice], x - 5, posicaoY);
+    }
   });
 
   const saidas = componente.saidas || [];
+  const nomesSaidas = METADADOS_COMPOSTOS[componente.tipo]?.nomesSaidas || [];
   saidas.forEach((pino, indice) => {
     const posicaoY = y + ((indice + 1) * ALTURA_COMPONENTE) / (saidas.length + 1);
     const emHover = pinoSobCursor?.componenteId === componente.id
@@ -97,6 +107,13 @@ function desenharComponente(ctx, componente, selecionado, pinoSobCursor) {
     ctx.strokeStyle = emHover ? CORES.acento : CORES.fundo;
     ctx.lineWidth = emHover ? 2 : 1;
     ctx.stroke();
+    if (nomesSaidas[indice]) {
+      ctx.fillStyle = CORES.textoSecundario;
+      ctx.font = '9px system-ui, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(nomesSaidas[indice], x + LARGURA_COMPONENTE + 5, posicaoY);
+    }
   });
 }
 
