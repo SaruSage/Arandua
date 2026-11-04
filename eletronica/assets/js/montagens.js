@@ -5,6 +5,8 @@
  * virtual de 800x500.
  */
 
+import { posicaoPino } from './simbolos.js';
+
 /**
  * Estrutura de uma montagem:
  * {
@@ -426,17 +428,13 @@ export function desenharMontagem(ctx, montagem, desenharComponente, CATALOGO) {
     const compD = montagem.componentes[fio.para.comp];
     if (!compO || !compD) continue;
 
-    const dimO = CATALOGO[compO.tipo].dimensoes;
-    const dimD = CATALOGO[compD.tipo].dimensoes;
-
-    const pO = compO.pinos?.find((p) => p.id === fio.de.pino) || CATALOGO[compO.tipo].pinos.find((p) => p.id === fio.de.pino);
-    const pD = compD.pinos?.find((p) => p.id === fio.para.pino) || CATALOGO[compD.tipo].pinos.find((p) => p.id === fio.para.pino);
+    const pO = posicaoPino({ ...compO, x: compO.x, y: compO.y, pinos: CATALOGO[compO.tipo].pinos, dimensoes: CATALOGO[compO.tipo].dimensoes, rotacao: compO.rotacao || 0 }, fio.de.pino);
+    const pD = posicaoPino({ ...compD, x: compD.x, y: compD.y, pinos: CATALOGO[compD.tipo].pinos, dimensoes: CATALOGO[compD.tipo].dimensoes, rotacao: compD.rotacao || 0 }, fio.para.pino);
     if (!pO || !pD) continue;
-
-    const x1 = compO.x + dimO.w / 2 + pO.x;
-    const y1 = compO.y + dimO.h / 2 + pO.y;
-    const x2 = compD.x + dimD.w / 2 + pD.x;
-    const y2 = compD.y + dimD.h / 2 + pD.y;
+    const x1 = pO.x;
+    const y1 = pO.y;
+    const x2 = pD.x;
+    const y2 = pD.y;
 
     ctx.beginPath();
     ctx.moveTo(x1, y1);
@@ -462,7 +460,7 @@ export function desenharMontagem(ctx, montagem, desenharComponente, CATALOGO) {
       estado: {},
     };
 
-    desenharComponente(ctx, compFake, comp.x, comp.y, dim.w, dim.h);
+    desenharComponente(ctx, compFake, comp.x, comp.y, 1);
 
     // Rótulo do componente
     if (comp.rotulo) {

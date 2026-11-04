@@ -94,11 +94,8 @@ export function criarCanvas(elemento) {
 
     // Componentes
     for (const comp of circuito.componentes) {
-      const dim = CATALOGO[comp.tipo].dimensoes;
       const tela = mundoParaTela(comp.x, comp.y);
-      const w = dim.w * view.zoom;
-      const h = dim.h * view.zoom;
-      desenharComponente(ctx, comp, tela.x, tela.y, w, h);
+      desenharComponente(ctx, comp, tela.x, tela.y, view.zoom);
     }
 
     // Seleção de componentes

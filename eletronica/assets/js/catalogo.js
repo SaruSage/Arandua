@@ -80,10 +80,10 @@ export const CATALOGO = {
     categoria: 'Passivos',
     modelo: 'linear',
     pinos: [
-      { id: 'p1', x: -26, y: -10, nome: 'P1' },
-      { id: 'p2', x: -26, y: 10, nome: 'P2' },
-      { id: 's1', x: 26, y: -10, nome: 'S1' },
-      { id: 's2', x: 26, y: 10, nome: 'S2' },
+      { id: 'p1', x: -32, y: -12, nome: 'P1' },
+      { id: 'p2', x: -32, y: 12, nome: 'P2' },
+      { id: 's1', x: 32, y: -12, nome: 'S1' },
+      { id: 's2', x: 32, y: 12, nome: 'S2' },
     ],
     propriedades: {
       espirasPrimario: { tipo: 'numero', valor: 100, min: 1, max: 10000, rotulo: 'Espiras primário' },
@@ -176,15 +176,15 @@ export const CATALOGO = {
     categoria: 'Semicondutores',
     modelo: 'nao-linear',
     pinos: [
-      { id: 'b', x: -22, y: 0, nome: 'B' },
-      { id: 'c', x: 14, y: -18, nome: 'C' },
-      { id: 'e', x: 14, y: 18, nome: 'E' },
+      { id: 'b', x: -40, y: 0, nome: 'B' },
+      { id: 'c', x: 32, y: -32, nome: 'C' },
+      { id: 'e', x: 32, y: 32, nome: 'E' },
     ],
     propriedades: {
       ganho: { tipo: 'numero', valor: 100, min: 10, max: 1000, rotulo: 'β (hFE)' },
       tensaoBaseEmissor: { tipo: 'numero', valor: 0.7, min: 0.5, max: 0.9, step: 0.01, unidade: 'V', rotulo: 'Vbe' },
     },
-    dimensoes: { w: 48, h: 48 },
+    dimensoes: { w: 72, h: 72 },
   },
 
   TRANSISTOR_PNP: {
@@ -192,15 +192,15 @@ export const CATALOGO = {
     categoria: 'Semicondutores',
     modelo: 'nao-linear',
     pinos: [
-      { id: 'b', x: -22, y: 0, nome: 'B' },
-      { id: 'c', x: 14, y: 18, nome: 'C' },
-      { id: 'e', x: 14, y: -18, nome: 'E' },
+      { id: 'b', x: -40, y: 0, nome: 'B' },
+      { id: 'c', x: 32, y: 32, nome: 'C' },
+      { id: 'e', x: 32, y: -32, nome: 'E' },
     ],
     propriedades: {
       ganho: { tipo: 'numero', valor: 100, min: 10, max: 1000, rotulo: 'β (hFE)' },
       tensaoBaseEmissor: { tipo: 'numero', valor: -0.7, min: -0.9, max: -0.5, step: 0.01, unidade: 'V', rotulo: 'Vbe' },
     },
-    dimensoes: { w: 48, h: 48 },
+    dimensoes: { w: 72, h: 72 },
   },
 
   /* ===== FONTES E CHAVES ===== */
@@ -239,13 +239,13 @@ export const CATALOGO = {
     categoria: 'Fontes',
     modelo: 'chave',
     pinos: [
-      { id: 'p1', x: -20, y: 0, nome: 'A' },
-      { id: 'p2', x: 20, y: 0, nome: 'B' },
+      { id: 'p1', x: -24, y: 0, nome: 'A' },
+      { id: 'p2', x: 24, y: 0, nome: 'B' },
     ],
     propriedades: {
       fechada: { tipo: 'booleano', valor: false, rotulo: 'Fechada' },
     },
-    dimensoes: { w: 40, h: 26 },
+    dimensoes: { w: 48, h: 34 },
   },
 
   BOTAO: {
@@ -253,13 +253,13 @@ export const CATALOGO = {
     categoria: 'Fontes',
     modelo: 'chave',
     pinos: [
-      { id: 'p1', x: -20, y: 0, nome: 'A' },
-      { id: 'p2', x: 20, y: 0, nome: 'B' },
+      { id: 'p1', x: -24, y: 0, nome: 'A' },
+      { id: 'p2', x: 24, y: 0, nome: 'B' },
     ],
     propriedades: {
       pressionado: { tipo: 'booleano', valor: false, rotulo: 'Pressionado' },
     },
-    dimensoes: { w: 40, h: 26 },
+    dimensoes: { w: 48, h: 46 },
   },
 
   /* ===== LÓGICA ===== */
@@ -269,14 +269,14 @@ export const CATALOGO = {
     categoria: 'Lógica',
     modelo: 'logica',
     pinos: [
-      { id: 'a', x: -24, y: -8, nome: 'A' },
-      { id: 'b', x: -24, y: 8, nome: 'B' },
-      { id: 'y', x: 24, y: 0, nome: 'Y' },
+      { id: 'a', x: -32, y: -9, nome: 'A' },
+      { id: 'b', x: -32, y: 9, nome: 'B' },
+      { id: 'y', x: 32, y: 0, nome: 'Y' },
     ],
     propriedades: {
       familia: { tipo: 'select', valor: 'CMOS', opcoes: ['CMOS', 'TTL'], rotulo: 'Família' },
     },
-    dimensoes: { w: 48, h: 36 },
+    dimensoes: { w: 64, h: 40 },
     montagem: 'AND',
   },
 
@@ -285,14 +285,14 @@ export const CATALOGO = {
     categoria: 'Lógica',
     modelo: 'logica',
     pinos: [
-      { id: 'a', x: -24, y: -8, nome: 'A' },
-      { id: 'b', x: -24, y: 8, nome: 'B' },
-      { id: 'y', x: 24, y: 0, nome: 'Y' },
+      { id: 'a', x: -32, y: -9, nome: 'A' },
+      { id: 'b', x: -32, y: 9, nome: 'B' },
+      { id: 'y', x: 32, y: 0, nome: 'Y' },
     ],
     propriedades: {
       familia: { tipo: 'select', valor: 'CMOS', opcoes: ['CMOS', 'TTL'], rotulo: 'Família' },
     },
-    dimensoes: { w: 48, h: 36 },
+    dimensoes: { w: 64, h: 40 },
     montagem: 'OR',
   },
 
@@ -301,13 +301,13 @@ export const CATALOGO = {
     categoria: 'Lógica',
     modelo: 'logica',
     pinos: [
-      { id: 'a', x: -24, y: 0, nome: 'A' },
-      { id: 'y', x: 24, y: 0, nome: 'Y' },
+      { id: 'a', x: -32, y: 0, nome: 'A' },
+      { id: 'y', x: 34, y: 0, nome: 'Y' },
     ],
     propriedades: {
       familia: { tipo: 'select', valor: 'CMOS', opcoes: ['CMOS', 'TTL'], rotulo: 'Família' },
     },
-    dimensoes: { w: 48, h: 32 },
+    dimensoes: { w: 64, h: 32 },
     montagem: 'NOT',
   },
 
@@ -316,14 +316,14 @@ export const CATALOGO = {
     categoria: 'Lógica',
     modelo: 'logica',
     pinos: [
-      { id: 'a', x: -24, y: -8, nome: 'A' },
-      { id: 'b', x: -24, y: 8, nome: 'B' },
-      { id: 'y', x: 24, y: 0, nome: 'Y' },
+      { id: 'a', x: -32, y: -9, nome: 'A' },
+      { id: 'b', x: -32, y: 9, nome: 'B' },
+      { id: 'y', x: 34, y: 0, nome: 'Y' },
     ],
     propriedades: {
       familia: { tipo: 'select', valor: 'CMOS', opcoes: ['CMOS', 'TTL'], rotulo: 'Família' },
     },
-    dimensoes: { w: 48, h: 36 },
+    dimensoes: { w: 64, h: 40 },
     montagem: 'NAND',
   },
 
@@ -332,14 +332,14 @@ export const CATALOGO = {
     categoria: 'Lógica',
     modelo: 'logica',
     pinos: [
-      { id: 'a', x: -24, y: -8, nome: 'A' },
-      { id: 'b', x: -24, y: 8, nome: 'B' },
-      { id: 'y', x: 24, y: 0, nome: 'Y' },
+      { id: 'a', x: -32, y: -9, nome: 'A' },
+      { id: 'b', x: -32, y: 9, nome: 'B' },
+      { id: 'y', x: 34, y: 0, nome: 'Y' },
     ],
     propriedades: {
       familia: { tipo: 'select', valor: 'CMOS', opcoes: ['CMOS', 'TTL'], rotulo: 'Família' },
     },
-    dimensoes: { w: 48, h: 36 },
+    dimensoes: { w: 64, h: 40 },
     montagem: 'NOR',
   },
 
@@ -348,14 +348,14 @@ export const CATALOGO = {
     categoria: 'Lógica',
     modelo: 'logica',
     pinos: [
-      { id: 'a', x: -24, y: -8, nome: 'A' },
-      { id: 'b', x: -24, y: 8, nome: 'B' },
-      { id: 'y', x: 24, y: 0, nome: 'Y' },
+      { id: 'a', x: -32, y: -9, nome: 'A' },
+      { id: 'b', x: -32, y: 9, nome: 'B' },
+      { id: 'y', x: 32, y: 0, nome: 'Y' },
     ],
     propriedades: {
       familia: { tipo: 'select', valor: 'CMOS', opcoes: ['CMOS', 'TTL'], rotulo: 'Família' },
     },
-    dimensoes: { w: 48, h: 36 },
+    dimensoes: { w: 64, h: 40 },
     montagem: 'XOR',
   },
 
@@ -364,14 +364,14 @@ export const CATALOGO = {
     categoria: 'Lógica',
     modelo: 'logica',
     pinos: [
-      { id: 'a', x: -24, y: -8, nome: 'A' },
-      { id: 'b', x: -24, y: 8, nome: 'B' },
-      { id: 'y', x: 24, y: 0, nome: 'Y' },
+      { id: 'a', x: -32, y: -9, nome: 'A' },
+      { id: 'b', x: -32, y: 9, nome: 'B' },
+      { id: 'y', x: 34, y: 0, nome: 'Y' },
     ],
     propriedades: {
       familia: { tipo: 'select', valor: 'CMOS', opcoes: ['CMOS', 'TTL'], rotulo: 'Família' },
     },
-    dimensoes: { w: 48, h: 36 },
+    dimensoes: { w: 64, h: 40 },
     montagem: 'XNOR',
   },
 
@@ -380,13 +380,13 @@ export const CATALOGO = {
     categoria: 'Lógica',
     modelo: 'logica',
     pinos: [
-      { id: 'a', x: -24, y: 0, nome: 'A' },
-      { id: 'y', x: 24, y: 0, nome: 'Y' },
+      { id: 'a', x: -32, y: 0, nome: 'A' },
+      { id: 'y', x: 32, y: 0, nome: 'Y' },
     ],
     propriedades: {
       familia: { tipo: 'select', valor: 'CMOS', opcoes: ['CMOS', 'TTL'], rotulo: 'Família' },
     },
-    dimensoes: { w: 48, h: 32 },
+    dimensoes: { w: 64, h: 36 },
     montagem: 'BUFFER',
   },
 
@@ -397,14 +397,14 @@ export const CATALOGO = {
     categoria: 'Compostos',
     modelo: 'composto',
     pinos: [
-      { id: 'a', x: -28, y: -30, nome: 'a' },
-      { id: 'b', x: -28, y: -18, nome: 'b' },
-      { id: 'c', x: -28, y: -6, nome: 'c' },
-      { id: 'd', x: -28, y: 6, nome: 'd' },
-      { id: 'e', x: -28, y: 18, nome: 'e' },
-      { id: 'f', x: -28, y: 30, nome: 'f' },
-      { id: 'g', x: 28, y: 0, nome: 'g' },
-      { id: 'com', x: 28, y: 18, nome: 'COM' },
+      { id: 'a', x: -34, y: -30, nome: 'a' },
+      { id: 'b', x: -34, y: -18, nome: 'b' },
+      { id: 'c', x: -34, y: -6, nome: 'c' },
+      { id: 'd', x: -34, y: 6, nome: 'd' },
+      { id: 'e', x: -34, y: 18, nome: 'e' },
+      { id: 'f', x: -34, y: 30, nome: 'f' },
+      { id: 'g', x: 34, y: -12, nome: 'g' },
+      { id: 'com', x: 34, y: 12, nome: 'COM' },
     ],
     propriedades: {
       cor: { tipo: 'cor', valor: '#ff3b30', rotulo: 'Cor' },
@@ -419,11 +419,11 @@ export const CATALOGO = {
     categoria: 'Compostos',
     modelo: 'composto',
     pinos: [
-      { id: 'inm', x: -30, y: -10, nome: '−' },
-      { id: 'inp', x: -30, y: 10, nome: '+' },
-      { id: 'out', x: 30, y: 0, nome: 'OUT' },
-      { id: 'vmais', x: 0, y: -26, nome: 'V+' },
-      { id: 'vmenos', x: 0, y: 26, nome: 'V−' },
+      { id: 'inm', x: -32, y: -12, nome: '−' },
+      { id: 'inp', x: -32, y: 12, nome: '+' },
+      { id: 'out', x: 32, y: 0, nome: 'OUT' },
+      { id: 'vmais', x: 0, y: -30, nome: 'V+' },
+      { id: 'vmenos', x: 0, y: 30, nome: 'V−' },
     ],
     propriedades: {
       ganho: { tipo: 'numero', valor: 100000, min: 1000, max: 1e7, rotulo: 'Ganho A' },
@@ -493,6 +493,7 @@ export function criarInstancia(tipo, x = 0, y = 0) {
     tipo,
     x,
     y,
+    dimensoes: def.dimensoes,
     rotacao: 0,
     propriedades,
     pinos: def.pinos.map((p) => ({ ...p })),

@@ -172,11 +172,6 @@ async function desenharMiniatura(canvasMini, tipo) {
 
   const dim = CATALOGO[tipo].dimensoes;
   const escala = Math.min((largura - 20) / dim.w, (altura - 14) / dim.h);
-  const w = dim.w * escala;
-  const h = dim.h * escala;
-  const x = (largura - w) / 2;
-  const y = (altura - h) / 2;
-
   const compFake = {
     tipo,
     x: 0, y: 0,
@@ -186,7 +181,11 @@ async function desenharMiniatura(canvasMini, tipo) {
     dimensoes: dim,
   };
 
-  desenharComponente(ctx, compFake, x, y, w, h);
+  const w = dim.w * escala;
+  const h = dim.h * escala;
+  const x = (largura - w) / 2;
+  const y = (altura - h) / 2;
+  desenharComponente(ctx, compFake, x, y, escala);
 }
 
 function renderizarTudo() {

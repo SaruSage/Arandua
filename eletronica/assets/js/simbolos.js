@@ -1,7 +1,12 @@
 /**
  * simbolos.js — Desenho técnico de cada componente eletrônico.
- * Padrão IEC, traço fino escuro sobre branco, pinos como círculos vazados.
- * Cada desenhador recebe (ctx, comp, x, y, w, h) em coordenadas de tela.
+ *
+ * Regras:
+ * - Desenho em coordenadas LOCAIS fixas (dim.w × dim.h)
+ * - Letra/número único do pino: DENTRO do círculo
+ * - Nome com mais de um caractere: FORA, acima ou abaixo do pino
+ * - Haste do pino encosta no corpo, sem invadir o desenho
+ * - Setas dos transistores: simétricas, na direção da linha
  */
 
 export const CORES = {
@@ -33,7 +38,12 @@ function preparar(ctx) {
   ctx.fillStyle = CORES.preenchimento;
 }
 
-function desenharPino(ctx, x, y, valor) {
+/**
+ * Desenha um pino com rótulo.
+ * - Rótulo de 1 caractere: desenhado DENTRO do círculo
+ * - Rótulo com 2+ caracteres: desenhado FORA, acima ou abaixo
+ */
+function desenharPinoComRotulo(ctx, x, y, valor, nome, posicaoRotulo) {
   ctx.save();
   ctx.beginPath();
   ctx.arc(x, y, RAIO_PINO, 0, Math.PI * 2);
@@ -43,6 +53,45 @@ function desenharPino(ctx, x, y, valor) {
   ctx.fill();
   ctx.lineWidth = 1.5;
   ctx.strokeStyle = CORES.traco;
+  ctx.stroke();
+  ctx.restore();
+
+  if (!nome) return;
+
+  const curto = nome.length <= 1;
+
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  if (curto) {
+    // Dentro do pino
+    ctx.fillStyle = valor === 1 ? '#ffffff' : CORES.traco;
+    ctx.font = '700 6px system-ui, sans-serif';
+    ctx.fillText(nome, x, y + 0.5);
+  } else {
+    // Fora do pino, acima ou abaixo
+    ctx.fillStyle = CORES.tracoFino;
+    ctx.font = '600 7px system-ui, sans-serif';
+    const offsetY = posicaoRotulo === 'baixo' ? RAIO_PINO + 7 : -(RAIO_PINO + 7);
+    ctx.fillText(nome, x, y + offsetY);
+  }
+
+  ctx.restore();
+}
+
+/**
+ * Desenha uma haste de pino: linha curta do círculo até o corpo.
+ * x1,y1 = centro do pino; x2,y2 = ponto onde encosta no corpo.
+ */
+function haste(ctx, x1, y1, x2, y2) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
+  ctx.lineCap = 'round';
   ctx.stroke();
   ctx.restore();
 }
@@ -57,45 +106,44 @@ function desenharRotulo(ctx, texto, cx, cy, tamanho = 10) {
   ctx.restore();
 }
 
-function desenharRotuloPino(ctx, texto, x, y, alinhamento = 'left') {
+/**
+ * Desenha uma seta com geometria correta ao longo de uma linha.
+ * A ponta é simétrica e apontada na direção (dx, dy).
+ */
+function desenharSeta(ctx, x, y, dx, dy, tamanho = 7, cor = CORES.traco) {
+  const dist = Math.hypot(dx, dy) || 1;
+  const ux = dx / dist;
+  const uy = dy / dist;
+  const px = -uy;
+  const py = ux;
+
+  const pontaX = x + ux * tamanho;
+  const pontaY = y + uy * tamanho;
+  const largura = tamanho * 0.42;
+
   ctx.save();
-  ctx.fillStyle = CORES.tracoFino;
-  ctx.font = '500 8px system-ui, sans-serif';
-  ctx.textAlign = alinhamento;
-  ctx.textBaseline = 'middle';
-  const offset = alinhamento === 'left' ? 8 : -8;
-  ctx.fillText(texto, x + offset, y);
+  ctx.beginPath();
+  ctx.moveTo(pontaX, pontaY);
+  ctx.lineTo(x + px * largura, y + py * largura);
+  ctx.lineTo(x - px * largura, y - py * largura);
+  ctx.closePath();
+  ctx.fillStyle = cor;
+  ctx.fill();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = cor;
+  ctx.stroke();
   ctx.restore();
-}
-
-/** Desenha todos os pinos de um componente a partir das posições relativas. */
-function desenharPinosDoComponente(ctx, comp, x, y, w, h) {
-  const dim = comp.dimensoes || { w, h };
-  const escalaX = w / dim.w;
-  const escalaY = h / dim.h;
-
-  for (const pino of comp.pinos) {
-    const px = x + w / 2 + pino.x * escalaX;
-    const py = y + h / 2 + pino.y * escalaY;
-    desenharPino(ctx, px, py, pino.valor);
-    if (pino.nome && comp.pinos.length <= 8) {
-      const alinhamento = pino.x < 0 ? 'left' : 'right';
-      desenharRotuloPino(ctx, pino.nome, px, py, alinhamento);
-    }
-  }
 }
 
 /* ===== PASSIVOS ===== */
 
-/** Resistor: retângulo com zigue-zague interno (padrão IEC). */
 export function desenharRESISTOR(ctx, comp, x, y, w, h) {
   preparar(ctx);
-  const corpoW = w * 0.6;
-  const corpoH = h * 0.5;
+  const corpoW = w * 0.55;
+  const corpoH = h * 0.42;
   const cx = x + w / 2;
   const cy = y + h / 2;
 
-  // Hastes
   ctx.beginPath();
   ctx.moveTo(x, cy);
   ctx.lineTo(cx - corpoW / 2, cy);
@@ -103,45 +151,78 @@ export function desenharRESISTOR(ctx, comp, x, y, w, h) {
   ctx.lineTo(x + w, cy);
   ctx.stroke();
 
-  // Corpo retangular
   ctx.beginPath();
   ctx.rect(cx - corpoW / 2, cy - corpoH / 2, corpoW, corpoH);
   ctx.fill();
   ctx.stroke();
 }
 
-/** Potenciômetro: resistor com seta diagonal. */
+/**
+ * Potenciômetro: resistor com corpo de cantos arredondados e seta
+ * de cursor bem definida (haste + ponta triangular).
+ */
 export function desenharPOTENCIOMETRO(ctx, comp, x, y, w, h) {
-  desenharRESISTOR(ctx, comp, x, y, w, h);
   preparar(ctx);
+  const corpoW = w * 0.55;
+  const corpoH = h * 0.42;
   const cx = x + w / 2;
   const cy = y + h / 2;
+  const raio = 4;
 
-  // Seta do cursor
+  // Hastes
   ctx.beginPath();
-  ctx.moveTo(cx - 12, cy - 18);
-  ctx.lineTo(cx + 4, cy - 6);
+  ctx.moveTo(x, cy);
+  ctx.lineTo(cx - corpoW / 2, cy);
+  ctx.moveTo(cx + corpoW / 2, cy);
+  ctx.lineTo(x + w, cy);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 
-  // Ponta da seta
+  // Corpo com cantos arredondados
   ctx.beginPath();
-  ctx.moveTo(cx + 4, cy - 6);
-  ctx.lineTo(cx - 1, cy - 8);
-  ctx.lineTo(cx + 2, cy - 12);
-  ctx.closePath();
+  ctx.roundRect(cx - corpoW / 2, cy - corpoH / 2, corpoW, corpoH, raio);
+  ctx.fillStyle = CORES.preenchimento;
   ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
+  ctx.stroke();
+
+  // Seta do cursor: haste vertical + ponta triangular definida
+  const topoSeta = cy - corpoH / 2 - 16;
+  const baseSeta = cy - corpoH / 2 - 2;
+  const larguraPonta = 4.5;
+  const alturaPonta = 8;
+
+  // Haste
+  ctx.beginPath();
+  ctx.moveTo(cx, topoSeta);
+  ctx.lineTo(cx, baseSeta - alturaPonta);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // Ponta triangular preenchida
+  ctx.beginPath();
+  ctx.moveTo(cx, baseSeta);
+  ctx.lineTo(cx - larguraPonta, baseSeta - alturaPonta);
+  ctx.lineTo(cx + larguraPonta, baseSeta - alturaPonta);
+  ctx.closePath();
+  ctx.fillStyle = CORES.traco;
+  ctx.fill();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 }
 
-/** Capacitor: duas placas paralelas. */
 export function desenharCAPACITOR(ctx, comp, x, y, w, h) {
   preparar(ctx);
   const cx = x + w / 2;
   const cy = y + h / 2;
-  const gap = 6;
-  const placaH = h * 0.55;
+  const gap = 5;
+  const placaH = h * 0.5;
 
-  // Hastes
   ctx.beginPath();
   ctx.moveTo(x, cy);
   ctx.lineTo(cx - gap, cy);
@@ -149,7 +230,6 @@ export function desenharCAPACITOR(ctx, comp, x, y, w, h) {
   ctx.lineTo(x + w, cy);
   ctx.stroke();
 
-  // Placas
   ctx.beginPath();
   ctx.moveTo(cx - gap, cy - placaH / 2);
   ctx.lineTo(cx - gap, cy + placaH / 2);
@@ -159,138 +239,161 @@ export function desenharCAPACITOR(ctx, comp, x, y, w, h) {
   ctx.stroke();
 }
 
-/** Indutor: bobina em espiral. */
 export function desenharINDUTOR(ctx, comp, x, y, w, h) {
   preparar(ctx);
   const cy = y + h / 2;
-  const inicio = x + w * 0.15;
-  const fim = x + w * 0.85;
+  const inicio = x + w * 0.2;
+  const fim = x + w * 0.8;
   const n = 4;
   const passo = (fim - inicio) / n;
-  const raio = h * 0.22;
+  const raio = passo / 2;
 
-  // Hastes
+  // Hastes: da borda do corpo até o início e o fim da espiral
   ctx.beginPath();
   ctx.moveTo(x, cy);
   ctx.lineTo(inicio, cy);
   ctx.moveTo(fim, cy);
   ctx.lineTo(x + w, cy);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 
-  // Bobinas
+  // Espiral contínua: cada arco começa onde o anterior termina
   ctx.beginPath();
+  ctx.moveTo(inicio, cy);
   for (let i = 0; i < n; i++) {
-    const cx = inicio + passo * (i + 0.5);
-    ctx.arc(cx, cy, passo / 2, Math.PI, 0);
+    const cxArco = inicio + passo * i + raio;
+    ctx.arc(cxArco, cy, raio, Math.PI, 0, false);
   }
   ctx.stroke();
 }
 
-/** Transformador: dois enrolamentos com núcleo. */
+/**
+ * Transformador: dois enrolamentos com núcleo.
+ * As hastes horizontais das bobinas ENCOSTAM nos pinos.
+ */
 export function desenharTRANSFORMADOR(ctx, comp, x, y, w, h) {
   preparar(ctx);
   const cx = x + w / 2;
   const cy = y + h / 2;
 
-  // Núcleo (duas linhas verticais)
+  const nucleoH = h * 0.62;
   ctx.beginPath();
-  ctx.moveTo(cx - 2, cy - h * 0.35);
-  ctx.lineTo(cx - 2, cy + h * 0.35);
-  ctx.moveTo(cx + 2, cy - h * 0.35);
-  ctx.lineTo(cx + 2, cy + h * 0.35);
+  ctx.moveTo(cx - 2, cy - nucleoH / 2);
+  ctx.lineTo(cx - 2, cy + nucleoH / 2);
+  ctx.moveTo(cx + 2, cy - nucleoH / 2);
+  ctx.lineTo(cx + 2, cy + nucleoH / 2);
   ctx.stroke();
 
-  // Enrolamento primário (esquerda)
   const n = 4;
-  const passo = (h * 0.6) / n;
+  const alturaEnrol = nucleoH * 0.9;
+  const passo = alturaEnrol / n;
+  const raio = passo / 2;
+  const topo = cy - alturaEnrol / 2;
+
+  // Primário (esquerda)
   ctx.beginPath();
+  ctx.moveTo(cx - 10, topo);
   for (let i = 0; i < n; i++) {
-    const yy = cy - h * 0.3 + passo * (i + 0.5);
-    ctx.arc(cx - 10, yy, passo / 2, Math.PI / 2, -Math.PI / 2, true);
+    const yy = topo + passo * i + raio;
+    ctx.arc(cx - 10, yy, raio, -Math.PI / 2, Math.PI / 2, true);
   }
   ctx.stroke();
 
-  // Enrolamento secundário (direita)
+  // Secundário (direita)
   ctx.beginPath();
+  ctx.moveTo(cx + 10, topo);
   for (let i = 0; i < n; i++) {
-    const yy = cy - h * 0.3 + passo * (i + 0.5);
-    ctx.arc(cx + 10, yy, passo / 2, -Math.PI / 2, Math.PI / 2, true);
+    const yy = topo + passo * i + raio;
+    ctx.arc(cx + 10, yy, raio, -Math.PI / 2, Math.PI / 2, false);
   }
+  ctx.stroke();
+
+  // Hastes horizontais: das pontas das bobinas até os PINOS
+  // Pinos estão em x = -32 e x = +32 relativos ao centro
+  const pinoEsqX = cx - 32;
+  const pinoDirX = cx + 32;
+
+  ctx.beginPath();
+  ctx.moveTo(cx - 10, topo);
+  ctx.lineTo(pinoEsqX, topo);
+  ctx.moveTo(cx - 10, topo + alturaEnrol);
+  ctx.lineTo(pinoEsqX, topo + alturaEnrol);
+  ctx.moveTo(cx + 10, topo);
+  ctx.lineTo(pinoDirX, topo);
+  ctx.moveTo(cx + 10, topo + alturaEnrol);
+  ctx.lineTo(pinoDirX, topo + alturaEnrol);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 }
 
 /* ===== SENSORES ===== */
 
-/** LDR: resistor com setas apontando para ele. */
 export function desenharLDR(ctx, comp, x, y, w, h) {
   desenharRESISTOR(ctx, comp, x, y, w, h);
   preparar(ctx);
   const cx = x + w / 2;
   const cy = y + h / 2;
+  const corpoH = h * 0.42;
 
-  // Duas setas diagonais
   for (let i = 0; i < 2; i++) {
-    const ox = cx - 8 + i * 10;
+    const ox = cx - 10 + i * 12;
+    const inicioY = cy - corpoH / 2 - 14;
+    const fimY = cy - corpoH / 2 - 3;
+
     ctx.beginPath();
-    ctx.moveTo(ox, cy - 16);
-    ctx.lineTo(ox + 6, cy - 6);
+    ctx.moveTo(ox - 4, inicioY);
+    ctx.lineTo(ox, fimY);
     ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(ox + 6, cy - 6);
-    ctx.lineTo(ox + 2, cy - 8);
-    ctx.lineTo(ox + 5, cy - 11);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
+
+    desenharSeta(ctx, ox - 1.5, fimY - 5, 1, 1.3, 5);
   }
 }
 
-/** Termistor: resistor com barra diagonal. */
 export function desenharTERMISTOR(ctx, comp, x, y, w, h) {
   desenharRESISTOR(ctx, comp, x, y, w, h);
   preparar(ctx);
   const cx = x + w / 2;
   const cy = y + h / 2;
+  const corpoH = h * 0.42;
+  const corpoW = w * 0.55;
 
   ctx.beginPath();
-  ctx.moveTo(cx - 14, cy + 12);
-  ctx.lineTo(cx + 14, cy - 12);
+  ctx.moveTo(cx - corpoW / 2 - 4, cy + corpoH / 2 + 4);
+  ctx.lineTo(cx + corpoW / 2 + 4, cy - corpoH / 2 - 4);
   ctx.stroke();
 }
 
-/** Fotodiodo: diodo com setas entrando. */
 export function desenharFOTODIODO(ctx, comp, x, y, w, h) {
   desenharDIODO(ctx, comp, x, y, w, h);
   preparar(ctx);
   const cx = x + w / 2;
   const cy = y + h / 2;
+  const tam = h * 0.38;
 
   for (let i = 0; i < 2; i++) {
-    const ox = cx - 10 + i * 8;
+    const ox = cx - 8 + i * 10;
+    const inicioY = cy - tam - 16;
+    const fimY = cy - tam - 4;
+
     ctx.beginPath();
-    ctx.moveTo(ox, cy - 18);
-    ctx.lineTo(ox + 4, cy - 10);
+    ctx.moveTo(ox - 4, inicioY);
+    ctx.lineTo(ox, fimY);
     ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(ox + 4, cy - 10);
-    ctx.lineTo(ox, cy - 12);
-    ctx.lineTo(ox + 3, cy - 15);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
+
+    desenharSeta(ctx, ox - 1.5, fimY - 5, 1, 1.3, 5);
   }
 }
 
 /* ===== SEMICONDUTORES ===== */
 
-/** Diodo: triângulo com barra. */
 export function desenharDIODO(ctx, comp, x, y, w, h) {
   preparar(ctx);
   const cx = x + w / 2;
   const cy = y + h / 2;
-  const tam = h * 0.4;
+  const tam = h * 0.38;
 
-  // Hastes
   ctx.beginPath();
   ctx.moveTo(x, cy);
   ctx.lineTo(cx - tam, cy);
@@ -298,7 +401,6 @@ export function desenharDIODO(ctx, comp, x, y, w, h) {
   ctx.lineTo(x + w, cy);
   ctx.stroke();
 
-  // Triângulo
   ctx.beginPath();
   ctx.moveTo(cx - tam, cy - tam);
   ctx.lineTo(cx + tam, cy);
@@ -307,7 +409,6 @@ export function desenharDIODO(ctx, comp, x, y, w, h) {
   ctx.fill();
   ctx.stroke();
 
-  // Barra (cátodo)
   ctx.beginPath();
   ctx.moveTo(cx + tam, cy - tam);
   ctx.lineTo(cx + tam, cy + tam);
@@ -315,261 +416,472 @@ export function desenharDIODO(ctx, comp, x, y, w, h) {
   ctx.stroke();
 }
 
-/** LED: diodo com setas saindo, cor configurável. */
+/**
+ * LED: diodo com duas setas paralelas saindo na diagonal superior direita.
+ * Setas cinzas quando apagado; coloridas com brilho quando aceso.
+ */
 export function desenharLED(ctx, comp, x, y, w, h) {
   desenharDIODO(ctx, comp, x, y, w, h);
-  const cor = comp.propriedades?.cor || '#ff3b30';
   const cx = x + w / 2;
   const cy = y + h / 2;
+  const tam = h * 0.38;
+  const aceso = comp.estado?.aceso === true;
+  const cor = comp.propriedades?.cor || '#ff3b30';
 
-  // Setas de emissão
-  ctx.save();
-  ctx.strokeStyle = cor;
-  ctx.fillStyle = cor;
-  ctx.lineWidth = 1.5;
-  for (let i = 0; i < 2; i++) {
-    const ox = cx + 4 + i * 8;
-    ctx.beginPath();
-    ctx.moveTo(ox, cy - 14);
-    ctx.lineTo(ox + 6, cy - 20);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(ox + 6, cy - 20);
-    ctx.lineTo(ox + 1, cy - 19);
-    ctx.lineTo(ox + 4, cy - 16);
-    ctx.closePath();
-    ctx.fill();
-  }
-  ctx.restore();
-
-  // Brilho quando aceso
-  if (comp.estado?.aceso) {
+  if (aceso) {
     ctx.save();
-    const grad = ctx.createRadialGradient(cx, cy, 4, cx, cy, 30);
+    const grad = ctx.createRadialGradient(cx, cy, 4, cx, cy, 32);
     grad.addColorStop(0, cor + '99');
+    grad.addColorStop(0.6, cor + '33');
     grad.addColorStop(1, cor + '00');
     ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.arc(cx, cy, 30, 0, Math.PI * 2);
+    ctx.arc(cx, cy, 32, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
+
+  const corSeta = aceso ? cor : CORES.tracoFino;
+
+  ctx.save();
+  ctx.globalAlpha = aceso ? 1 : 0.6;
+  ctx.strokeStyle = corSeta;
+  ctx.fillStyle = corSeta;
+  ctx.lineWidth = 1.6;
+  ctx.lineCap = 'round';
+
+  // Duas setas paralelas, 45°, saindo do topo do triângulo
+  for (let i = 0; i < 2; i++) {
+    const baseX = cx - 2 + i * 9;
+    const baseY = cy - tam - 4;
+    const pontaX = baseX + 9;
+    const pontaY = baseY - 9;
+
+    ctx.beginPath();
+    ctx.moveTo(baseX, baseY);
+    ctx.lineTo(pontaX, pontaY);
+    ctx.stroke();
+
+    // Ponta da seta na direção (1, -1)
+    const dx = 1 / Math.SQRT2;
+    const dy = -1 / Math.SQRT2;
+    const t = 5;
+    const px = -dy;
+    const py = dx;
+    const larg = 2.1;
+
+    ctx.beginPath();
+    ctx.moveTo(pontaX, pontaY);
+    ctx.lineTo(pontaX - dx * t + px * larg, pontaY - dy * t + py * larg);
+    ctx.lineTo(pontaX - dx * t - px * larg, pontaY - dy * t - py * larg);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  ctx.restore();
 }
 
-/** Transistor NPN: círculo com base, coletor e emissor. */
+/**
+ * Transistor NPN.
+ * - Traços diagonais do coletor e emissor ENCOSTAM na borda do círculo
+ * - Traço horizontal do pivô vertical até a borda esquerda (pino B)
+ * - Seta do emissor simétrica na direção da linha
+ */
 export function desenharTRANSISTOR_NPN(ctx, comp, x, y, w, h) {
   preparar(ctx);
   const cx = x + w / 2;
   const cy = y + h / 2;
-  const raio = Math.min(w, h) * 0.38;
+  const raio = Math.min(w, h) * 0.40;
 
-  // Círculo
+  // Círculo do corpo
   ctx.beginPath();
   ctx.arc(cx, cy, raio, 0, Math.PI * 2);
+  ctx.fillStyle = CORES.preenchimento;
   ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 
-  // Base (linha vertical)
-  const baseX = cx - raio * 0.35;
+  // Pivô vertical (base interna)
+  const baseX = cx - raio * 0.30;
+  const baseTopo = cy - raio * 0.52;
+  const baseBase = cy + raio * 0.52;
+
   ctx.beginPath();
-  ctx.moveTo(baseX, cy - raio * 0.55);
-  ctx.lineTo(baseX, cy + raio * 0.55);
-  ctx.lineWidth = 3;
+  ctx.moveTo(baseX, baseTopo);
+  ctx.lineTo(baseX, baseBase);
+  ctx.lineWidth = 3.2;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 
-  // Coletor (diagonal para cima-direita)
+  // Traço do pivô até a borda esquerda do círculo (ligação ao pino B)
   ctx.beginPath();
-  ctx.moveTo(baseX, cy - raio * 0.3);
-  ctx.lineTo(cx + raio * 0.5, cy - raio * 0.7);
+  ctx.moveTo(baseX, cy);
+  ctx.lineTo(cx - raio, cy);
+  ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Emissor (diagonal para baixo-direita) com seta
+  // Coletor: da base até a BORDA do círculo
+  const colAngulo = -Math.PI / 4; // 45° acima da horizontal
+  const colFimX = cx + raio * Math.cos(colAngulo);
+  const colFimY = cy + raio * Math.sin(colAngulo);
+  const colInicioX = baseX;
+  const colInicioY = cy - raio * 0.30;
+
   ctx.beginPath();
-  ctx.moveTo(baseX, cy + raio * 0.3);
-  ctx.lineTo(cx + raio * 0.5, cy + raio * 0.7);
+  ctx.moveTo(colInicioX, colInicioY);
+  ctx.lineTo(colFimX, colFimY);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 
-  // Seta do emissor (apontando para fora)
-  const ax = cx + raio * 0.5;
-  const ay = cy + raio * 0.7;
+  // Emissor: da base até a BORDA do círculo
+  const emiAngulo = Math.PI / 4; // 45° abaixo da horizontal
+  const emiFimX = cx + raio * Math.cos(emiAngulo);
+  const emiFimY = cy + raio * Math.sin(emiAngulo);
+  const emiInicioX = baseX;
+  const emiInicioY = cy + raio * 0.30;
+
   ctx.beginPath();
-  ctx.moveTo(ax, ay);
-  ctx.lineTo(ax - 6, ay - 2);
-  ctx.lineTo(ax - 3, ay - 6);
-  ctx.closePath();
-  ctx.fill();
+  ctx.moveTo(emiInicioX, emiInicioY);
+  ctx.lineTo(emiFimX, emiFimY);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
+
+  // Seta do emissor (NPN: aponta para fora, na direção da linha)
+  const dirX = emiFimX - emiInicioX;
+  const dirY = emiFimY - emiInicioY;
+  const dist = Math.hypot(dirX, dirY);
+  const ux = dirX / dist;
+  const uy = dirY / dist;
+
+  const setaX = emiInicioX + ux * dist * 0.62;
+  const setaY = emiInicioY + uy * dist * 0.62;
+  desenharSeta(ctx, setaX, setaY, ux, uy, 8);
 }
 
-/** Transistor PNP: igual ao NPN, seta do emissor apontando para dentro. */
+/**
+ * Transistor PNP.
+ * Emissor em cima (seta apontando para dentro), coletor embaixo.
+ * Mesma geometria do NPN, com as diagonais invertidas.
+ */
 export function desenharTRANSISTOR_PNP(ctx, comp, x, y, w, h) {
   preparar(ctx);
   const cx = x + w / 2;
   const cy = y + h / 2;
-  const raio = Math.min(w, h) * 0.38;
+  const raio = Math.min(w, h) * 0.40;
 
   ctx.beginPath();
   ctx.arc(cx, cy, raio, 0, Math.PI * 2);
+  ctx.fillStyle = CORES.preenchimento;
   ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 
-  const baseX = cx - raio * 0.35;
+  const baseX = cx - raio * 0.30;
+  const baseTopo = cy - raio * 0.52;
+  const baseBase = cy + raio * 0.52;
+
   ctx.beginPath();
-  ctx.moveTo(baseX, cy - raio * 0.55);
-  ctx.lineTo(baseX, cy + raio * 0.55);
-  ctx.lineWidth = 3;
+  ctx.moveTo(baseX, baseTopo);
+  ctx.lineTo(baseX, baseBase);
+  ctx.lineWidth = 3.2;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 
-  // Coletor (para baixo-direita no PNP)
+  // Traço do pivô até a borda esquerda
   ctx.beginPath();
-  ctx.moveTo(baseX, cy + raio * 0.3);
-  ctx.lineTo(cx + raio * 0.5, cy + raio * 0.7);
+  ctx.moveTo(baseX, cy);
+  ctx.lineTo(cx - raio, cy);
+  ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Emissor (para cima-direita) com seta apontando para dentro
+  // Emissor: para cima-direita, até a borda
+  const emiAngulo = -Math.PI / 4;
+  const emiFimX = cx + raio * Math.cos(emiAngulo);
+  const emiFimY = cy + raio * Math.sin(emiAngulo);
+  const emiInicioX = baseX;
+  const emiInicioY = cy - raio * 0.30;
+
   ctx.beginPath();
-  ctx.moveTo(baseX, cy - raio * 0.3);
-  ctx.lineTo(cx + raio * 0.5, cy - raio * 0.7);
+  ctx.moveTo(emiInicioX, emiInicioY);
+  ctx.lineTo(emiFimX, emiFimY);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 
-  const ax = baseX + 4;
-  const ay = cy - raio * 0.3 - 4;
+  // Coletor: para baixo-direita, até a borda
+  const colAngulo = Math.PI / 4;
+  const colFimX = cx + raio * Math.cos(colAngulo);
+  const colFimY = cy + raio * Math.sin(colAngulo);
+  const colInicioX = baseX;
+  const colInicioY = cy + raio * 0.30;
+
   ctx.beginPath();
-  ctx.moveTo(ax, ay);
-  ctx.lineTo(ax + 6, ay + 2);
-  ctx.lineTo(ax + 3, ay + 6);
-  ctx.closePath();
-  ctx.fill();
+  ctx.moveTo(colInicioX, colInicioY);
+  ctx.lineTo(colFimX, colFimY);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
+
+  // Seta do emissor (PNP: aponta para dentro)
+  const dirX = emiInicioX - emiFimX;
+  const dirY = emiInicioY - emiFimY;
+  const dist = Math.hypot(dirX, dirY);
+  const ux = dirX / dist;
+  const uy = dirY / dist;
+
+  const setaX = emiFimX + ux * dist * 0.38;
+  const setaY = emiFimY + uy * dist * 0.38;
+  desenharSeta(ctx, setaX, setaY, ux, uy, 8);
 }
 
 /* ===== FONTES E CHAVES ===== */
 
-/** Bateria: símbolo de pilha com + e −. */
+/**
+ * Bateria: quatro riscos (longo, curto, longo, curto).
+ * Riscos maiores para melhor legibilidade.
+ */
 export function desenharBATERIA(ctx, comp, x, y, w, h) {
   preparar(ctx);
   const cx = x + w / 2;
   const cy = y + h / 2;
+  const longo = h * 0.46;
+  const curto = h * 0.26;
+  const espacamento = 5;
 
-  // Hastes
+  const riscos = [
+    { dx: -espacamento * 1.5, altura: longo },
+    { dx: -espacamento * 0.5, altura: curto },
+    { dx: espacamento * 0.5, altura: longo },
+    { dx: espacamento * 1.5, altura: curto },
+  ];
+
+  const primeiro = cx + riscos[0].dx;
+  const ultimo = cx + riscos[3].dx;
+
+  // Hastes: da borda do corpo até o primeiro e do último até a borda
   ctx.beginPath();
   ctx.moveTo(x, cy);
-  ctx.lineTo(cx - 8, cy);
-  ctx.moveTo(cx + 8, cy);
+  ctx.lineTo(primeiro, cy);
+  ctx.moveTo(ultimo, cy);
   ctx.lineTo(x + w, cy);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 
-  // Placas (longa = +, curta = −)
-  ctx.beginPath();
-  ctx.moveTo(cx - 8, cy - h * 0.3);
-  ctx.lineTo(cx - 8, cy + h * 0.3);
-  ctx.lineWidth = 3;
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(cx + 8, cy - h * 0.18);
-  ctx.lineTo(cx + 8, cy + h * 0.18);
-  ctx.lineWidth = 3;
-  ctx.stroke();
-
-  // Sinal +
-  ctx.save();
-  ctx.fillStyle = CORES.traco;
-  ctx.font = '700 10px system-ui';
-  ctx.textAlign = 'center';
-  ctx.fillText('+', cx - 16, cy - h * 0.35);
-  ctx.restore();
+  // Riscos verticais
+  for (const r of riscos) {
+    ctx.beginPath();
+    ctx.moveTo(cx + r.dx, cy - r.altura / 2);
+    ctx.lineTo(cx + r.dx, cy + r.altura / 2);
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = CORES.traco;
+    ctx.stroke();
+  }
 }
 
-/** Fonte AC: círculo com senoide. */
+/**
+ * Fonte AC: círculo com senoide.
+ * As hastes de A e B terminam NA BORDA do círculo, sem atravessar.
+ */
 export function desenharFONTE_AC(ctx, comp, x, y, w, h) {
   preparar(ctx);
   const cx = x + w / 2;
   const cy = y + h / 2;
-  const raio = Math.min(w, h) * 0.38;
+  const raio = Math.min(w, h) * 0.34;
 
-  // Hastes
+  // Hastes: da borda do corpo até a borda do círculo
   ctx.beginPath();
   ctx.moveTo(x, cy);
   ctx.lineTo(cx - raio, cy);
   ctx.moveTo(cx + raio, cy);
   ctx.lineTo(x + w, cy);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 
   // Círculo
   ctx.beginPath();
   ctx.arc(cx, cy, raio, 0, Math.PI * 2);
   ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 
   // Senoide interna
+  const amp = raio * 0.42;
+  const larg = raio * 0.55;
   ctx.beginPath();
-  ctx.moveTo(cx - raio * 0.6, cy);
-  ctx.quadraticCurveTo(cx - raio * 0.3, cy - raio * 0.5, cx, cy);
-  ctx.quadraticCurveTo(cx + raio * 0.3, cy + raio * 0.5, cx + raio * 0.6, cy);
+  ctx.moveTo(cx - larg, cy);
+  ctx.quadraticCurveTo(cx - larg * 0.5, cy - amp, cx, cy);
+  ctx.quadraticCurveTo(cx + larg * 0.5, cy + amp, cx + larg, cy);
   ctx.lineWidth = 1.5;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 }
 
-/** Chave: contato aberto/fechado. */
+/**
+ * Chave SPST (normalmente aberta).
+ *
+ * Geometria (coordenadas locais, cy = centro vertical):
+ *   A (cinza) ──── ○ (branco, pivô)      ○ (branco, contato)  ──── B (cinza)
+ *                    \  alavanca diagonal saindo do pivô
+ *
+ * Aberta: vão vazio entre os dois círculos brancos.
+ * Fechada: a alavanca desce e une os dois círculos brancos.
+ */
 export function desenharCHAVE(ctx, comp, x, y, w, h) {
   preparar(ctx);
-  const cx = x + w / 2;
   const cy = y + h / 2;
+  const cx = x + w / 2;
+
+  // Posições absolutas
+  const pinoA = x + 6;
+  const pinoB = x + w - 6;
+  const contatoEsq = cx - 9;
+  const contatoDir = cx + 9;
+
   const fechada = comp.propriedades?.fechada === true;
 
-  // Hastes
+  // Haste A → contato esquerdo
   ctx.beginPath();
-  ctx.moveTo(x, cy);
-  ctx.lineTo(cx - 12, cy);
-  ctx.moveTo(cx + 12, cy);
-  ctx.lineTo(x + w, cy);
+  ctx.moveTo(pinoA, cy);
+  ctx.lineTo(contatoEsq, cy);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 
-  // Círculos de contato
+  // Haste contato direito → B
   ctx.beginPath();
-  ctx.arc(cx - 12, cy, 3, 0, Math.PI * 2);
-  ctx.arc(cx + 12, cy, 3, 0, Math.PI * 2);
+  ctx.moveTo(contatoDir, cy);
+  ctx.lineTo(pinoB, cy);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
+  ctx.stroke();
+
+  // Contato esquerdo: círculo branco (pivô)
+  ctx.beginPath();
+  ctx.arc(contatoEsq, cy, 3.2, 0, Math.PI * 2);
+  ctx.fillStyle = CORES.preenchimento;
   ctx.fill();
+  ctx.lineWidth = 1.6;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 
-  // Alavanca
+  // Contato direito: círculo branco
   ctx.beginPath();
-  ctx.moveTo(cx - 12, cy);
+  ctx.arc(contatoDir, cy, 3.2, 0, Math.PI * 2);
+  ctx.fillStyle = CORES.preenchimento;
+  ctx.fill();
+  ctx.lineWidth = 1.6;
+  ctx.strokeStyle = CORES.traco;
+  ctx.stroke();
+
+  // Alavanca articulada no contato ESQUERDO
+  // Aberta: sobe na diagonal até acima do contato direito
+  // Fechada: desce e une os dois contatos
+  ctx.beginPath();
+  ctx.moveTo(contatoEsq, cy);
   if (fechada) {
-    ctx.lineTo(cx + 12, cy);
+    ctx.lineTo(contatoDir, cy);
   } else {
-    ctx.lineTo(cx + 10, cy - 12);
+    ctx.lineTo(contatoDir, cy - 13);
   }
-  ctx.lineWidth = 2.5;
+  ctx.lineWidth = 2.6;
+  ctx.lineCap = 'round';
   ctx.strokeStyle = fechada ? CORES.primaria : CORES.traco;
   ctx.stroke();
 }
 
-/** Botão: contato momentâneo. */
+/**
+ * Botão push-button (normalmente aberto).
+ *
+ * Geometria (coordenadas locais, cy = centro vertical):
+ *   A (cinza) ──── ○ (branco)        ○ (branco)  ──── B (cinza)
+ *                        [═══ barra do T ═══]
+ *                              │ haste
+ *
+ * Solto: a barra do T fica ACIMA dos contatos (vão vazio entre eles).
+ * Pressionado: o T desce e a barra encosta nos dois contatos.
+ */
 export function desenharBOTAO(ctx, comp, x, y, w, h) {
-  desenharCHAVE(ctx, comp, x, y, w, h);
   preparar(ctx);
-  const cx = x + w / 2;
   const cy = y + h / 2;
+  const cx = x + w / 2;
 
-  // Haste do botão
+  // Posições absolutas
+  const pinoA = x + 6;
+  const pinoB = x + w - 6;
+  const contatoEsq = cx - 9;
+  const contatoDir = cx + 9;
+
+  const pressionado = comp.propriedades?.pressionado === true;
+
+  // Haste A → contato esquerdo
   ctx.beginPath();
-  ctx.moveTo(cx, cy - 12);
-  ctx.lineTo(cx, cy - 20);
+  ctx.moveTo(pinoA, cy);
+  ctx.lineTo(contatoEsq, cy);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 
-  // Tampo do botão
+  // Haste contato direito → B
   ctx.beginPath();
-  ctx.moveTo(cx - 6, cy - 20);
-  ctx.lineTo(cx + 6, cy - 20);
+  ctx.moveTo(contatoDir, cy);
+  ctx.lineTo(pinoB, cy);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
+  ctx.stroke();
+
+  // Contato esquerdo: círculo branco
+  ctx.beginPath();
+  ctx.arc(contatoEsq, cy, 3.2, 0, Math.PI * 2);
+  ctx.fillStyle = CORES.preenchimento;
+  ctx.fill();
+  ctx.lineWidth = 1.6;
+  ctx.strokeStyle = CORES.traco;
+  ctx.stroke();
+
+  // Contato direito: círculo branco
+  ctx.beginPath();
+  ctx.arc(contatoDir, cy, 3.2, 0, Math.PI * 2);
+  ctx.fillStyle = CORES.preenchimento;
+  ctx.fill();
+  ctx.lineWidth = 1.6;
+  ctx.strokeStyle = CORES.traco;
+  ctx.stroke();
+
+  // Atuador em "T" invertido
+  // Solto: barra a 20px acima do centro (bem longe dos contatos)
+  // Pressionado: barra a 3.2px acima do centro (encosta nos contatos)
+  const alturaBarra = pressionado ? cy - 3.2 : cy - 20;
+  const meiaBarra = 11;
+
+  // Barra horizontal do T
+  ctx.beginPath();
+  ctx.moveTo(cx - meiaBarra, alturaBarra);
+  ctx.lineTo(cx + meiaBarra, alturaBarra);
   ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = pressionado ? CORES.primaria : CORES.traco;
+  ctx.stroke();
+
+  // Haste vertical do T (para cima)
+  ctx.beginPath();
+  ctx.moveTo(cx, alturaBarra);
+  ctx.lineTo(cx, alturaBarra - 8);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 }
 
 /* ===== LÓGICA ===== */
 
-/** AND: formato D. */
 export function desenharAND(ctx, comp, x, y, w, h) {
   preparar(ctx);
   const raio = h / 2;
@@ -583,7 +895,6 @@ export function desenharAND(ctx, comp, x, y, w, h) {
   ctx.stroke();
 }
 
-/** OR: formato curvo. */
 export function desenharOR(ctx, comp, x, y, w, h) {
   preparar(ctx);
   ctx.beginPath();
@@ -596,29 +907,33 @@ export function desenharOR(ctx, comp, x, y, w, h) {
   ctx.stroke();
 }
 
-/** NOT: triângulo com bolinha. */
 export function desenharNOT(ctx, comp, x, y, w, h) {
   preparar(ctx);
   const raioBolinha = 4;
-  const larguraTriangulo = w - raioBolinha * 2;
+  const larguraTriangulo = w - raioBolinha * 2 - 2;
   ctx.beginPath();
   ctx.moveTo(x, y);
   ctx.lineTo(x + larguraTriangulo, y + h / 2);
   ctx.lineTo(x, y + h);
   ctx.closePath();
+  ctx.fillStyle = CORES.preenchimento;
   ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
   ctx.beginPath();
   ctx.arc(x + larguraTriangulo + raioBolinha, y + h / 2, raioBolinha, 0, Math.PI * 2);
+  ctx.fillStyle = CORES.preenchimento;
   ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 }
 
-/** NAND: AND com bolinha. */
 export function desenharNAND(ctx, comp, x, y, w, h) {
   preparar(ctx);
   const raioBolinha = 4;
-  const larguraCorpo = w - raioBolinha * 2;
+  const larguraCorpo = w - raioBolinha * 2 - 2;
   const raio = h / 2;
   ctx.beginPath();
   ctx.moveTo(x, y);
@@ -626,34 +941,44 @@ export function desenharNAND(ctx, comp, x, y, w, h) {
   ctx.arc(x + larguraCorpo - raio, y + raio, raio, -Math.PI / 2, Math.PI / 2);
   ctx.lineTo(x, y + h);
   ctx.closePath();
+  ctx.fillStyle = CORES.preenchimento;
   ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
   ctx.beginPath();
   ctx.arc(x + larguraCorpo + raioBolinha, y + h / 2, raioBolinha, 0, Math.PI * 2);
+  ctx.fillStyle = CORES.preenchimento;
   ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 }
 
-/** NOR: OR com bolinha. */
 export function desenharNOR(ctx, comp, x, y, w, h) {
   preparar(ctx);
   const raioBolinha = 4;
-  const larguraCorpo = w - raioBolinha * 2;
+  const larguraCorpo = w - raioBolinha * 2 - 2;
   ctx.beginPath();
   ctx.moveTo(x, y);
   ctx.quadraticCurveTo(x + larguraCorpo * 0.5, y, x + larguraCorpo, y + h / 2);
   ctx.quadraticCurveTo(x + larguraCorpo * 0.5, y + h, x, y + h);
   ctx.quadraticCurveTo(x + larguraCorpo * 0.2, y + h / 2, x, y);
   ctx.closePath();
+  ctx.fillStyle = CORES.preenchimento;
   ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
   ctx.beginPath();
   ctx.arc(x + larguraCorpo + raioBolinha, y + h / 2, raioBolinha, 0, Math.PI * 2);
+  ctx.fillStyle = CORES.preenchimento;
   ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 }
 
-/** XOR: OR com curva extra. */
 export function desenharXOR(ctx, comp, x, y, w, h) {
   preparar(ctx);
   ctx.beginPath();
@@ -670,30 +995,36 @@ export function desenharXOR(ctx, comp, x, y, w, h) {
   ctx.stroke();
 }
 
-/** XNOR: XOR com bolinha. */
 export function desenharXNOR(ctx, comp, x, y, w, h) {
   preparar(ctx);
   const raioBolinha = 4;
-  const larguraCorpo = w - raioBolinha * 2;
+  const larguraCorpo = w - raioBolinha * 2 - 2;
   ctx.beginPath();
   ctx.moveTo(x + 6, y);
   ctx.quadraticCurveTo(x + larguraCorpo * 0.5 + 6, y, x + larguraCorpo, y + h / 2);
   ctx.quadraticCurveTo(x + larguraCorpo * 0.5 + 6, y + h, x + 6, y + h);
   ctx.quadraticCurveTo(x + larguraCorpo * 0.2 + 6, y + h / 2, x + 6, y);
   ctx.closePath();
+  ctx.fillStyle = CORES.preenchimento;
   ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
   ctx.beginPath();
   ctx.moveTo(x, y);
   ctx.quadraticCurveTo(x + larguraCorpo * 0.2, y + h / 2, x, y + h);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
   ctx.beginPath();
   ctx.arc(x + larguraCorpo + raioBolinha, y + h / 2, raioBolinha, 0, Math.PI * 2);
+  ctx.fillStyle = CORES.preenchimento;
   ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 }
 
-/** Buffer: triângulo sem bolinha. */
 export function desenharBUFFER(ctx, comp, x, y, w, h) {
   preparar(ctx);
   ctx.beginPath();
@@ -707,7 +1038,6 @@ export function desenharBUFFER(ctx, comp, x, y, w, h) {
 
 /* ===== COMPOSTOS ===== */
 
-/** Display 7 segmentos: retângulo escuro com segmentos. */
 export function desenharDISPLAY_7SEG(ctx, comp, x, y, w, h) {
   preparar(ctx);
   ctx.beginPath();
@@ -719,7 +1049,7 @@ export function desenharDISPLAY_7SEG(ctx, comp, x, y, w, h) {
   const cor = comp.propriedades?.cor || '#ff3b30';
   const segs = comp.estado?.segmentos || [0, 0, 0, 0, 0, 0, 0];
 
-  const m = 8;
+  const m = 10;
   const largura = w - m * 2;
   const altura = h - m * 2;
   const esp = 4;
@@ -744,7 +1074,6 @@ export function desenharDISPLAY_7SEG(ctx, comp, x, y, w, h) {
   }
 }
 
-/** Amplificador operacional: triângulo com + e −. */
 export function desenharAMP_OP(ctx, comp, x, y, w, h) {
   preparar(ctx);
   ctx.beginPath();
@@ -755,18 +1084,16 @@ export function desenharAMP_OP(ctx, comp, x, y, w, h) {
   ctx.fill();
   ctx.stroke();
 
-  // Símbolos + e −
   ctx.save();
   ctx.fillStyle = CORES.traco;
   ctx.font = '700 11px system-ui';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('−', x + 10, y + h * 0.28);
-  ctx.fillText('+', x + 10, y + h * 0.72);
+  ctx.fillText('−', x + 12, y + h * 0.28);
+  ctx.fillText('+', x + 12, y + h * 0.72);
   ctx.restore();
 }
 
-/** CI genérico: retângulo com pinos numerados. */
 export function desenharCI_GENERICO(ctx, comp, x, y, w, h) {
   preparar(ctx);
   ctx.beginPath();
@@ -774,19 +1101,17 @@ export function desenharCI_GENERICO(ctx, comp, x, y, w, h) {
   ctx.fill();
   ctx.stroke();
 
-  // Entalhe de orientação
   ctx.beginPath();
   ctx.arc(x + w / 2, y, 5, 0, Math.PI);
   ctx.fillStyle = CORES.preenchimentoSuave;
   ctx.fill();
   ctx.stroke();
 
-  // Rótulo da função
   const funcao = comp.propriedades?.funcao || 'CI';
   desenharRotulo(ctx, funcao.toUpperCase(), x + w / 2, y + h / 2, 9);
 }
 
-/* ===== MAPA DE DESENHADORES ===== */
+/* ===== MAPA ===== */
 
 export const DESENHADORES = {
   RESISTOR: desenharRESISTOR,
@@ -819,58 +1144,73 @@ export const DESENHADORES = {
 };
 
 /**
- * Desenha um componente completo: corpo + pinos.
- * Aplica rotação em torno do centro.
+ * Desenha apenas os círculos dos pinos e seus rótulos.
+ * As hastes são desenhadas por cada componente, onde devem terminar.
  */
-export function desenharComponente(ctx, comp, x, y, w, h) {
-  const cx = x + w / 2;
-  const cy = y + h / 2;
+function desenharPinosDoComponente(ctx, comp, dim) {
+  const centroX = dim.w / 2;
+  const centroY = dim.h / 2;
+
+  for (const pino of comp.pinos) {
+    const px = centroX + pino.x;
+    const py = centroY + pino.y;
+
+    const posicaoRotulo = pino.y > 0 ? 'baixo' : 'cima';
+    desenharPinoComRotulo(ctx, px, py, pino.valor, pino.nome, posicaoRotulo);
+  }
+}
+
+/**
+ * Desenha um componente completo com transformação uniforme.
+ */
+export function desenharComponente(ctx, comp, telaX, telaY, escala) {
+  const dim = comp.dimensoes || { w: 80, h: 60 };
+  const cx = dim.w / 2;
+  const cy = dim.h / 2;
 
   ctx.save();
-  ctx.translate(cx, cy);
+  ctx.translate(telaX + cx * escala, telaY + cy * escala);
   ctx.rotate(((comp.rotacao || 0) * Math.PI) / 180);
+  ctx.scale(escala, escala);
   ctx.translate(-cx, -cy);
 
   const desenhador = DESENHADORES[comp.tipo];
   if (desenhador) {
-    desenhador(ctx, comp, x, y, w, h);
+    desenhador(ctx, comp, 0, 0, dim.w, dim.h);
   } else {
     preparar(ctx);
     ctx.beginPath();
-    ctx.rect(x, y, w, h);
+    ctx.rect(0, 0, dim.w, dim.h);
     ctx.fill();
     ctx.stroke();
     desenharRotulo(ctx, comp.tipo, cx, cy, 9);
   }
 
-  desenharPinosDoComponente(ctx, comp, x, y, w, h);
+  desenharPinosDoComponente(ctx, comp, dim);
 
   ctx.restore();
 }
 
 /**
- * Calcula a posição absoluta de um pino, considerando rotação.
+ * Calcula a posição absoluta de um pino em coordenadas de mundo.
  */
-export function posicaoPino(comp, pinoId, w, h) {
+export function posicaoPino(comp, pinoId) {
   const pino = comp.pinos.find((p) => p.id === pinoId);
   if (!pino) return null;
 
-  const dim = comp.dimensoes || { w, h };
-  const escalaX = w / dim.w;
-  const escalaY = h / dim.h;
-
-  const px = pino.x * escalaX;
-  const py = pino.y * escalaY;
+  const dim = comp.dimensoes || { w: 80, h: 60 };
+  const cx = dim.w / 2;
+  const cy = dim.h / 2;
 
   const rad = ((comp.rotacao || 0) * Math.PI) / 180;
   const cos = Math.cos(rad);
   const sin = Math.sin(rad);
 
-  const rotX = px * cos - py * sin;
-  const rotY = px * sin + py * cos;
+  const rotX = pino.x * cos - pino.y * sin;
+  const rotY = pino.x * sin + pino.y * cos;
 
   return {
-    x: comp.x + w / 2 + rotX,
-    y: comp.y + h / 2 + rotY,
+    x: comp.x + cx + rotX,
+    y: comp.y + cy + rotY,
   };
 }

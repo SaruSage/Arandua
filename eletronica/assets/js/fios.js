@@ -11,7 +11,6 @@
  */
 
 import { posicaoPino } from './simbolos.js';
-import { CATALOGO } from './catalogo.js';
 
 const RAIO_PINO = 10;
 const RAIO_DOBRA = 6;
@@ -25,11 +24,8 @@ export function pontosDoFio(circuito, fio) {
   const compD = circuito.componentes.find((c) => c.id === fio.destino.componente);
   if (!compO || !compD) return [];
 
-  const dimO = CATALOGO[compO.tipo].dimensoes;
-  const dimD = CATALOGO[compD.tipo].dimensoes;
-
-  const pO = posicaoPino(compO, fio.origem.pino, dimO.w, dimO.h);
-  const pD = posicaoPino(compD, fio.destino.pino, dimD.w, dimD.h);
+  const pO = posicaoPino(compO, fio.origem.pino);
+  const pD = posicaoPino(compD, fio.destino.pino);
   if (!pO || !pD) return [];
 
   return [pO, ...fio.dobras, pD];
@@ -81,9 +77,8 @@ export function dobraEm(circuito, x, y) {
 export function pinoEm(circuito, x, y) {
   for (let i = circuito.componentes.length - 1; i >= 0; i--) {
     const comp = circuito.componentes[i];
-    const dim = CATALOGO[comp.tipo].dimensoes;
     for (const pino of comp.pinos) {
-      const pos = posicaoPino(comp, pino.id, dim.w, dim.h);
+      const pos = posicaoPino(comp, pino.id);
       if (pos && Math.hypot(pos.x - x, pos.y - y) < RAIO_PINO) {
         return { componente: comp, pino, posicao: pos };
       }
