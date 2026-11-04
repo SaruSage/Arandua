@@ -371,6 +371,58 @@ html, body {
 
 .btn-remover:hover { background: #c94a4a; }
 
+.btn-simular {
+  padding: 8px 16px;
+  background: var(--cor-primaria);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.btn-simular:hover {
+  background: var(--cor-primaria-escura);
+  transform: translateY(-1px);
+}
+
+.btn-limpar {
+  padding: 8px 14px;
+  background: transparent;
+  color: var(--cor-texto-sec);
+  border: 1px solid var(--cor-borda-forte);
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-limpar:hover {
+  border-color: var(--cor-primaria);
+  color: var(--cor-primaria-escura);
+}
+
+.painel-resultado {
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+  color: var(--cor-texto);
+  padding: 4px 0;
+}
+
+.painel-aviso {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: #fdeaea;
+  border-left: 3px solid var(--cor-erro);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  color: #a33;
+  line-height: 1.5;
+}
+
 @media (max-width: 1024px) {
   .eletronica-layout {
     grid-template-columns: 220px 1fr;

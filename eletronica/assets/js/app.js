@@ -9,10 +9,12 @@ import { criarCanvas } from './canvas.js';
 import { configurarInteracao } from './selecao.js';
 import { configurarFios } from './fios.js';
 import { renderizarPainel as renderizarPainelNovo } from './painel.js';
+import { simular, tensaoEm, correnteEm } from './solver.js';
 
 const estado = {
   circuito: criarCircuito(),
   selecionados: [],
+  resultado: null,
   adicionar(tipo, x, y) {
     const comp = adicionarComponente(estado.circuito, tipo, x, y);
     estado.selecionados = [comp.id];
@@ -36,6 +38,8 @@ function montarInterface() {
     <div class="eletronica-layout">
       <header class="eletronica-toolbar">
         <h1>Laboratório de Eletrônica</h1>
+        <button type="button" class="btn-simular" id="btn-simular">▶ Simular</button>
+        <button type="button" class="btn-limpar" id="btn-limpar">Limpar resultados</button>
         <span class="eletronica-dica">
           Arraste componentes · Clique em pino para conectar · Tab cria dobra no fio · R gira 90° · Roda = zoom
         </span>
@@ -57,6 +61,22 @@ function montarInterface() {
   estado.fioSelecionadoId = null;
   estado.fioFantasma = null;
   configurarInteracao(canvas, estado, renderizarTudo);
+
+  document.getElementById('btn-simular').addEventListener('click', () => {
+    estado.resultado = simular(estado.circuito);
+    renderizarTudo();
+  });
+
+  document.getElementById('btn-limpar').addEventListener('click', () => {
+    estado.resultado = null;
+    for (const c of estado.circuito.componentes) {
+      if (c.estado) {
+        c.estado.aceso = false;
+        c.estado.segmentos = [0, 0, 0, 0, 0, 0, 0];
+      }
+    }
+    renderizarTudo();
+  });
 
   window.addEventListener('resize', () => {
     canvas.redimensionar();
@@ -171,6 +191,41 @@ function renderizarTudo() {
 function renderizarPainel() {
   if (!elPainel) return;
   renderizarPainelNovo(elPainel, estado, renderizarTudo, abrirMontagem);
+
+  // Adiciona seção de resultado da simulação
+  if (estado.resultado && estado.selecionados.length === 1) {
+    const comp = estado.circuito.componentes.find((c) => c.id === estado.selecionados[0]);
+    if (comp) {
+      const secao = document.createElement('div');
+      secao.className = 'painel-secao';
+      const titulo = document.createElement('h4');
+      titulo.textContent = 'Simulação';
+      secao.appendChild(titulo);
+
+      const tensao = tensaoEm(estado.resultado, comp.id, comp.pinos[0]?.id);
+      const corrente = correnteEm(estado.resultado, comp.id);
+
+      const linhaT = document.createElement('p');
+      linhaT.className = 'painel-resultado';
+      linhaT.textContent = `Tensão: ${tensao.toFixed(3)} V`;
+      secao.appendChild(linhaT);
+
+      const linhaI = document.createElement('p');
+      linhaI.className = 'painel-resultado';
+      const mA = corrente * 1000;
+      linhaI.textContent = `Corrente: ${Math.abs(mA) < 1 ? (corrente * 1e6).toFixed(1) + ' µA' : mA.toFixed(2) + ' mA'}`;
+      secao.appendChild(linhaI);
+
+      elPainel.appendChild(secao);
+    }
+  }
+
+  if (estado.resultado && !estado.resultado.convergiu) {
+    const aviso = document.createElement('div');
+    aviso.className = 'painel-aviso';
+    aviso.textContent = estado.resultado.erro;
+    elPainel.appendChild(aviso);
+  }
 }
 
 function abrirMontagem(comp) {
