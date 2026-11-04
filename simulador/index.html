@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador de Circuitos — Arandua</title>
+  <meta name="description" content="Simulador de circuitos digitais com componentes reais — monte o que quiser.">
+  <link rel="stylesheet" href="../assets/css/base.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+  <link rel="stylesheet" href="../assets/css/simulador.css">
+</head>
+<body>
+  <a href="#conteudo" class="skip-link">Pular para o conteúdo</a>
+
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a href="../index.html" class="site-logo">
+        <span class="site-logo__marca">A</span>
+        Arandua
+      </a>
+      <nav class="site-nav">
+        <a href="../index.html">Início</a>
+        <a href="../modulos/01-analogico-digital.html">Módulos</a>
+        <a href="index.html" aria-current="page">Simulador</a>
+        <a href="../projeto/cacaniqueis.html">Projeto</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="conteudo">
+    <div class="simulador-layout">
+      <header class="simulador-toolbar">
+        <h1 class="simulador-toolbar__titulo">Simulador de Circuitos</h1>
+        <a href="../index.html" class="btn btn--ghost btn--sm">← Voltar</a>
+        <span class="simulador-toolbar__dica">
+          Arraste componentes · Roda do mouse para zoom · Shift + arrastar para mover a view
+        </span>
+      </header>
+
+      <aside class="simulador-paleta" id="paleta"></aside>
+
+      <div class="simulador-canvas">
+        <canvas id="canvas"></canvas>
+      </div>
+
+      <aside class="simulador-painel" id="painel"></aside>
+    </div>
+  </main>
+
+  <script type="module">
+    import { inicializarSimulador } from '../assets/js/simulador/simulador.js';
+
+    const simulador = inicializarSimulador({
+      canvas: document.getElementById('canvas'),
+      paleta: document.getElementById('paleta'),
+      painel: document.getElementById('painel'),
+    });
+
+    window.arandua = { simulador };
+  </script>
+</body>
+</html>

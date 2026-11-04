@@ -2,3 +2,214 @@
  * simulador.css — Estilos da página de simulador com componentes fiéis.
  * Será preenchido na Fase 11.
  */
+
+ /**
+ * simulador.css — Estilos da página de simulador com componentes fiéis.
+ */
+
+.simulador-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr 260px;
+  grid-template-rows: 56px 1fr;
+  height: calc(100vh - var(--altura-header));
+  background: var(--cor-fundo-suave);
+}
+
+.simulador-toolbar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-3);
+  padding: 0 var(--esp-5);
+  background: var(--cor-fundo);
+  border-bottom: 1px solid var(--cor-borda);
+}
+
+.simulador-toolbar__titulo {
+  font-size: var(--texto-base);
+  font-weight: 800;
+  color: var(--cor-texto);
+  margin: 0;
+}
+
+.simulador-toolbar__dica {
+  margin-left: auto;
+  font-size: var(--texto-xs);
+  color: var(--cor-texto-sec);
+}
+
+.simulador-paleta,
+.simulador-painel {
+  background: var(--cor-fundo);
+  overflow-y: auto;
+  padding: var(--esp-4);
+}
+
+.simulador-paleta {
+  border-right: 1px solid var(--cor-borda);
+}
+
+.simulador-painel {
+  border-left: 1px solid var(--cor-borda);
+}
+
+.paleta-fiel-grupo {
+  margin-bottom: var(--esp-5);
+}
+
+.paleta-fiel-titulo {
+  font-size: var(--texto-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cor-texto-sec);
+  font-weight: 700;
+  margin-bottom: var(--esp-2);
+}
+
+.paleta-fiel-grade {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--esp-2);
+}
+
+.paleta-fiel-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--esp-1);
+  padding: var(--esp-2);
+  background: var(--cor-fundo-suave);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-md);
+  cursor: grab;
+  transition: border-color var(--transicao-rapida),
+    background var(--transicao-rapida),
+    transform var(--transicao-rapida);
+}
+
+.paleta-fiel-item:hover {
+  border-color: var(--cor-primaria);
+  background: var(--cor-primaria-clara);
+  transform: translateY(-2px);
+}
+
+.paleta-fiel-item:active {
+  cursor: grabbing;
+}
+
+.paleta-fiel-miniatura {
+  display: block;
+  width: 56px;
+  height: 44px;
+}
+
+.paleta-fiel-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--cor-texto-sec);
+  text-align: center;
+  line-height: 1.2;
+}
+
+.simulador-canvas {
+  position: relative;
+  overflow: hidden;
+  background: var(--cor-fundo-suave);
+}
+
+.simulador-canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: default;
+}
+
+.simulador-painel-titulo {
+  font-size: var(--texto-base);
+  font-weight: 800;
+  color: var(--cor-texto);
+  margin-bottom: var(--esp-3);
+}
+
+.simulador-painel-vazio {
+  font-size: var(--texto-sm);
+  color: var(--cor-texto-sec);
+  text-align: center;
+  padding: var(--esp-5) 0;
+}
+
+.simulador-toggle {
+  width: 100%;
+  padding: var(--esp-4);
+  border-radius: var(--raio-md);
+  font-weight: 800;
+  font-size: var(--texto-base);
+  background: var(--cor-fundo-suave);
+  color: var(--cor-texto-sec);
+  border: 2px solid var(--cor-borda);
+  transition: all var(--transicao-rapida);
+}
+
+.simulador-toggle[data-ativo="true"] {
+  background: var(--cor-primaria);
+  color: #fff;
+  border-color: var(--cor-primaria);
+}
+
+.simulador-botoes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+}
+
+.simulador-indicador {
+  padding: var(--esp-4);
+  border-radius: var(--raio-md);
+  text-align: center;
+  font-weight: 800;
+  background: var(--cor-fundo-suave);
+  color: var(--cor-texto-sec);
+  border: 2px solid var(--cor-borda);
+}
+
+.simulador-indicador[data-aceso="true"] {
+  background: var(--cor-acento-clara);
+  color: #a86a00;
+  border-color: var(--cor-acento);
+}
+
+@media (max-width: 1024px) {
+  .simulador-layout {
+    grid-template-columns: 220px 1fr;
+  }
+  .simulador-painel {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .simulador-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: 56px auto 1fr;
+    height: auto;
+    min-height: calc(100vh - var(--altura-header));
+  }
+  .simulador-paleta {
+    border-right: none;
+    border-bottom: 1px solid var(--cor-borda);
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .paleta-fiel-grupo {
+    display: inline-block;
+    vertical-align: top;
+    margin-right: var(--esp-4);
+    margin-bottom: 0;
+  }
+  .paleta-fiel-grade {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .simulador-canvas {
+    min-height: 400px;
+  }
+}
