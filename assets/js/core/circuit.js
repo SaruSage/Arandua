@@ -12,6 +12,42 @@ let contadorComponentes = 0;
 /** Limite de iterações da propagação, para evitar loop infinito em realimentação instável. */
 const MAX_ITERACOES = 100;
 
+/** Tipos de porta combinacional pura. */
+const TIPOS_COMBINACIONAIS = new Set([
+  'AND', 'OR', 'NOT', 'NAND', 'NOR', 'XOR', 'XNOR', 'BUFFER',
+]);
+
+/** Tipos sequenciais que só mudam na borda de clock. */
+const TIPOS_SEQUENCIAIS = new Set([
+  'DFF', 'JKFF', 'TFF', 'SRFF', 'COUNTER', 'REGISTER',
+]);
+
+/**
+ * Estado inicial padrão por tipo de componente.
+ * Garante que nenhum componente nasça com estado indefinido.
+ */
+function estadoInicial(tipo, numSaidas) {
+  switch (tipo) {
+    case 'SWITCH':
+      return { ativo: 0 };
+    case 'LED':
+      return { aceso: false };
+    case 'CLOCK':
+      return { nivel: 0, frequenciaHz: 1, rodando: false, ciclos: 0 };
+    case 'DFF':
+    case 'JKFF':
+    case 'TFF':
+    case 'SRFF':
+      return { q: 0 };
+    case 'COUNTER':
+      return { bits: numSaidas || 4, valor: 0 };
+    case 'REGISTER':
+      return { bits: numSaidas || 4, valor: new Array(numSaidas || 4).fill(0) };
+    default:
+      return {};
+  }
+}
+
 /**
  * Cria um componente genérico.
  * @param {string} tipo - tipo do componente (AND, OR, DFF, LED, SWITCH...)
@@ -35,16 +71,27 @@ export function criarComponente(tipo, opcoes = {}) {
     saidas.push({ id: `out${i}`, valor: null });
   }
 
-  return {
+  const componente = {
     id: `comp_${++contadorComponentes}`,
     tipo,
     rotulo,
     posicao: { ...posicao },
     entradas,
     saidas,
-    // Estado interno (usado por flip-flops, contadores, etc.)
-    estado: {},
+    estado: estadoInicial(tipo, numSaidas),
   };
+
+  // Sequenciais já nascem com as saídas coerentes com o estado inicial
+  if (['DFF', 'JKFF', 'TFF', 'SRFF'].includes(tipo)) {
+    componente.saidas[0].valor = 0;
+    if (componente.saidas[1]) componente.saidas[1].valor = 1;
+  } else if (tipo === 'COUNTER' || tipo === 'REGISTER') {
+    for (const s of componente.saidas) s.valor = 0;
+  } else if (tipo === 'SWITCH' || tipo === 'CLOCK') {
+    componente.saidas[0].valor = 0;
+  }
+
+  return componente;
 }
 
 /** Cria um circuito vazio. */
@@ -143,41 +190,30 @@ function lerEntrada(circuito, componenteId, pinoId) {
  * Componentes sequenciais são tratados em clock.js.
  */
 function avaliarComponente(circuito, comp) {
-  // Componentes de IO e sequenciais têm comportamento próprio
-  switch (comp.tipo) {
-    case 'SWITCH':
-      // Switch controla sua própria saída via estado
-      comp.saidas[0].valor = normalizar(comp.estado.ativo ?? 0);
-      return;
+  if (comp.tipo === 'SWITCH') {
+    comp.saidas[0].valor = normalizar(comp.estado.ativo ?? 0);
+    return;
+  }
 
-    case 'LED':
-      // LED apenas reflete a entrada; não tem saída
-      comp.estado.aceso = normalizar(lerEntrada(circuito, comp.id, 'in0')) === 1;
-      return;
+  if (comp.tipo === 'LED') {
+    comp.estado.aceso = normalizar(lerEntrada(circuito, comp.id, 'in0')) === 1;
+    return;
+  }
 
-    case 'CLOCK':
-      // Clock controla sua própria saída via estado
-      comp.saidas[0].valor = normalizar(comp.estado.nivel ?? 0);
-      return;
+  if (comp.tipo === 'CLOCK') {
+    comp.saidas[0].valor = normalizar(comp.estado.nivel ?? 0);
+    return;
+  }
 
-    case 'DFF':
-    case 'JKFF':
-    case 'TFF':
-    case 'SRFF':
-    case 'COUNTER':
-    case 'REGISTER':
-      // Sequenciais: só mudam na borda de clock (ver clock.js)
-      return;
+  if (TIPOS_SEQUENCIAIS.has(comp.tipo)) {
+    return;
+  }
 
-    default:
-      // Portas combinacionais puras
-      if (comp.tipo in { AND: 1, OR: 1, NOT: 1, NAND: 1, NOR: 1, XOR: 1, XNOR: 1, BUFFER: 1 }) {
-        const entradas = comp.entradas.map((p) =>
-          lerEntrada(circuito, comp.id, p.id)
-        );
-        comp.saidas[0].valor = avaliarPorta(comp.tipo, entradas);
-      }
-      return;
+  if (TIPOS_COMBINACIONAIS.has(comp.tipo)) {
+    const entradas = comp.entradas.map((p) =>
+      lerEntrada(circuito, comp.id, p.id)
+    );
+    comp.saidas[0].valor = avaliarPorta(comp.tipo, entradas);
   }
 }
 

@@ -67,6 +67,29 @@ export function desserializar(dados) {
     estavel: true,
   };
 
+  // Reaplica o estado nas saídas após reconstruir a estrutura
+  for (const comp of circuito.componentes) {
+    if (['DFF', 'JKFF', 'TFF', 'SRFF'].includes(comp.tipo)) {
+      comp.saidas[0].valor = comp.estado.q ?? 0;
+      if (comp.saidas[1]) {
+        comp.saidas[1].valor = comp.estado.q === 1 ? 0 : 1;
+      }
+    } else if (comp.tipo === 'COUNTER') {
+      const bits = comp.estado.bits ?? comp.saidas.length;
+      const valor = comp.estado.valor ?? 0;
+      for (let i = 0; i < bits; i++) {
+        comp.saidas[i].valor = (valor >> i) & 1;
+      }
+    } else if (comp.tipo === 'REGISTER') {
+      const valores = comp.estado.valor ?? [];
+      for (let i = 0; i < valores.length; i++) {
+        comp.saidas[i].valor = valores[i];
+      }
+    } else if (comp.tipo === 'SWITCH' || comp.tipo === 'CLOCK') {
+      comp.saidas[0].valor = comp.estado.ativo ?? comp.estado.nivel ?? 0;
+    }
+  }
+
   return circuito;
 }
 
