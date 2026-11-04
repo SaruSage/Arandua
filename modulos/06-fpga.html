@@ -10,12 +10,14 @@
     <link rel="stylesheet" href="../assets/css/modulos.css">
   </head>
   <body>
+    <a href="#conteudo" class="skip-link">Pular para o conteúdo</a>
     <header class="modulo-header container">
       <span class="badge">Módulo 6</span>
+      <span class="modulo-progresso">Módulo 6 de 7</span>
       <h1>Dispositivos Lógicos Programáveis</h1>
       <a class="btn btn--ghost" href="../index.html">← Voltar</a>
     </header>
-    <main class="container modulo-conteudo">
+    <main class="container modulo-conteudo" id="conteudo" tabindex="-1">
       <section class="modulo-secao modulo-teoria" aria-labelledby="m6-teoria">
         <h2 id="m6-teoria">Teoria</h2>
         <p>Uma FPGA é um chip cujos blocos lógicos e conexões podem ser configurados depois de fabricados. Em vez de executar apenas um programa em uma CPU fixa, ela pode ser organizada para implementar circuitos digitais específicos.</p>
@@ -39,7 +41,7 @@
             <label><input type="radio" name="m6-q1" value="c"> Somente a velocidade de execução de um programa C.</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p aria-live="polite"></p>
+          <p role="status" aria-live="polite"></p>
         </form>
         <form class="widget-exercicio" data-resposta="a">
           <fieldset>
@@ -49,7 +51,7 @@
             <label><input type="radio" name="m6-q2" value="c"> Desenhar a placa e soldar os componentes.</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p aria-live="polite"></p>
+          <p role="status" aria-live="polite"></p>
         </form>
         <form class="widget-exercicio" data-resposta="c">
           <fieldset>
@@ -59,7 +61,7 @@
             <label><input type="radio" name="m6-q3" value="c"> Como circuitos configurados no chip, com partes que podem operar em paralelo.</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p aria-live="polite"></p>
+          <p role="status" aria-live="polite"></p>
         </form>
       </section>
       <section class="modulo-secao modulo-projeto" aria-labelledby="m6-projeto">

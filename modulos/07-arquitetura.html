@@ -10,12 +10,14 @@
     <link rel="stylesheet" href="../assets/css/modulos.css">
   </head>
   <body>
+    <a href="#conteudo" class="skip-link">Pular para o conteúdo</a>
     <header class="modulo-header container">
       <span class="badge">Módulo 7</span>
+      <span class="modulo-progresso">Módulo 7 de 7</span>
       <h1>Arquitetura de Computadores</h1>
       <a class="btn btn--ghost" href="../index.html">← Voltar</a>
     </header>
-    <main class="container modulo-conteudo">
+    <main class="container modulo-conteudo" id="conteudo" tabindex="-1">
       <section class="modulo-secao modulo-teoria" aria-labelledby="m7-teoria">
         <h2 id="m7-teoria">Teoria</h2>
         <p>Um computador reúne blocos que armazenam e transformam informações. A unidade lógica e aritmética (ULA) realiza operações; a unidade de controle coordena o que acontece em cada etapa.</p>
@@ -39,7 +41,7 @@
             <label><input type="radio" name="m7-q1" value="c"> Escolher a próxima instrução sem consultar o PC.</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p aria-live="polite"></p>
+          <p role="status" aria-live="polite"></p>
         </form>
         <form class="widget-exercicio" data-resposta="c">
           <fieldset>
@@ -49,7 +51,7 @@
             <label><input type="radio" name="m7-q2" value="c"> O endereço da próxima instrução.</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p aria-live="polite"></p>
+          <p role="status" aria-live="polite"></p>
         </form>
         <form class="widget-exercicio" data-resposta="a">
           <fieldset>
@@ -59,7 +61,7 @@
             <label><input type="radio" name="m7-q3" value="c"> Ligar, compilar e desligar.</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p aria-live="polite"></p>
+          <p role="status" aria-live="polite"></p>
         </form>
       </section>
       <section class="modulo-secao modulo-projeto" aria-labelledby="m7-projeto">

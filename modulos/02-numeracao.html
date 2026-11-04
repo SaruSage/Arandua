@@ -10,12 +10,14 @@
     <link rel="stylesheet" href="../assets/css/modulos.css">
   </head>
   <body>
+    <a href="#conteudo" class="skip-link">Pular para o conteúdo</a>
     <header class="modulo-header container">
       <span class="badge">Módulo 2</span>
+      <span class="modulo-progresso">Módulo 2 de 7</span>
       <h1>Sistemas de Numeração e Códigos</h1>
       <a class="btn btn--ghost" href="../index.html">← Voltar</a>
     </header>
-    <main class="container modulo-conteudo">
+    <main class="container modulo-conteudo" id="conteudo" tabindex="-1">
       <section class="modulo-secao modulo-teoria" aria-labelledby="m2-teoria">
         <h2 id="m2-teoria">Teoria</h2>
         <p>Nosso sistema decimal usa dez símbolos, de 0 a 9. O sistema binário usa apenas 0 e 1, e cada posição representa uma potência de dois. Assim, <code>1010₂</code> vale <code>10₁₀</code>.</p>
@@ -37,7 +39,7 @@
             <label><input type="radio" name="m2-q1" value="c"> 12</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p aria-live="polite"></p>
+          <p role="status" aria-live="polite"></p>
         </form>
         <form class="widget-exercicio" data-resposta="c">
           <fieldset>
@@ -47,7 +49,7 @@
             <label><input type="radio" name="m2-q2" value="c"> 4 bits</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p aria-live="polite"></p>
+          <p role="status" aria-live="polite"></p>
         </form>
         <form class="widget-exercicio" data-resposta="a">
           <fieldset>
@@ -57,7 +59,7 @@
             <label><input type="radio" name="m2-q3" value="c"> <code>0011 0000</code></label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p aria-live="polite"></p>
+          <p role="status" aria-live="polite"></p>
         </form>
       </section>
       <section class="modulo-secao modulo-projeto" aria-labelledby="m2-projeto">

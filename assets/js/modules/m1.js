@@ -34,7 +34,7 @@ export function inicializarM1(container) {
         </select>
       </label>
     </div>
-    <p class="widget-resultado" id="m1-resultado" aria-live="polite"></p>
+    <p class="widget-resultado" id="m1-resultado" role="status" aria-live="polite"></p>
     <div class="widget-leds" id="m1-leds" aria-label="Bits do valor digitalizado"></div>
     <p class="widget-explicacao">Com 4 bits você tem 16 níveis. Com 2 bits, apenas 4. Mais bits = mais fidelidade.</p>
   `;

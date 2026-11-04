@@ -385,8 +385,8 @@ export function inicializarM5(container) {
             <button class="btn btn--ghost" data-acao="automatico" type="button" aria-pressed="false">Clock automático</button>
             <button class="btn btn--ghost" id="m5-d-reset" type="button">Reset</button>
           </div>
-          <p class="widget-resultado" data-ciclos="d">Ciclos: 0</p>
-          <div class="simulador-leituras" id="m5-d-saidas" aria-label="Saídas do flip-flop D"></div>
+          <p class="widget-resultado" data-ciclos="d" role="status" aria-live="polite">Ciclos: 0</p>
+          <div class="simulador-leituras" id="m5-d-saidas" role="status" aria-live="polite" aria-label="Saídas do flip-flop D"></div>
           <p class="widget-explicacao">Q só muda quando o clock sobe (0→1). Mude D e observe: nada acontece até você pulsar o clock.</p>
         </div>
         <canvas class="simulador-canvas" id="m5-d-canvas" aria-label="Circuito com flip-flop D"></canvas>
@@ -402,8 +402,8 @@ export function inicializarM5(container) {
             <button class="btn btn--ghost" data-acao="automatico" type="button" aria-pressed="false">Clock automático</button>
           </div>
           <button class="btn btn--ghost" id="m5-jk-reset" type="button">Reset</button>
-          <p class="widget-resultado" data-ciclos="jk">Ciclos: 0</p>
-          <div class="simulador-leituras" id="m5-jk-saidas" aria-label="Saídas do flip-flop JK"></div>
+          <p class="widget-resultado" data-ciclos="jk" role="status" aria-live="polite">Ciclos: 0</p>
+          <div class="simulador-leituras" id="m5-jk-saidas" role="status" aria-live="polite" aria-label="Saídas do flip-flop JK"></div>
           <div class="widget-tabela-scroll">
             <table class="widget-tabela-verdade" id="m5-jk-tabela">
               <thead><tr><th>J</th><th>K</th><th>Q seguinte</th></tr></thead>
@@ -429,9 +429,9 @@ export function inicializarM5(container) {
             <button class="btn btn--ghost" data-acao="automatico" type="button" aria-pressed="false">Automático</button>
             <button class="btn btn--ghost" id="m5-contador-reset" type="button">Reset</button>
           </div>
-          <div class="simulador-leituras" id="m5-contador-saidas" aria-label="Bits do contador"></div>
-          <p class="widget-resultado" id="m5-contador-valor">Valor decimal: 0</p>
-          <p class="widget-resultado" data-ciclos="contador">Ciclos: 0</p>
+          <div class="simulador-leituras" id="m5-contador-saidas" role="status" aria-live="polite" aria-label="Bits do contador"></div>
+          <p class="widget-resultado" id="m5-contador-valor" role="status" aria-live="polite">Valor decimal: 0</p>
+          <p class="widget-resultado" data-ciclos="contador" role="status" aria-live="polite">Ciclos: 0</p>
           <p class="widget-explicacao">Cada borda de subida incrementa o contador. Após 15, volta a 0.</p>
         </div>
         <canvas class="simulador-canvas" id="m5-contador-canvas" aria-label="Circuito contador de quatro bits"></canvas>
@@ -443,8 +443,8 @@ export function inicializarM5(container) {
         <div class="simulador-painel">
           <div class="simulador-chaves" id="m5-reg-controles"></div>
           <button class="btn btn--primary" id="m5-reg-carregar" type="button">Carregar</button>
-          <div class="simulador-leituras" id="m5-reg-saidas" aria-label="Saídas do registrador"></div>
-          <p class="widget-resultado" id="m5-reg-ciclos">Ciclos: 0</p>
+          <div class="simulador-leituras" id="m5-reg-saidas" role="status" aria-live="polite" aria-label="Saídas do registrador"></div>
+          <p class="widget-resultado" id="m5-reg-ciclos" role="status" aria-live="polite">Ciclos: 0</p>
           <p class="widget-explicacao">O registrador só copia os dados quando o clock sobe. Mude os switches e veja: a saída não muda até você carregar.</p>
         </div>
         <canvas class="simulador-canvas" id="m5-reg-canvas" aria-label="Circuito registrador de quatro bits"></canvas>

@@ -433,9 +433,9 @@ export function inicializarM7(container) {
               ${OPERACOES.map((operacao) => `<option value="${operacao}">${operacao}</option>`).join('')}
             </select>
           </label>
-          <p class="widget-resultado" id="m7-ula-resultado" aria-live="polite"></p>
-          <p class="widget-resultado" id="m7-ula-binario" aria-live="polite"></p>
-          <div class="simulador-leituras">
+          <p class="widget-resultado" id="m7-ula-resultado" role="status" aria-live="polite"></p>
+          <p class="widget-resultado" id="m7-ula-binario" role="status" aria-live="polite"></p>
+          <div class="simulador-leituras" role="status" aria-live="polite">
             <span class="simulador-indicador" id="m7-ula-zero">Zero: 0</span>
             <span class="simulador-indicador" id="m7-ula-carry">Carry/Borrow: 0</span>
           </div>
@@ -479,9 +479,9 @@ export function inicializarM7(container) {
       </div>
       <div class="widget-caminho-controles">
         <button class="btn btn--primary" id="m7-executar-ciclo" type="button">Executar ciclo</button>
-        <p class="widget-resultado" id="m7-ciclos" aria-live="polite">Ciclos executados: 0</p>
+        <p class="widget-resultado" id="m7-ciclos" role="status" aria-live="polite">Ciclos executados: 0</p>
       </div>
-      <p class="widget-fluxo-explicacao" id="m7-caminho-explicacao" aria-live="polite"></p>
+      <p class="widget-fluxo-explicacao" id="m7-caminho-explicacao" role="status" aria-live="polite"></p>
     </section>
     <section class="widget-bloco" aria-labelledby="m7-escala-titulo">
       <h3 id="m7-escala-titulo">Do transistor ao programa</h3>
@@ -493,7 +493,7 @@ export function inicializarM7(container) {
           </button>
         `).join('')}
       </div>
-      <p class="widget-fluxo-explicacao" id="m7-escala-explicacao" aria-live="polite"></p>
+      <p class="widget-fluxo-explicacao" id="m7-escala-explicacao" role="status" aria-live="polite"></p>
     </section>
   `;
 

@@ -346,7 +346,7 @@ export function inicializarM4(container) {
         <div class="simulador-painel">
           <div class="simulador-chaves" id="m4-somador-controles"></div>
           <div class="simulador-leituras" id="m4-somador-saidas" aria-label="Saídas do somador"></div>
-          <p class="widget-resultado" id="m4-somador-resultado" aria-live="polite"></p>
+          <p class="widget-resultado" id="m4-somador-resultado" role="status" aria-live="polite"></p>
           <button class="btn btn--ghost" id="m4-somador-novo" type="button">Novo circuito</button>
         </div>
         <canvas class="simulador-canvas" id="m4-somador-canvas" aria-label="Circuito somador de quatro bits"></canvas>
@@ -369,7 +369,7 @@ export function inicializarM4(container) {
             <rect data-segmento="g" x="28" y="90" width="64" height="12" rx="5"></rect>
           </svg>
           <p class="widget-erro" id="m4-bcd-aviso" role="status" aria-live="polite" hidden></p>
-          <div class="simulador-leituras" id="m4-bcd-decodificado" aria-label="Saídas do decodificador 2 para 4"></div>
+          <div class="simulador-leituras" id="m4-bcd-decodificado" role="status" aria-live="polite" aria-label="Saídas do decodificador 2 para 4"></div>
         </div>
         <canvas class="simulador-canvas" id="m4-bcd-canvas" aria-label="Circuito de decodificação BCD"></canvas>
       </div>
@@ -380,8 +380,8 @@ export function inicializarM4(container) {
       <div class="simulador-grade">
         <div class="simulador-painel">
           <div class="simulador-chaves" id="m4-mux-controles"></div>
-          <p class="widget-resultado" id="m4-mux-selecionada" aria-live="polite"></p>
-          <div class="simulador-leituras" id="m4-mux-saida" aria-label="Saída do multiplexador"></div>
+          <p class="widget-resultado" id="m4-mux-selecionada" role="status" aria-live="polite"></p>
+          <div class="simulador-leituras" id="m4-mux-saida" role="status" aria-live="polite" aria-label="Saída do multiplexador"></div>
         </div>
         <canvas class="simulador-canvas" id="m4-mux-canvas" aria-label="Circuito multiplexador 4 para 1"></canvas>
       </div>

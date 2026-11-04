@@ -144,7 +144,7 @@ export function inicializarM3(container) {
         <span></span><span>CD 00</span><span>CD 01</span><span>CD 11</span><span>CD 10</span>
       </div>
       <div class="widget-karnaugh" id="m3-mapa" role="group" aria-label="Mapa de Karnaugh: linhas AB e colunas CD"></div>
-      <p class="widget-expressao" id="m3-expressao" aria-live="polite">F = 0</p>
+      <p class="widget-expressao" id="m3-expressao" role="status" aria-live="polite">F = 0</p>
       <div class="widget-acoes">
         <button class="btn btn--ghost" id="m3-limpar" type="button">Limpar</button>
         <button class="btn btn--primary" id="m3-exemplo" type="button">Exemplo</button>

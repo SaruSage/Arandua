@@ -8,17 +8,18 @@
     <link rel="stylesheet" href="../assets/css/components.css">
     <link rel="stylesheet" href="../assets/css/editor.css">
   </head>
-  <body>
+  <body class="editor-page">
+    <a href="#conteudo" class="skip-link">Pular para o conteúdo</a>
     <div class="editor-layout">
       <header class="editor-toolbar">
         <h1>Editor Livre</h1>
         <div class="editor-toolbar__acoes">
           <p class="editor-toolbar__dica">Ctrl+Z desfaz · Delete remove · Clique em pino para conectar</p>
-          <a class="btn btn--ghost btn--sm" href="../index.html">← Voltar</a>
+          <a class="btn btn--ghost btn--sm" href="../index.html" aria-label="Voltar para o início"><span aria-hidden="true">←</span><span class="editor-toolbar__texto"> Voltar</span></a>
         </div>
       </header>
       <aside id="paleta" class="editor-paleta" aria-label="Paleta de componentes"></aside>
-      <main class="editor-canvas" aria-label="Área de montagem do circuito">
+      <main class="editor-canvas" id="conteudo" tabindex="-1" aria-label="Área de montagem do circuito">
         <canvas id="canvas" aria-label="Canvas do circuito"></canvas>
       </main>
       <aside class="editor-propriedades" id="propriedades" aria-label="Propriedades do componente"></aside>

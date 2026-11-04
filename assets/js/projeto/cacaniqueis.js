@@ -235,7 +235,7 @@ export function inicializarCacaniqueis(container) {
     <section class="cacaniqueis-maquina" aria-labelledby="cacaniqueis-titulo">
       <h3 id="cacaniqueis-titulo">Caça-Níqueis Arandua</h3>
       <div class="cacaniqueis-displays" id="cacaniqueis-displays" aria-label="Três roletas do caça-níqueis"></div>
-      <p class="cacaniqueis-creditos" aria-live="polite">Créditos: <span id="cacaniqueis-creditos">10</span></p>
+      <p class="cacaniqueis-creditos" role="status" aria-live="polite">Créditos: <span id="cacaniqueis-creditos">10</span></p>
       <div class="cacaniqueis-mensagem" id="cacaniqueis-mensagem" role="status" aria-live="polite">Pronto para jogar!</div>
       <div class="cacaniqueis-acoes">
         <button class="cacaniqueis-botao-girar" id="cacaniqueis-girar" type="button">GIRAR</button>
@@ -250,9 +250,9 @@ export function inicializarCacaniqueis(container) {
       <details class="cacaniqueis-circuito">
         <summary>Ver circuito</summary>
         <div class="cacaniqueis-diagrama-area">
-          <svg class="cacaniqueis-diagrama" id="cacaniqueis-diagrama" data-painel="cacaniqueis-diagrama-info"></svg>
+          <svg class="cacaniqueis-diagrama" id="cacaniqueis-diagrama" role="group" aria-label="Diagrama de blocos do caça-níqueis" data-painel="cacaniqueis-diagrama-info"></svg>
         </div>
-        <p class="cacaniqueis-diagrama-info" id="cacaniqueis-diagrama-info" aria-live="polite">Clique em um bloco para ver sua função e o módulo relacionado.</p>
+        <p class="cacaniqueis-diagrama-info" id="cacaniqueis-diagrama-info" role="status" aria-live="polite">Clique em um bloco para ver sua função e o módulo relacionado.</p>
       </details>
     </section>
   `;

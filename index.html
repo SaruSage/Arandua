@@ -10,6 +10,7 @@
     <script type="module" src="assets/js/app.js"></script>
   </head>
   <body>
+    <a href="#conteudo" class="skip-link">Pular para o conteúdo</a>
     <header class="cabecalho">
       <div class="container cabecalho__conteudo">
         <a class="marca" href="./index.html">
@@ -25,7 +26,7 @@
       </div>
     </header>
 
-    <main>
+    <main id="conteudo" tabindex="-1">
       <section class="hero container" aria-labelledby="titulo-principal">
         <p class="hero__sobretitulo">Aprenda fazendo</p>
         <h1 id="titulo-principal">Do primeiro bit a um miniprocessador</h1>
@@ -109,11 +110,40 @@
           </article>
         </div>
       </section>
+
+      <section class="container secao" aria-labelledby="titulo-como-usar">
+        <div class="secao__cabecalho">
+          <p class="hero__sobretitulo">Aprenda no seu ritmo</p>
+          <h2 id="titulo-como-usar">Como usar a plataforma</h2>
+        </div>
+        <div class="grid-modulos">
+          <article class="card">
+            <h3>1. Siga os módulos em ordem</h3>
+            <p>Construa seu conhecimento passo a passo, dos sinais digitais à arquitetura de computadores.</p>
+          </article>
+          <article class="card">
+            <h3>2. Experimente no editor livre</h3>
+            <p>Monte circuitos por conta própria e teste as ideias que encontrar pelo caminho.</p>
+          </article>
+          <article class="card">
+            <h3>3. Monte o caça-níqueis</h3>
+            <p>Reúna os conceitos da trilha no projeto integrador e investigue como cada bloco participa do jogo.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="container secao" aria-labelledby="titulo-sobre">
+        <div class="secao__cabecalho">
+          <h2 id="titulo-sobre">Sobre o projeto</h2>
+        </div>
+        <p>Arandua é um projeto acadêmico de Sistemas Digitais criado para apresentar conceitos de eletrônica digital de forma acessível e prática. A plataforma combina explicações e simulações para apoiar quem está começando a estudar o tema.</p>
+        <p>O nome Arandua presta homenagem ao Tupi e às raízes culturais brasileiras, aproximando a identidade do projeto do contexto em que ele foi criado.</p>
+      </section>
     </main>
 
     <footer class="footer">
       <div class="container">
-        <p>Arandua — um projeto para aprender Sistemas Digitais. 2026.</p>
+        <p>Arandua — um projeto para aprender Sistemas Digitais. 2026. Projeto acadêmico de Sistemas Digitais</p>
       </div>
     </footer>
   </body>

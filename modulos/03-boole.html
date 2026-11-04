@@ -10,12 +10,14 @@
     <link rel="stylesheet" href="../assets/css/modulos.css">
   </head>
   <body>
+    <a href="#conteudo" class="skip-link">Pular para o conteúdo</a>
     <header class="modulo-header container">
       <span class="badge">Módulo 3</span>
+      <span class="modulo-progresso">Módulo 3 de 7</span>
       <h1>Álgebra de Boole e Portas Lógicas</h1>
       <a class="btn btn--ghost" href="../index.html">← Voltar</a>
     </header>
-    <main class="container modulo-conteudo">
+    <main class="container modulo-conteudo" id="conteudo" tabindex="-1">
       <section class="modulo-secao modulo-teoria" aria-labelledby="m3-teoria">
         <h2 id="m3-teoria">Teoria</h2>
         <p>A álgebra de Boole descreve operações com valores lógicos 0 e 1. Em circuitos, esses valores representam sinais desligados e ligados.</p>
@@ -37,7 +39,7 @@
             <label><input type="radio" name="m3-q1" value="c"> Indefinida</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p aria-live="polite"></p>
+          <p role="status" aria-live="polite"></p>
         </form>
         <form class="widget-exercicio" data-resposta="c">
           <fieldset>
@@ -47,7 +49,7 @@
             <label><input type="radio" name="m3-q2" value="c"> 3 entradas</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p aria-live="polite"></p>
+          <p role="status" aria-live="polite"></p>
         </form>
         <form class="widget-exercicio" data-resposta="b">
           <fieldset>
@@ -57,7 +59,7 @@
             <label><input type="radio" name="m3-q3" value="c"> Converter automaticamente decimal para hexadecimal.</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p aria-live="polite"></p>
+          <p role="status" aria-live="polite"></p>
         </form>
       </section>
       <section class="modulo-secao modulo-projeto" aria-labelledby="m3-projeto">

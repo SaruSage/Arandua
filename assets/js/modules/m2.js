@@ -51,7 +51,7 @@ export function inicializarM2(container) {
         </label>
       </div>
       <p class="widget-erro" id="m2-erro" role="status" aria-live="polite"></p>
-      <div class="widget-bases" id="m2-bases" aria-live="polite"></div>
+      <div class="widget-bases" id="m2-bases" role="status" aria-live="polite"></div>
     </section>
     <section class="widget-bloco" aria-labelledby="m2-titulo-codigos">
       <h3 id="m2-titulo-codigos">Códigos BCD, Gray e ASCII</h3>
@@ -63,8 +63,8 @@ export function inicializarM2(container) {
           <input id="m2-caractere" type="text" maxlength="2" value="A" autocomplete="off">
         </label>
       </div>
-      <p id="m2-codigo-numero" class="widget-resultado" aria-live="polite"></p>
-      <p id="m2-codigo-ascii" class="widget-resultado" aria-live="polite"></p>
+      <p id="m2-codigo-numero" class="widget-resultado" role="status" aria-live="polite"></p>
+      <p id="m2-codigo-ascii" class="widget-resultado" role="status" aria-live="polite"></p>
     </section>
     <section class="widget-bloco" aria-labelledby="m2-titulo-tabela">
       <h3 id="m2-titulo-tabela">Tabela de 0 a 15</h3>

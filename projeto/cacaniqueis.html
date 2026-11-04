@@ -10,12 +10,13 @@
     <link rel="stylesheet" href="../assets/css/modulos.css">
   </head>
   <body>
+    <a href="#conteudo" class="skip-link">Pular para o conteúdo</a>
     <header class="modulo-header container">
       <span class="badge">Projeto Final</span>
       <h1>Caça-Níqueis Arandua</h1>
-      <a class="btn btn--ghost" href="../index.html">← Voltar</a>
+      <a class="btn btn--ghost" href="../index.html">Voltar ao início</a>
     </header>
-    <main class="container modulo-conteudo">
+    <main class="container modulo-conteudo" id="conteudo" tabindex="-1">
       <section class="modulo-secao modulo-teoria" aria-labelledby="cacaniqueis-intro">
         <h2 id="cacaniqueis-intro">O que você vai construir</h2>
         <p>Você vai jogar e explorar um caça-níqueis digital formado por três roletas, displays de sete segmentos, comparadores, uma máquina de estados e um contador de créditos.</p>
@@ -29,9 +30,9 @@
         <h2 id="cacaniqueis-funcionamento">Como funciona</h2>
         <p>Selecione um bloco no diagrama para ver sua função. Os blocos também indicam o módulo em que o conceito foi apresentado.</p>
         <div class="cacaniqueis-diagrama-area">
-          <svg class="cacaniqueis-diagrama" id="cacaniqueis-diagrama-explicativo" data-painel="cacaniqueis-diagrama-explicacao"></svg>
+          <svg class="cacaniqueis-diagrama" id="cacaniqueis-diagrama-explicativo" role="group" aria-label="Diagrama de blocos explicativo do caça-níqueis" data-painel="cacaniqueis-diagrama-explicacao"></svg>
         </div>
-        <p class="cacaniqueis-diagrama-info" id="cacaniqueis-diagrama-explicacao" aria-live="polite">Clique em um bloco para ver sua função e o módulo relacionado.</p>
+        <p class="cacaniqueis-diagrama-info" id="cacaniqueis-diagrama-explicacao" role="status" aria-live="polite">Clique em um bloco para ver sua função e o módulo relacionado.</p>
         <div class="cacaniqueis-explicacoes">
           <article class="cacaniqueis-explicacao">
             <h3>Contadores — Módulo 5</h3>
@@ -78,6 +79,9 @@
         <p>Agora experimente criar ou modificar circuitos por conta própria.</p>
         <a class="btn btn--primary" href="../sandbox/editor.html">Abrir o editor livre</a>
       </section>
+      <nav class="modulo-nav" aria-label="Navegação do projeto">
+        <a class="btn btn--ghost" href="../index.html">Voltar ao início</a>
+      </nav>
     </main>
     <script type="module">
       import { inicializarCacaniqueis } from '../assets/js/projeto/cacaniqueis.js';

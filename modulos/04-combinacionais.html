@@ -10,12 +10,14 @@
     <link rel="stylesheet" href="../assets/css/modulos.css">
   </head>
   <body>
+    <a href="#conteudo" class="skip-link">Pular para o conteúdo</a>
     <header class="modulo-header container">
       <span class="badge">Módulo 4</span>
+      <span class="modulo-progresso">Módulo 4 de 7</span>
       <h1>Circuitos Combinacionais</h1>
       <a class="btn btn--ghost" href="../index.html">← Voltar</a>
     </header>
-    <main class="container modulo-conteudo">
+    <main class="container modulo-conteudo" id="conteudo" tabindex="-1">
       <section class="modulo-secao modulo-teoria" aria-labelledby="m4-teoria">
         <h2 id="m4-teoria">Teoria</h2>
         <p>Um circuito combinacional produz suas saídas a partir dos valores presentes nas entradas. Ele não guarda memória: se uma entrada muda, a saída é recalculada.</p>
@@ -38,7 +40,7 @@
             <label><input type="radio" name="m4-q1" value="c"> Escolhe uma entrada entre quatro sinais.</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p aria-live="polite"></p>
+          <p role="status" aria-live="polite"></p>
         </form>
         <form class="widget-exercicio" data-resposta="a">
           <fieldset>
@@ -48,7 +50,7 @@
             <label><input type="radio" name="m4-q2" value="c"> Para inverter todas as entradas.</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p aria-live="polite"></p>
+          <p role="status" aria-live="polite"></p>
         </form>
         <form class="widget-exercicio" data-resposta="c">
           <fieldset>
@@ -58,7 +60,7 @@
             <label><input type="radio" name="m4-q3" value="c"> Dos valores atuais nas entradas.</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p aria-live="polite"></p>
+          <p role="status" aria-live="polite"></p>
         </form>
       </section>
       <section class="modulo-secao modulo-projeto" aria-labelledby="m4-projeto">

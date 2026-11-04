@@ -10,12 +10,14 @@
     <link rel="stylesheet" href="../assets/css/modulos.css">
   </head>
   <body>
+    <a href="#conteudo" class="skip-link">Pular para o conteúdo</a>
     <header class="modulo-header container">
       <span class="badge">Módulo 5</span>
+      <span class="modulo-progresso">Módulo 5 de 7</span>
       <h1>Circuitos Sequenciais</h1>
       <a class="btn btn--ghost" href="../index.html">← Voltar</a>
     </header>
-    <main class="container modulo-conteudo">
+    <main class="container modulo-conteudo" id="conteudo" tabindex="-1">
       <section class="modulo-secao modulo-teoria" aria-labelledby="m5-teoria">
         <h2 id="m5-teoria">Teoria</h2>
         <p>Ao contrário dos circuitos combinacionais, circuitos sequenciais guardam informação. A saída pode depender tanto das entradas atuais quanto do estado armazenado anteriormente.</p>
@@ -39,7 +41,7 @@
             <label><input type="radio" name="m5-q1" value="c"> Somente quando a alimentação é desligada.</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p aria-live="polite"></p>
+          <p role="status" aria-live="polite"></p>
         </form>
         <form class="widget-exercicio" data-resposta="c">
           <fieldset>
@@ -49,7 +51,7 @@
             <label><input type="radio" name="m5-q2" value="c"> O estado atual é invertido na borda do clock.</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p aria-live="polite"></p>
+          <p role="status" aria-live="polite"></p>
         </form>
         <form class="widget-exercicio" data-resposta="a">
           <fieldset>
@@ -59,7 +61,7 @@
             <label><input type="radio" name="m5-q3" value="c"> Converter um sinal analógico em digital.</label>
           </fieldset>
           <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
-          <p aria-live="polite"></p>
+          <p role="status" aria-live="polite"></p>
         </form>
       </section>
       <section class="modulo-secao modulo-projeto" aria-labelledby="m5-projeto">

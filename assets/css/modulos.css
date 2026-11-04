@@ -1,6 +1,6 @@
 .modulo-header {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--esp-4);
   padding-block: var(--esp-5);
@@ -15,6 +15,11 @@
 
 .modulo-header .badge {
   color: var(--cor-acento-2);
+}
+
+.modulo-progresso {
+  color: var(--cor-texto-sec);
+  font-size: 0.8125rem;
 }
 
 .modulo-conteudo {
@@ -1067,15 +1072,20 @@
     grid-template-columns: auto minmax(0, 1fr);
   }
 
+  .modulo-header .modulo-progresso {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
   .modulo-header .btn {
     grid-column: 1 / -1;
     justify-self: start;
-    grid-row: 2;
+    grid-row: 3;
   }
 
   .modulo-header h1 {
     grid-column: 1 / -1;
-    grid-row: 3;
+    grid-row: 2;
   }
 
   .widget-controles,

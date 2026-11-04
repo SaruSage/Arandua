@@ -130,8 +130,167 @@ pre code {
   padding-inline: var(--esp-5);
 }
 
+.skip-link {
+  position: fixed;
+  z-index: 1000;
+  top: var(--esp-3);
+  left: var(--esp-3);
+  padding: var(--esp-3) var(--esp-4);
+  transform: translateY(calc(-100% - var(--esp-5)));
+  border-radius: var(--raio-sm);
+  background: var(--cor-acento);
+  color: #ffffff;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--cor-acento);
+  outline-offset: 2px;
+}
+
+@media (max-width: 1024px) {
+  body .grid-modulos,
+  body .grid-modulos--experiencias {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  body .grid-modulos,
+  body .grid-modulos--experiencias {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body .editor-layout {
+    height: auto;
+    min-height: 100vh;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 64px auto minmax(320px, 60vh) auto;
+    overflow-y: auto;
+  }
+
+  .editor-toolbar {
+    grid-row: 1;
+  }
+
+  .editor-paleta {
+    display: flex;
+    grid-row: 2;
+    gap: var(--esp-4);
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: 0;
+    border-bottom: 1px solid var(--cor-borda);
+  }
+
+  .editor-paleta .paleta-grupo {
+    flex: 0 0 max-content;
+    margin-top: 0;
+  }
+
+  .editor-paleta .paleta-lista {
+    display: flex;
+    flex-wrap: nowrap;
+  }
+
+  .editor-paleta .paleta-item {
+    flex: 0 0 auto;
+  }
+
+  .editor-canvas {
+    grid-row: 3;
+    height: auto;
+    min-height: 320px;
+  }
+
+  .editor-propriedades {
+    grid-row: 4;
+    border-top: 1px solid var(--cor-borda);
+    border-left: 0;
+  }
+
+  body .widget-paradigmas {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body .widget-bases {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body .cacaniqueis-displays {
+    gap: var(--esp-3);
+  }
+
+  body .cacaniqueis-display {
+    width: 96px;
+    height: 128px;
+  }
+
+  body .modulo-header {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body .modulo-header .modulo-progresso {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  body .modulo-header h1 {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  body .modulo-header .btn {
+    grid-column: 1;
+    grid-row: 4;
+  }
+
+  body.editor-page {
+    overflow: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  body .widget-bases {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body .cacaniqueis-display {
+    width: 80px;
+    height: 110px;
+  }
+
+  .editor-toolbar__acoes .btn {
+    width: 44px;
+    min-width: 44px;
+    padding-inline: 0;
+    overflow: hidden;
+    font-size: 0;
+  }
+
+  .editor-toolbar__acoes .btn span {
+    font-size: 1.125rem;
+  }
+
+  .editor-toolbar__acoes .btn .editor-toolbar__texto {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }

@@ -121,7 +121,7 @@ export function inicializarM6(container) {
           <button class="widget-etapa" type="button" aria-pressed="false">${etapa}</button>
         `).join('')}
       </div>
-      <p class="widget-fluxo-explicacao" id="m6-fluxo-explicacao" aria-live="polite"></p>
+      <p class="widget-fluxo-explicacao" id="m6-fluxo-explicacao" role="status" aria-live="polite"></p>
     </section>
     <section class="widget-bloco" aria-labelledby="m6-arduino-titulo">
       <h3 id="m6-arduino-titulo">Por que Arduino neste curso</h3>
