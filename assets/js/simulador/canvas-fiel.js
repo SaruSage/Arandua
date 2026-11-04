@@ -6,7 +6,6 @@
 import { desenharSimbolo, dimensoesSimbolo, CORES_SIMBOLO } from './simbolos.js';
 
 const TAMANHO_GRADE = 20;
-const RAIO_PINO = 6;
 
 /**
  * Cria o renderizador do canvas fiel.
@@ -36,13 +35,13 @@ export function criarCanvasFiel(elemento) {
   function desenharGrade() {
     const rect = elemento.getBoundingClientRect();
     ctx.save();
-    ctx.fillStyle = '#f7fbf9';
+    ctx.fillStyle = '#f5f6f7';
     ctx.fillRect(0, 0, rect.width, rect.height);
 
     const passo = TAMANHO_GRADE * view.zoom;
     if (passo < 6) { ctx.restore(); return; }
 
-    ctx.strokeStyle = '#e8edea';
+    ctx.strokeStyle = '#e4e6e8';
     ctx.lineWidth = 1;
     ctx.beginPath();
     const inicioX = view.panX % passo;
@@ -54,21 +53,6 @@ export function criarCanvasFiel(elemento) {
       ctx.moveTo(0, y); ctx.lineTo(rect.width, y);
     }
     ctx.stroke();
-
-    const passoForte = passo * 5;
-    if (passoForte > 20) {
-      ctx.strokeStyle = '#d4ddd8';
-      ctx.beginPath();
-      const inicioXF = view.panX % passoForte;
-      const inicioYF = view.panY % passoForte;
-      for (let x = inicioXF; x < rect.width; x += passoForte) {
-        ctx.moveTo(x, 0); ctx.lineTo(x, rect.height);
-      }
-      for (let y = inicioYF; y < rect.height; y += passoForte) {
-        ctx.moveTo(0, y); ctx.lineTo(rect.width, y);
-      }
-      ctx.stroke();
-    }
     ctx.restore();
   }
 
@@ -77,16 +61,16 @@ export function criarCanvasFiel(elemento) {
     const y1 = origem.y;
     const x2 = destino.x;
     const y2 = destino.y;
-    const dx = Math.abs(x2 - x1) * 0.5;
+    const dx = Math.max(30, Math.abs(x2 - x1) * 0.4);
 
     ctx.save();
     ctx.beginPath();
     ctx.moveTo(x1, y1);
     ctx.bezierCurveTo(x1 + dx, y1, x2 - dx, y2, x2, y2);
-    if (valor === 1) ctx.strokeStyle = CORES_SIMBOLO.pinoAtivo;
-    else if (valor === 0) ctx.strokeStyle = CORES_SIMBOLO.pino;
+    if (valor === 1) ctx.strokeStyle = CORES_SIMBOLO.primaria;
+    else if (valor === 0) ctx.strokeStyle = '#8a8a8a';
     else ctx.strokeStyle = CORES_SIMBOLO.pinoIndefinido;
-    ctx.lineWidth = 3 * view.zoom;
+    ctx.lineWidth = 2 * view.zoom;
     ctx.lineCap = 'round';
     ctx.stroke();
     ctx.restore();
@@ -98,21 +82,14 @@ export function criarCanvasFiel(elemento) {
     const w = dim.w * view.zoom;
     const h = dim.h * view.zoom;
 
-    // Sombra suave
-    ctx.save();
-    ctx.shadowColor = 'rgba(25, 25, 25, 0.08)';
-    ctx.shadowBlur = 8 * view.zoom;
-    ctx.shadowOffsetY = 2 * view.zoom;
     desenharSimbolo(ctx, comp, tela.x, tela.y, w, h);
-    ctx.restore();
 
-    // Destaque de seleção
     if (selecionado) {
       ctx.save();
       ctx.strokeStyle = CORES_SIMBOLO.primaria;
-      ctx.lineWidth = 3 * view.zoom;
-      ctx.setLineDash([6 * view.zoom, 4 * view.zoom]);
-      ctx.strokeRect(tela.x - 6, tela.y - 6, w + 12, h + 12);
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5 * view.zoom, 4 * view.zoom]);
+      ctx.strokeRect(tela.x - 14, tela.y - 8, w + 28, h + 16);
       ctx.restore();
     }
   }
@@ -127,7 +104,8 @@ export function criarCanvasFiel(elemento) {
     const w = dim.w * view.zoom;
     const h = dim.h * view.zoom;
     const y = tela.y + h * ((idx + 1) / (lista.length + 1));
-    const x = direcao === 'entrada' ? tela.x : tela.x + w;
+    const RAIO_PINO = 5 * view.zoom;
+    const x = direcao === 'entrada' ? tela.x - RAIO_PINO : tela.x + w + RAIO_PINO;
     return { x, y };
   }
 
@@ -153,9 +131,9 @@ export function criarCanvasFiel(elemento) {
       ctx.beginPath();
       ctx.moveTo(fioFantasma.origem.x, fioFantasma.origem.y);
       ctx.lineTo(fioFantasma.cursor.x, fioFantasma.cursor.y);
-      ctx.setLineDash([8, 6]);
+      ctx.setLineDash([6, 5]);
       ctx.strokeStyle = CORES_SIMBOLO.primaria;
-      ctx.lineWidth = 2.5;
+      ctx.lineWidth = 2;
       ctx.stroke();
       ctx.restore();
     }
@@ -170,8 +148,8 @@ export function criarCanvasFiel(elemento) {
     for (let i = circuitoAtual.componentes.length - 1; i >= 0; i--) {
       const c = circuitoAtual.componentes[i];
       const dim = dimensoesSimbolo(c.tipo);
-      if (x >= c.posicao.x && x <= c.posicao.x + dim.w
-          && y >= c.posicao.y && y <= c.posicao.y + dim.h) {
+      if (x >= c.posicao.x - 10 && x <= c.posicao.x + dim.w + 10
+          && y >= c.posicao.y - 10 && y <= c.posicao.y + dim.h + 10) {
         return c;
       }
     }
@@ -179,24 +157,21 @@ export function criarCanvasFiel(elemento) {
   }
 
   function pinoEm(x, y) {
-    const comp = componenteEm(x, y);
-    if (!comp) return null;
-    const RAIO = 10;
-
-    for (const pino of comp.entradas) {
-      const pos = posicaoPinoTela(comp, pino.id, 'entrada');
-      if (pos && Math.hypot(pos.x - x, pos.y - y) < RAIO) {
-        return { componente: comp, pino, direcao: 'entrada' };
+    const RAIO = 12;
+    for (const comp of circuitoAtual.componentes) {
+      for (const pino of comp.entradas) {
+        const pos = posicaoPinoTela(comp, pino.id, 'entrada');
+        if (pos && Math.hypot(pos.x - x, pos.y - y) < RAIO) {
+          return { componente: comp, pino, direcao: 'entrada' };
+        }
+      }
+      for (const pino of comp.saidas) {
+        const pos = posicaoPinoTela(comp, pino.id, 'saida');
+        if (pos && Math.hypot(pos.x - x, pos.y - y) < RAIO) {
+          return { componente: comp, pino, direcao: 'saida' };
+        }
       }
     }
-
-    for (const pino of comp.saidas) {
-      const pos = posicaoPinoTela(comp, pino.id, 'saida');
-      if (pos && Math.hypot(pos.x - x, pos.y - y) < RAIO) {
-        return { componente: comp, pino, direcao: 'saida' };
-      }
-    }
-
     return null;
   }
 

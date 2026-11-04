@@ -1,32 +1,33 @@
 /**
  * simbolos.js — Desenho dos símbolos reais dos componentes.
- * Cada função desenha no contexto 2D dentro de uma caixa (x, y, w, h).
- * Estilo: traço grosso arredondado, cores alegres, fiel ao padrão IEC.
+ * Estilo minimalista técnico: traço escuro fino sobre branco,
+ * pinos como círculos vazados, sem sombras pesadas.
  */
 
-/** Paleta de cores dos símbolos. */
+/** Paleta dos símbolos — minimalista, alto contraste. */
 export const CORES_SIMBOLO = {
-  traco: '#2f3e36',
+  traco: '#2b2b2b',
+  tracoFino: '#5a5a5a',
   preenchimento: '#ffffff',
-  preenchimentoAtivo: '#d8f5e8',
+  preenchimentoAtivo: '#e8f5ee',
   primaria: '#53b588',
   primariaEscura: '#3e9670',
   acento: '#ffb340',
-  acentoEscuro: '#e09a24',
   erro: '#e05a5a',
-  texto: '#191919',
-  pino: '#53b588',
-  pinoAtivo: '#3e9670',
-  pinoIndefinido: '#b8c4be',
-  ledApagado: '#d4ddd8',
+  texto: '#2b2b2b',
+  pino: '#2b2b2b',
+  pinoAtivo: '#53b588',
+  pinoIndefinido: '#b8b8b8',
+  ledApagado: '#ffffff',
   ledAceso: '#ffb340',
-  sombra: 'rgba(25, 25, 25, 0.08)',
+  displayFundo: '#ffffff',
+  displaySegApagado: '#e0e0e0',
+  displaySegAceso: '#ffb340',
 };
 
-/** Espessura do traço dos símbolos. */
-const TRACO = 3;
+const TRACO = 2;
+const RAIO_PINO = 5;
 
-/** Configura o contexto para desenho de símbolo. */
 function preparar(ctx) {
   ctx.lineWidth = TRACO;
   ctx.lineCap = 'round';
@@ -35,13 +36,13 @@ function preparar(ctx) {
   ctx.fillStyle = CORES_SIMBOLO.preenchimento;
 }
 
-/** Desenha um pino (círculo) na posição. */
-function desenharPinoSimbolo(ctx, x, y, valor, raio = 5) {
+/** Pino: círculo vazado com preenchimento por valor. */
+function desenharPinoSimbolo(ctx, x, y, valor, raio = RAIO_PINO) {
   ctx.save();
   ctx.beginPath();
   ctx.arc(x, y, raio, 0, Math.PI * 2);
   if (valor === 1) ctx.fillStyle = CORES_SIMBOLO.pinoAtivo;
-  else if (valor === 0) ctx.fillStyle = CORES_SIMBOLO.pino;
+  else if (valor === 0) ctx.fillStyle = CORES_SIMBOLO.preenchimento;
   else ctx.fillStyle = CORES_SIMBOLO.pinoIndefinido;
   ctx.fill();
   ctx.lineWidth = 2;
@@ -50,22 +51,32 @@ function desenharPinoSimbolo(ctx, x, y, valor, raio = 5) {
   ctx.restore();
 }
 
-/** Desenha o rótulo do componente centralizado. */
+/** Linha curta do pino até o corpo do componente. */
+function desenharHastePino(ctx, x1, y1, x2, y2) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES_SIMBOLO.traco;
+  ctx.stroke();
+  ctx.restore();
+}
+
 function desenharRotulo(ctx, texto, cx, cy, tamanho = 11) {
   ctx.save();
   ctx.fillStyle = CORES_SIMBOLO.texto;
-  ctx.font = `700 ${tamanho}px system-ui, sans-serif`;
+  ctx.font = `600 ${tamanho}px system-ui, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(texto, cx, cy);
   ctx.restore();
 }
 
-/** Desenha o rótulo de um pino ao lado do círculo. */
 function desenharRotuloPino(ctx, texto, x, y, alinhamento = 'left') {
   ctx.save();
-  ctx.fillStyle = CORES_SIMBOLO.traco;
-  ctx.font = '600 9px system-ui, sans-serif';
+  ctx.fillStyle = CORES_SIMBOLO.tracoFino;
+  ctx.font = '500 9px system-ui, sans-serif';
   ctx.textAlign = alinhamento;
   ctx.textBaseline = 'middle';
   const offset = alinhamento === 'left' ? 10 : -10;
@@ -73,10 +84,8 @@ function desenharRotuloPino(ctx, texto, x, y, alinhamento = 'left') {
   ctx.restore();
 }
 
-/**
- * Desenha uma porta AND (formato D).
- * Corpo: retângulo com lado direito semicircular.
- */
+/* ===== PORTAS LÓGICAS ===== */
+
 export function desenharAND(ctx, x, y, w, h) {
   preparar(ctx);
   const raio = h / 2;
@@ -90,7 +99,6 @@ export function desenharAND(ctx, x, y, w, h) {
   ctx.stroke();
 }
 
-/** Desenha uma porta OR (formato curvo). */
 export function desenharOR(ctx, x, y, w, h) {
   preparar(ctx);
   ctx.beginPath();
@@ -103,10 +111,8 @@ export function desenharOR(ctx, x, y, w, h) {
   ctx.stroke();
 }
 
-/** Desenha uma porta XOR (OR com curva extra na entrada). */
 export function desenharXOR(ctx, x, y, w, h) {
   preparar(ctx);
-  // Corpo da OR
   ctx.beginPath();
   ctx.moveTo(x + 8, y);
   ctx.quadraticCurveTo(x + w * 0.5 + 8, y, x + w, y + h / 2);
@@ -115,14 +121,12 @@ export function desenharXOR(ctx, x, y, w, h) {
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
-  // Curva extra da XOR
   ctx.beginPath();
   ctx.moveTo(x, y);
   ctx.quadraticCurveTo(x + w * 0.2, y + h / 2, x, y + h);
   ctx.stroke();
 }
 
-/** Desenha uma porta NOT (triângulo com bolinha). */
 export function desenharNOT(ctx, x, y, w, h) {
   preparar(ctx);
   const raioBolinha = 5;
@@ -134,7 +138,6 @@ export function desenharNOT(ctx, x, y, w, h) {
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
-  // Bolinha de negação
   ctx.beginPath();
   ctx.arc(x + larguraTriangulo + raioBolinha, y + h / 2, raioBolinha, 0, Math.PI * 2);
   ctx.fillStyle = CORES_SIMBOLO.preenchimento;
@@ -142,7 +145,6 @@ export function desenharNOT(ctx, x, y, w, h) {
   ctx.stroke();
 }
 
-/** Desenha uma porta NAND (AND com bolinha). */
 export function desenharNAND(ctx, x, y, w, h) {
   preparar(ctx);
   const raioBolinha = 5;
@@ -163,7 +165,6 @@ export function desenharNAND(ctx, x, y, w, h) {
   ctx.stroke();
 }
 
-/** Desenha uma porta NOR (OR com bolinha). */
 export function desenharNOR(ctx, x, y, w, h) {
   preparar(ctx);
   const raioBolinha = 5;
@@ -183,7 +184,6 @@ export function desenharNOR(ctx, x, y, w, h) {
   ctx.stroke();
 }
 
-/** Desenha uma porta XNOR (XOR com bolinha). */
 export function desenharXNOR(ctx, x, y, w, h) {
   preparar(ctx);
   const raioBolinha = 5;
@@ -207,56 +207,71 @@ export function desenharXNOR(ctx, x, y, w, h) {
   ctx.stroke();
 }
 
-/** Desenha um switch (alavanca). */
+/* ===== ENTRADAS E SAÍDAS ===== */
+
+/**
+ * Switch: símbolo esquemático com dois terminais e alavanca.
+ * Pino de saída desenhado à direita, com haste até o corpo.
+ */
 export function desenharSWITCH(ctx, x, y, w, h, ativo) {
   preparar(ctx);
   const cx = x + w / 2;
   const cy = y + h / 2;
-  const raio = Math.min(w, h) / 2 - 4;
+  const raio = Math.min(w, h) / 2 - 8;
 
-  // Base circular
+  // Corpo circular
   ctx.beginPath();
   ctx.arc(cx, cy, raio, 0, Math.PI * 2);
   ctx.fillStyle = ativo ? CORES_SIMBOLO.preenchimentoAtivo : CORES_SIMBOLO.preenchimento;
   ctx.fill();
   ctx.stroke();
 
-  // Alavanca
-  ctx.beginPath();
-  ctx.moveTo(cx, cy + raio * 0.5);
+  // Alavanca interna
   const angulo = ativo ? -Math.PI / 4 : Math.PI / 4;
-  ctx.lineTo(cx + Math.cos(angulo) * raio * 0.8, cy + Math.sin(angulo) * raio * 0.8);
-  ctx.lineWidth = 4;
+  const pontaX = cx + Math.cos(angulo) * raio * 0.75;
+  const pontaY = cy + Math.sin(angulo) * raio * 0.75;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(pontaX, pontaY);
+  ctx.lineWidth = 3;
   ctx.strokeStyle = ativo ? CORES_SIMBOLO.primariaEscura : CORES_SIMBOLO.traco;
   ctx.stroke();
 
   // Bolinha da ponta
   ctx.beginPath();
-  ctx.arc(cx + Math.cos(angulo) * raio * 0.8, cy + Math.sin(angulo) * raio * 0.8, 4, 0, Math.PI * 2);
+  ctx.arc(pontaX, pontaY, 3.5, 0, Math.PI * 2);
   ctx.fillStyle = ativo ? CORES_SIMBOLO.primaria : CORES_SIMBOLO.traco;
   ctx.fill();
+
+  // Pino de saída (direita) — haste + círculo vazado
+  const pinoX = x + w;
+  const pinoY = cy;
+  desenharHastePino(ctx, cx + raio, cy, pinoX - RAIO_PINO, pinoY);
+  desenharPinoSimbolo(ctx, pinoX, pinoY, ativo ? 1 : 0);
 }
 
-/** Desenha um LED (círculo com brilho quando aceso). */
+/**
+ * LED: círculo com pino de entrada à esquerda e brilho quando aceso.
+ */
 export function desenharLED(ctx, x, y, w, h, aceso) {
   const cx = x + w / 2;
   const cy = y + h / 2;
-  const raio = Math.min(w, h) / 2 - 4;
+  const raio = Math.min(w, h) / 2 - 8;
 
-  // Brilho externo quando aceso
+  // Brilho suave quando aceso
   if (aceso) {
     ctx.save();
-    const gradiente = ctx.createRadialGradient(cx, cy, raio * 0.5, cx, cy, raio * 2);
-    gradiente.addColorStop(0, 'rgba(255, 179, 64, 0.5)');
-    gradiente.addColorStop(1, 'rgba(255, 179, 64, 0)');
-    ctx.fillStyle = gradiente;
+    const grad = ctx.createRadialGradient(cx, cy, raio * 0.4, cx, cy, raio * 1.8);
+    grad.addColorStop(0, 'rgba(255, 179, 64, 0.45)');
+    grad.addColorStop(1, 'rgba(255, 179, 64, 0)');
+    ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.arc(cx, cy, raio * 2, 0, Math.PI * 2);
+    ctx.arc(cx, cy, raio * 1.8, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
 
-  // Corpo do LED
+  // Corpo
   preparar(ctx);
   ctx.beginPath();
   ctx.arc(cx, cy, raio, 0, Math.PI * 2);
@@ -266,111 +281,111 @@ export function desenharLED(ctx, x, y, w, h, aceso) {
 
   // Reflexo
   ctx.beginPath();
-  ctx.arc(cx - raio * 0.3, cy - raio * 0.3, raio * 0.25, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+  ctx.arc(cx - raio * 0.3, cy - raio * 0.3, raio * 0.22, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
   ctx.fill();
+
+  // Pino de entrada (esquerda) — haste + círculo vazado
+  const pinoX = x;
+  const pinoY = cy;
+  desenharHastePino(ctx, pinoX + RAIO_PINO, pinoY, cx - raio, cy);
+  desenharPinoSimbolo(ctx, pinoX, pinoY, aceso ? 1 : 0);
 }
 
-/** Desenha um clock (onda quadrada). */
+/** Clock: onda quadrada com pino de saída à direita. */
 export function desenharCLOCK(ctx, x, y, w, h) {
   preparar(ctx);
-  const margem = 8;
+  const margem = 10;
   const x0 = x + margem;
   const x1 = x + w - margem;
   const y0 = y + h / 2;
-  const amplitude = h / 2 - margem;
-  const larguraQuarto = (x1 - x0) / 4;
+  const amp = h / 2 - margem;
+  const q = (x1 - x0) / 4;
 
   ctx.beginPath();
-  ctx.moveTo(x0, y0 + amplitude);
-  ctx.lineTo(x0 + larguraQuarto, y0 + amplitude);
-  ctx.lineTo(x0 + larguraQuarto, y0 - amplitude);
-  ctx.lineTo(x0 + larguraQuarto * 3, y0 - amplitude);
-  ctx.lineTo(x0 + larguraQuarto * 3, y0 + amplitude);
-  ctx.lineTo(x1, y0 + amplitude);
-  ctx.strokeStyle = CORES_SIMBOLO.primaria;
-  ctx.lineWidth = 3;
+  ctx.moveTo(x0, y0 + amp);
+  ctx.lineTo(x0 + q, y0 + amp);
+  ctx.lineTo(x0 + q, y0 - amp);
+  ctx.lineTo(x0 + q * 3, y0 - amp);
+  ctx.lineTo(x0 + q * 3, y0 + amp);
+  ctx.lineTo(x1, y0 + amp);
+  ctx.strokeStyle = CORES_SIMBOLO.traco;
+  ctx.lineWidth = 2;
   ctx.stroke();
+
+  // Pino de saída
+  desenharHastePino(ctx, x1, y0 + amp, x + w - RAIO_PINO, y0);
+  desenharPinoSimbolo(ctx, x + w, y0, null);
 }
 
-/** Desenha um flip-flop genérico (caixa com pinos e rótulo). */
+/* ===== SEQUENCIAIS ===== */
+
 export function desenharFLIPFLOP(ctx, x, y, w, h, rotulo, entradas, saidas) {
   preparar(ctx);
   ctx.beginPath();
-  ctx.roundRect(x, y, w, h, 6);
+  ctx.roundRect(x, y, w, h, 4);
   ctx.fill();
   ctx.stroke();
 
-  // Rótulo central
   desenharRotulo(ctx, rotulo, x + w / 2, y + h / 2, 11);
 
-  // Pinos de entrada (esquerda)
-  const numEntradas = entradas.length;
-  for (let i = 0; i < numEntradas; i++) {
-    const py = y + h * ((i + 1) / (numEntradas + 1));
-    desenharPinoSimbolo(ctx, x, py, entradas[i].valor);
-    if (entradas[i].nome) {
-      desenharRotuloPino(ctx, entradas[i].nome, x, py, 'left');
-    }
+  const nE = entradas.length;
+  for (let i = 0; i < nE; i++) {
+    const py = y + h * ((i + 1) / (nE + 1));
+    desenharHastePino(ctx, x - RAIO_PINO, py, x, py);
+    desenharPinoSimbolo(ctx, x - RAIO_PINO, py, entradas[i].valor);
+    if (entradas[i].nome) desenharRotuloPino(ctx, entradas[i].nome, x, py, 'left');
   }
 
-  // Pinos de saída (direita)
-  const numSaidas = saidas.length;
-  for (let i = 0; i < numSaidas; i++) {
-    const py = y + h * ((i + 1) / (numSaidas + 1));
-    desenharPinoSimbolo(ctx, x + w, py, saidas[i].valor);
-    if (saidas[i].nome) {
-      desenharRotuloPino(ctx, saidas[i].nome, x + w, py, 'right');
-    }
+  const nS = saidas.length;
+  for (let i = 0; i < nS; i++) {
+    const py = y + h * ((i + 1) / (nS + 1));
+    desenharHastePino(ctx, x + w, py, x + w + RAIO_PINO, py);
+    desenharPinoSimbolo(ctx, x + w + RAIO_PINO, py, saidas[i].valor);
+    if (saidas[i].nome) desenharRotuloPino(ctx, saidas[i].nome, x + w, py, 'right');
   }
 
-  // Triângulo do clock (entrada inferior esquerda)
-  if (rotulo.includes('FF')) {
-    const py = y + h * 0.75;
-    ctx.beginPath();
-    ctx.moveTo(x, py - 6);
-    ctx.lineTo(x + 10, py);
-    ctx.lineTo(x, py + 6);
-    ctx.strokeStyle = CORES_SIMBOLO.traco;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  }
+  // Triângulo de clock
+  const py = y + h * 0.8;
+  ctx.beginPath();
+  ctx.moveTo(x, py - 5);
+  ctx.lineTo(x + 9, py);
+  ctx.lineTo(x, py + 5);
+  ctx.strokeStyle = CORES_SIMBOLO.traco;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
 }
 
-/** Desenha um contador (caixa com pinos de saída binária). */
 export function desenharCONTADOR(ctx, x, y, w, h, valor, bits) {
   preparar(ctx);
   ctx.beginPath();
-  ctx.roundRect(x, y, w, h, 6);
+  ctx.roundRect(x, y, w, h, 4);
   ctx.fill();
   ctx.stroke();
 
-  // Rótulo "CTR"
   desenharRotulo(ctx, 'CTR', x + w / 2, y + 14, 10);
 
-  // Valor decimal no centro
   ctx.save();
   ctx.fillStyle = CORES_SIMBOLO.primariaEscura;
-  ctx.font = '800 16px ui-monospace, monospace';
+  ctx.font = '700 16px ui-monospace, monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(String(valor), x + w / 2, y + h / 2 + 4);
   ctx.restore();
 
-  // Pinos de saída
   for (let i = 0; i < bits; i++) {
     const py = y + h * ((i + 1) / (bits + 1));
     const bit = (valor >> i) & 1;
-    desenharPinoSimbolo(ctx, x + w, py, bit);
+    desenharHastePino(ctx, x + w, py, x + w + RAIO_PINO, py);
+    desenharPinoSimbolo(ctx, x + w + RAIO_PINO, py, bit);
     desenharRotuloPino(ctx, `Q${i}`, x + w, py, 'right');
   }
 }
 
-/** Desenha um registrador (caixa com pinos de entrada e saída). */
 export function desenharREGISTRADOR(ctx, x, y, w, h, bits) {
   preparar(ctx);
   ctx.beginPath();
-  ctx.roundRect(x, y, w, h, 6);
+  ctx.roundRect(x, y, w, h, 4);
   ctx.fill();
   ctx.stroke();
 
@@ -378,84 +393,95 @@ export function desenharREGISTRADOR(ctx, x, y, w, h, bits) {
 
   for (let i = 0; i < bits; i++) {
     const py = y + h * ((i + 1) / (bits + 1));
-    desenharPinoSimbolo(ctx, x, py, null);
+    desenharHastePino(ctx, x - RAIO_PINO, py, x, py);
+    desenharPinoSimbolo(ctx, x - RAIO_PINO, py, null);
     desenharRotuloPino(ctx, `D${i}`, x, py, 'left');
-    desenharPinoSimbolo(ctx, x + w, py, null);
+    desenharHastePino(ctx, x + w, py, x + w + RAIO_PINO, py);
+    desenharPinoSimbolo(ctx, x + w + RAIO_PINO, py, null);
     desenharRotuloPino(ctx, `Q${i}`, x + w, py, 'right');
   }
 }
 
-/** Desenha um display de 7 segmentos (formato real). */
+/* ===== DISPLAY 7 SEGMENTOS ===== */
+
 export function desenharDISPLAY7SEG(ctx, x, y, w, h, segmentos) {
   preparar(ctx);
-  // Corpo
   ctx.beginPath();
-  ctx.roundRect(x, y, w, h, 8);
-  ctx.fillStyle = '#1a1d27';
+  ctx.roundRect(x, y, w, h, 6);
+  ctx.fillStyle = CORES_SIMBOLO.displayFundo;
   ctx.fill();
   ctx.stroke();
 
-  // Segmentos (a, b, c, d, e, f, g)
-  const margem = 8;
-  const larguraSeg = w - margem * 2;
-  const alturaSeg = h - margem * 2;
-  const espessura = 6;
+  const m = 10;
+  const largura = w - m * 2;
+  const altura = h - m * 2;
+  const esp = 5;
 
-  const segmentosPos = {
-    a: { x: x + margem + espessura, y: y + margem, w: larguraSeg - espessura * 2, h: espessura },
-    b: { x: x + w - margem - espessura, y: y + margem + espessura, w: espessura, h: alturaSeg / 2 - espessura },
-    c: { x: x + w - margem - espessura, y: y + h / 2 + espessura / 2, w: espessura, h: alturaSeg / 2 - espessura },
-    d: { x: x + margem + espessura, y: y + h - margem - espessura, w: larguraSeg - espessura * 2, h: espessura },
-    e: { x: x + margem, y: y + h / 2 + espessura / 2, w: espessura, h: alturaSeg / 2 - espessura },
-    f: { x: x + margem, y: y + margem + espessura, w: espessura, h: alturaSeg / 2 - espessura },
-    g: { x: x + margem + espessura, y: y + h / 2 - espessura / 2, w: larguraSeg - espessura * 2, h: espessura },
+  const pos = {
+    a: { x: x + m + esp, y: y + m, w: largura - esp * 2, h: esp },
+    b: { x: x + w - m - esp, y: y + m + esp, w: esp, h: altura / 2 - esp },
+    c: { x: x + w - m - esp, y: y + h / 2 + esp / 2, w: esp, h: altura / 2 - esp },
+    d: { x: x + m + esp, y: y + h - m - esp, w: largura - esp * 2, h: esp },
+    e: { x: x + m, y: y + h / 2 + esp / 2, w: esp, h: altura / 2 - esp },
+    f: { x: x + m, y: y + m + esp, w: esp, h: altura / 2 - esp },
+    g: { x: x + m + esp, y: y + h / 2 - esp / 2, w: largura - esp * 2, h: esp },
   };
 
   const nomes = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
   for (let i = 0; i < 7; i++) {
-    const nome = nomes[i];
-    const pos = segmentosPos[nome];
+    const p = pos[nomes[i]];
     const aceso = segmentos[i] === 1;
     ctx.beginPath();
-    ctx.roundRect(pos.x, pos.y, pos.w, pos.h, espessura / 2);
-    ctx.fillStyle = aceso ? '#ffb340' : '#2a2f3e';
+    ctx.roundRect(p.x, p.y, p.w, p.h, esp / 2);
+    ctx.fillStyle = aceso ? CORES_SIMBOLO.displaySegAceso : CORES_SIMBOLO.displaySegApagado;
     ctx.fill();
+  }
+
+  // Pinos de entrada (esquerda) e saída (direita)
+  const nE = 4;
+  for (let i = 0; i < nE; i++) {
+    const py = y + h * ((i + 1) / (nE + 1));
+    desenharHastePino(ctx, x - RAIO_PINO, py, x, py);
+    desenharPinoSimbolo(ctx, x - RAIO_PINO, py, null);
+  }
+  const nS = 7;
+  for (let i = 0; i < nS; i++) {
+    const py = y + h * ((i + 1) / (nS + 1));
+    desenharHastePino(ctx, x + w, py, x + w + RAIO_PINO, py);
+    desenharPinoSimbolo(ctx, x + w + RAIO_PINO, py, segmentos[i]);
   }
 }
 
-/** Desenha um componente composto genérico (caixa com rótulo e pinos). */
+/* ===== COMPOSTOS GENÉRICOS ===== */
+
 export function desenharCOMPOSTO(ctx, x, y, w, h, rotulo, entradas, saidas) {
   preparar(ctx);
   ctx.beginPath();
-  ctx.roundRect(x, y, w, h, 8);
+  ctx.roundRect(x, y, w, h, 4);
   ctx.fill();
   ctx.stroke();
 
   desenharRotulo(ctx, rotulo, x + w / 2, y + h / 2, 10);
 
-  const numEntradas = entradas.length;
-  for (let i = 0; i < numEntradas; i++) {
-    const py = y + h * ((i + 1) / (numEntradas + 1));
-    desenharPinoSimbolo(ctx, x, py, entradas[i].valor);
-    if (entradas[i].nome && numEntradas <= 6) {
-      desenharRotuloPino(ctx, entradas[i].nome, x, py, 'left');
-    }
+  const nE = entradas.length;
+  for (let i = 0; i < nE; i++) {
+    const py = y + h * ((i + 1) / (nE + 1));
+    desenharHastePino(ctx, x - RAIO_PINO, py, x, py);
+    desenharPinoSimbolo(ctx, x - RAIO_PINO, py, entradas[i].valor);
+    if (entradas[i].nome && nE <= 6) desenharRotuloPino(ctx, entradas[i].nome, x, py, 'left');
   }
 
-  const numSaidas = saidas.length;
-  for (let i = 0; i < numSaidas; i++) {
-    const py = y + h * ((i + 1) / (numSaidas + 1));
-    desenharPinoSimbolo(ctx, x + w, py, saidas[i].valor);
-    if (saidas[i].nome && numSaidas <= 6) {
-      desenharRotuloPino(ctx, saidas[i].nome, x + w, py, 'right');
-    }
+  const nS = saidas.length;
+  for (let i = 0; i < nS; i++) {
+    const py = y + h * ((i + 1) / (nS + 1));
+    desenharHastePino(ctx, x + w, py, x + w + RAIO_PINO, py);
+    desenharPinoSimbolo(ctx, x + w + RAIO_PINO, py, saidas[i].valor);
+    if (saidas[i].nome && nS <= 6) desenharRotuloPino(ctx, saidas[i].nome, x + w, py, 'right');
   }
 }
 
-/**
- * Mapa de funções de desenho por tipo de componente.
- * Recebe (ctx, x, y, w, h, comp) e desenha o símbolo.
- */
+/* ===== MAPA DE DESENHADORES ===== */
+
 export const DESENHADORES = {
   AND: (ctx, x, y, w, h) => desenharAND(ctx, x, y, w, h),
   OR: (ctx, x, y, w, h) => desenharOR(ctx, x, y, w, h),
@@ -465,55 +491,49 @@ export const DESENHADORES = {
   XOR: (ctx, x, y, w, h) => desenharXOR(ctx, x, y, w, h),
   XNOR: (ctx, x, y, w, h) => desenharXNOR(ctx, x, y, w, h),
   BUFFER: (ctx, x, y, w, h) => desenharNOT(ctx, x, y, w, h),
-  SWITCH: (ctx, x, y, w, h, comp) =>
-    desenharSWITCH(ctx, x, y, w, h, comp.estado.ativo === 1),
-  LED: (ctx, x, y, w, h, comp) =>
-    desenharLED(ctx, x, y, w, h, comp.estado.aceso === true),
+  SWITCH: (ctx, x, y, w, h, comp) => desenharSWITCH(ctx, x, y, w, h, comp.estado.ativo === 1),
+  LED: (ctx, x, y, w, h, comp) => desenharLED(ctx, x, y, w, h, comp.estado.aceso === true),
   CLOCK: (ctx, x, y, w, h) => desenharCLOCK(ctx, x, y, w, h),
-  DFF: (ctx, x, y, w, h, comp) =>
-    desenharFLIPFLOP(ctx, x, y, w, h, 'D', comp.entradas, comp.saidas),
-  JKFF: (ctx, x, y, w, h, comp) =>
-    desenharFLIPFLOP(ctx, x, y, w, h, 'JK', comp.entradas, comp.saidas),
-  TFF: (ctx, x, y, w, h, comp) =>
-    desenharFLIPFLOP(ctx, x, y, w, h, 'T', comp.entradas, comp.saidas),
-  SRFF: (ctx, x, y, w, h, comp) =>
-    desenharFLIPFLOP(ctx, x, y, w, h, 'SR', comp.entradas, comp.saidas),
-  COUNTER: (ctx, x, y, w, h, comp) =>
-    desenharCONTADOR(ctx, x, y, w, h, comp.estado.valor || 0, comp.saidas.length),
-  REGISTER: (ctx, x, y, w, h, comp) =>
-    desenharREGISTRADOR(ctx, x, y, w, h, comp.saidas.length),
+  DFF: (ctx, x, y, w, h, comp) => desenharFLIPFLOP(ctx, x, y, w, h, 'D', comp.entradas, comp.saidas),
+  JKFF: (ctx, x, y, w, h, comp) => desenharFLIPFLOP(ctx, x, y, w, h, 'JK', comp.entradas, comp.saidas),
+  TFF: (ctx, x, y, w, h, comp) => desenharFLIPFLOP(ctx, x, y, w, h, 'T', comp.entradas, comp.saidas),
+  SRFF: (ctx, x, y, w, h, comp) => desenharFLIPFLOP(ctx, x, y, w, h, 'SR', comp.entradas, comp.saidas),
+  COUNTER: (ctx, x, y, w, h, comp) => desenharCONTADOR(ctx, x, y, w, h, comp.estado.valor || 0, comp.saidas.length),
+  REGISTER: (ctx, x, y, w, h, comp) => desenharREGISTRADOR(ctx, x, y, w, h, comp.saidas.length),
   DISPLAY_7SEG: (ctx, x, y, w, h, comp) => {
-    const segs = comp.saidas.map((s) => s.valor === 1 ? 1 : 0);
+    const segs = comp.saidas.map((s) => (s.valor === 1 ? 1 : 0));
     desenharDISPLAY7SEG(ctx, x, y, w, h, segs);
   },
 };
 
-/** Desenha um componente usando o desenhador apropriado. */
 export function desenharSimbolo(ctx, comp, x, y, w, h) {
   const desenhador = DESENHADORES[comp.tipo];
   if (desenhador) {
     desenhador(ctx, x, y, w, h, comp);
   } else {
-    // Fallback: componente composto genérico
     const entradas = comp.entradas.map((p, i) => ({ valor: p.valor, nome: p.nome || `I${i}` }));
     const saidas = comp.saidas.map((p, i) => ({ valor: p.valor, nome: p.nome || `O${i}` }));
     desenharCOMPOSTO(ctx, x, y, w, h, comp.rotulo, entradas, saidas);
   }
 }
 
-/** Retorna as dimensões ideais de um componente para o desenho. */
+/**
+ * Dimensões do componente.
+ * IMPORTANTE: os pinos ficam FORA da caixa (à esquerda e à direita),
+ * então a caixa é o corpo e o pino é desenhado em x-RAIO e x+w+RAIO.
+ */
 export function dimensoesSimbolo(tipo) {
   const especiais = {
-    SWITCH: { w: 50, h: 50 },
-    LED: { w: 50, h: 50 },
-    CLOCK: { w: 70, h: 50 },
-    DISPLAY_7SEG: { w: 60, h: 90 },
-    COUNTER: { w: 90, h: 80 },
-    REGISTER: { w: 100, h: 100 },
-    DFF: { w: 80, h: 70 },
-    JKFF: { w: 80, h: 80 },
-    TFF: { w: 80, h: 70 },
-    SRFF: { w: 80, h: 80 },
+    SWITCH: { w: 60, h: 60 },
+    LED: { w: 60, h: 60 },
+    CLOCK: { w: 80, h: 60 },
+    DISPLAY_7SEG: { w: 70, h: 100 },
+    COUNTER: { w: 100, h: 90 },
+    REGISTER: { w: 110, h: 110 },
+    DFF: { w: 90, h: 80 },
+    JKFF: { w: 90, h: 90 },
+    TFF: { w: 90, h: 80 },
+    SRFF: { w: 90, h: 90 },
   };
-  return especiais[tipo] || { w: 80, h: 60 };
+  return especiais[tipo] || { w: 90, h: 70 };
 }

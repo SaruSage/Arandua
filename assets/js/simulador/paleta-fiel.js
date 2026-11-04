@@ -66,8 +66,8 @@ export const CATALOGO_FIEL = [
 function desenharMiniatura(canvas, tipo) {
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
-  const largura = 56;
-  const altura = 44;
+  const largura = 72;
+  const altura = 56;
   canvas.width = largura * dpr;
   canvas.height = altura * dpr;
   canvas.style.width = `${largura}px`;
@@ -76,7 +76,7 @@ function desenharMiniatura(canvas, tipo) {
   ctx.clearRect(0, 0, largura, altura);
 
   const dim = dimensoesSimbolo(tipo);
-  const escala = Math.min((largura - 8) / dim.w, (altura - 8) / dim.h);
+  const escala = Math.min((largura - 24) / dim.w, (altura - 16) / dim.h);
   const w = dim.w * escala;
   const h = dim.h * escala;
   const x = (largura - w) / 2;

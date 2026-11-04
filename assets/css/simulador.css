@@ -69,28 +69,26 @@
 .paleta-fiel-grade {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: var(--esp-2);
+  gap: 6px;
 }
 
 .paleta-fiel-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--esp-1);
-  padding: var(--esp-2);
-  background: var(--cor-fundo-suave);
-  border: 1px solid var(--cor-borda);
-  border-radius: var(--raio-md);
+  gap: 2px;
+  padding: 6px 4px;
+  background: #ffffff;
+  border: 1px solid #e4e6e8;
+  border-radius: 10px;
   cursor: grab;
-  transition: border-color var(--transicao-rapida),
-    background var(--transicao-rapida),
-    transform var(--transicao-rapida);
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
 }
 
 .paleta-fiel-item:hover {
   border-color: var(--cor-primaria);
-  background: var(--cor-primaria-clara);
-  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(83, 181, 136, 0.15);
+  transform: translateY(-1px);
 }
 
 .paleta-fiel-item:active {
@@ -99,13 +97,13 @@
 
 .paleta-fiel-miniatura {
   display: block;
-  width: 56px;
-  height: 44px;
+  width: 72px;
+  height: 56px;
 }
 
 .paleta-fiel-label {
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 9px;
+  font-weight: 600;
   color: var(--cor-texto-sec);
   text-align: center;
   line-height: 1.2;
@@ -114,7 +112,7 @@
 .simulador-canvas {
   position: relative;
   overflow: hidden;
-  background: var(--cor-fundo-suave);
+  background: #f5f6f7;
 }
 
 .simulador-canvas canvas {
