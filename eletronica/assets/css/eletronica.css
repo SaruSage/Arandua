@@ -423,6 +423,134 @@ html, body {
   line-height: 1.5;
 }
 
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(25, 25, 25, 0.6);
+  display: grid;
+  place-items: center;
+  z-index: 1000;
+  padding: 20px;
+  animation: fade-in 0.2s ease;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-montagem {
+  background: #fff;
+  border-radius: 18px;
+  padding: 24px;
+  max-width: 900px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  animation: slide-up 0.25s ease;
+}
+
+@keyframes slide-up {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.modal-header h2 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--cor-texto);
+  letter-spacing: -0.02em;
+}
+
+.modal-fechar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--cor-fundo-suave);
+  border: 1px solid var(--cor-borda);
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--cor-texto-sec);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: all 0.15s;
+}
+
+.modal-fechar:hover {
+  background: var(--cor-erro);
+  color: #fff;
+  border-color: var(--cor-erro);
+}
+
+.modal-descricao {
+  font-size: 0.9rem;
+  color: var(--cor-texto-sec);
+  line-height: 1.65;
+  margin-bottom: 18px;
+}
+
+.modal-canvas {
+  display: block;
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--cor-borda);
+  background: #f5f6f7;
+}
+
+.btn-juntar {
+  padding: 8px 16px;
+  background: var(--cor-acento);
+  color: #191919;
+  border: none;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.btn-juntar:hover {
+  background: #ffa01f;
+  transform: translateY(-1px);
+}
+
+.grupo-nome-input {
+  padding: 4px 8px;
+  border: 2px solid var(--cor-primaria);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--cor-texto);
+  background: #fff;
+  outline: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.input-nome-grupo {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--cor-borda-forte);
+  border-radius: var(--raio-sm);
+  font-size: 0.85rem;
+  background: #fff;
+  color: var(--cor-texto);
+}
+
+.input-nome-grupo:focus {
+  outline: none;
+  border-color: var(--cor-primaria);
+  box-shadow: 0 0 0 3px rgba(83, 181, 136, 0.15);
+}
+
 @media (max-width: 1024px) {
   .eletronica-layout {
     grid-template-columns: 220px 1fr;

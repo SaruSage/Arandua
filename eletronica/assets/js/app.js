@@ -10,11 +10,15 @@ import { configurarInteracao } from './selecao.js';
 import { configurarFios } from './fios.js';
 import { renderizarPainel as renderizarPainelNovo } from './painel.js';
 import { simular, tensaoEm, correnteEm } from './solver.js';
+import { obterMontagem, desenharMontagem } from './montagens.js';
+import { desenharComponente } from './simbolos.js';
+import { configurarGrupos, juntarSelecionados, desfazerGrupo, atualizarTodosBounds } from './grupos.js';
 
 const estado = {
   circuito: criarCircuito(),
   selecionados: [],
   resultado: null,
+  selecaoRetangular: null,
   adicionar(tipo, x, y) {
     const comp = adicionarComponente(estado.circuito, tipo, x, y);
     estado.selecionados = [comp.id];
@@ -40,6 +44,7 @@ function montarInterface() {
         <h1>Laboratório de Eletrônica</h1>
         <button type="button" class="btn-simular" id="btn-simular">▶ Simular</button>
         <button type="button" class="btn-limpar" id="btn-limpar">Limpar resultados</button>
+        <button type="button" class="btn-juntar" id="btn-juntar">Juntar</button>
         <span class="eletronica-dica">
           Arraste componentes · Clique em pino para conectar · Tab cria dobra no fio · R gira 90° · Roda = zoom
         </span>
@@ -58,6 +63,7 @@ function montarInterface() {
   canvas.redimensionar();
 
   const fios = configurarFios(canvas, estado, renderizarTudo);
+  const grupos = configurarGrupos(canvas, estado, renderizarTudo);
   estado.fioSelecionadoId = null;
   estado.fioFantasma = null;
   configurarInteracao(canvas, estado, renderizarTudo);
@@ -76,6 +82,14 @@ function montarInterface() {
       }
     }
     renderizarTudo();
+  });
+
+  document.getElementById('btn-juntar').addEventListener('click', () => {
+    const grupo = juntarSelecionados(estado.circuito, estado.selecionados);
+    if (grupo) {
+      estado.selecionados = [grupo.id];
+      renderizarTudo();
+    }
   });
 
   window.addEventListener('resize', () => {
@@ -145,7 +159,6 @@ function montarPaleta(container) {
 }
 
 async function desenharMiniatura(canvasMini, tipo) {
-  const { desenharComponente } = await import('./simbolos.js');
   const ctx = canvasMini.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const largura = 64;
@@ -178,18 +191,76 @@ async function desenharMiniatura(canvasMini, tipo) {
 
 function renderizarTudo() {
   if (!canvas) return;
+  atualizarTodosBounds(estado.circuito);
   canvas.render(
     estado.circuito,
     estado.selecionados,
     estado.fioSelecionadoId,
     null,
-    estado.fioFantasma
+    estado.fioFantasma,
+    estado.selecaoRetangular
   );
   renderizarPainel();
 }
 
 function renderizarPainel() {
   if (!elPainel) return;
+
+  // Grupo selecionado
+  if (estado.selecionados.length === 1) {
+    const grupo = estado.circuito.grupos.find((g) => g.id === estado.selecionados[0]);
+    if (grupo) {
+      elPainel.innerHTML = '';
+
+      const header = document.createElement('div');
+      header.className = 'painel-header';
+
+      const titulo = document.createElement('h3');
+      titulo.className = 'painel-titulo';
+      titulo.textContent = grupo.nome;
+      header.appendChild(titulo);
+
+      const badge = document.createElement('span');
+      badge.className = 'painel-categoria';
+      badge.textContent = `Grupo · ${grupo.membros.length} itens`;
+      header.appendChild(badge);
+
+      elPainel.appendChild(header);
+
+      const secao = document.createElement('div');
+      secao.className = 'painel-secao painel-secao--primeira';
+
+      const tituloSecao = document.createElement('h4');
+      tituloSecao.textContent = 'Nome do grupo';
+      secao.appendChild(tituloSecao);
+
+      const inputNome = document.createElement('input');
+      inputNome.type = 'text';
+      inputNome.value = grupo.nome;
+      inputNome.className = 'input-nome-grupo';
+      inputNome.addEventListener('input', () => {
+        grupo.nome = inputNome.value || 'Grupo';
+        renderizarTudo();
+      });
+      secao.appendChild(inputNome);
+
+      elPainel.appendChild(secao);
+
+      const btnDesfazer = document.createElement('button');
+      btnDesfazer.type = 'button';
+      btnDesfazer.className = 'btn-remover';
+      btnDesfazer.textContent = 'Desfazer grupo';
+      btnDesfazer.addEventListener('click', () => {
+        desfazerGrupo(estado.circuito, grupo.id);
+        estado.selecionados = [];
+        renderizarTudo();
+      });
+      elPainel.appendChild(btnDesfazer);
+
+      return;
+    }
+  }
+
   renderizarPainelNovo(elPainel, estado, renderizarTudo, abrirMontagem);
 
   // Adiciona seção de resultado da simulação
@@ -229,8 +300,70 @@ function renderizarPainel() {
 }
 
 function abrirMontagem(comp) {
-  // Placeholder — será implementado na Fase E7
-  alert(`Ver montagem: ${CATALOGO[comp.tipo].rotulo}\n\nEm breve: visualização do sub-circuito interno.`);
+  const montagem = obterMontagem(comp.tipo);
+  if (!montagem) {
+    alert('Este componente não tem montagem interna disponível.');
+    return;
+  }
+
+  // Cria o modal
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-montagem';
+
+  const header = document.createElement('div');
+  header.className = 'modal-header';
+
+  const titulo = document.createElement('h2');
+  titulo.textContent = montagem.titulo;
+  header.appendChild(titulo);
+
+  const fechar = document.createElement('button');
+  fechar.type = 'button';
+  fechar.className = 'modal-fechar';
+  fechar.textContent = '×';
+  fechar.setAttribute('aria-label', 'Fechar');
+  fechar.addEventListener('click', () => overlay.remove());
+  header.appendChild(fechar);
+
+  modal.appendChild(header);
+
+  const descricao = document.createElement('p');
+  descricao.className = 'modal-descricao';
+  descricao.textContent = montagem.descricao;
+  modal.appendChild(descricao);
+
+  const canvasMontagem = document.createElement('canvas');
+  canvasMontagem.className = 'modal-canvas';
+  canvasMontagem.width = 800;
+  canvasMontagem.height = 500;
+  canvasMontagem.style.width = '100%';
+  canvasMontagem.style.maxWidth = '800px';
+  canvasMontagem.style.height = 'auto';
+  modal.appendChild(canvasMontagem);
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  // Desenha a montagem
+  const ctx = canvasMontagem.getContext('2d');
+  desenharMontagem(ctx, montagem, desenharComponente, CATALOGO);
+
+  // Fecha ao clicar fora
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.remove();
+  });
+
+  // Fecha com Escape
+  const escHandler = (e) => {
+    if (e.key === 'Escape') {
+      overlay.remove();
+      window.removeEventListener('keydown', escHandler);
+    }
+  };
+  window.addEventListener('keydown', escHandler);
 }
 
 montarInterface();

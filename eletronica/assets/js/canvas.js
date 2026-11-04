@@ -6,6 +6,7 @@
 import { desenharComponente, CORES } from './simbolos.js';
 import { CATALOGO } from './catalogo.js';
 import { desenharFios, desenharFioFantasma } from './fios.js';
+import { desenharGrupos, desenharSelecaoRetangular } from './grupos.js';
 
 const TAMANHO_GRADE = 20;
 
@@ -82,10 +83,13 @@ export function criarCanvas(elemento) {
     ctx.restore();
   }
 
-  function render(circuito, selecionados = [], fioSelecionadoId = null, dobraSelecionada = null, fioFantasma = null) {
+  function render(circuito, selecionados = [], fioSelecionadoId = null, dobraSelecionada = null, fioFantasma = null, selecaoRetangular = null) {
     desenharGrade();
 
-    // Fios primeiro (atrás dos componentes)
+    // Grupos primeiro (atrás de tudo)
+    desenharGrupos(ctx, circuito, view, null);
+
+    // Fios
     desenharFios(ctx, circuito, view, fioSelecionadoId, dobraSelecionada);
 
     // Componentes
@@ -103,9 +107,18 @@ export function criarCanvas(elemento) {
       if (comp) desenharSelecao(comp);
     }
 
-    // Fio fantasma por cima de tudo
+    // Fio fantasma
     if (fioFantasma) {
       desenharFioFantasma(ctx, view, fioFantasma.origem, fioFantasma.cursor);
+    }
+
+    // Seleção retangular em andamento
+    if (selecaoRetangular) {
+      desenharSelecaoRetangular(
+        ctx,
+        selecaoRetangular.x1, selecaoRetangular.y1,
+        selecaoRetangular.x2, selecaoRetangular.y2
+      );
     }
   }
 
