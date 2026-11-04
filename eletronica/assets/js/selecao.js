@@ -11,6 +11,11 @@ export function configurarInteracao(canvas, estado, aoMudar) {
   let panIniciado = null;
 
   el.addEventListener('mousedown', (e) => {
+    if (estado.fioFantasma || estado.fioSelecionadoId) {
+      // Fios têm prioridade; o handler de fios já tratou o evento
+      if (e.target === el && estado.fioFantasma) return;
+    }
+
     const rect = el.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
@@ -122,6 +127,11 @@ export function configurarInteracao(canvas, estado, aoMudar) {
   });
 
   window.addEventListener('keydown', (e) => {
+    if (estado.fioSelecionadoId) {
+      // Deixa o handler de fios tratar Delete
+      return;
+    }
+
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
 
     if (e.key === 'Delete' || e.key === 'Backspace') {

@@ -7,6 +7,7 @@ import { CATALOGO, CATEGORIAS, itensDaCategoria } from './catalogo.js';
 import { criarCircuito, adicionarComponente, removerComponente, buscarComponente, rotacionarComponente } from './circuito.js';
 import { criarCanvas } from './canvas.js';
 import { configurarInteracao } from './selecao.js';
+import { configurarFios } from './fios.js';
 
 const estado = {
   circuito: criarCircuito(),
@@ -35,7 +36,7 @@ function montarInterface() {
       <header class="eletronica-toolbar">
         <h1>Laboratório de Eletrônica</h1>
         <span class="eletronica-dica">
-          Arraste componentes · Roda para zoom · Shift + arrastar para mover a view · R gira 90°
+          Arraste componentes · Clique em pino para conectar · Tab cria dobra no fio · R gira 90° · Roda = zoom
         </span>
       </header>
       <aside class="eletronica-paleta" id="paleta"></aside>
@@ -51,6 +52,9 @@ function montarInterface() {
   canvas = criarCanvas(document.getElementById('canvas'));
   canvas.redimensionar();
 
+  const fios = configurarFios(canvas, estado, renderizarTudo);
+  estado.fioSelecionadoId = null;
+  estado.fioFantasma = null;
   configurarInteracao(canvas, estado, renderizarTudo);
 
   window.addEventListener('resize', () => {
@@ -153,7 +157,13 @@ async function desenharMiniatura(canvasMini, tipo) {
 
 function renderizarTudo() {
   if (!canvas) return;
-  canvas.render(estado.circuito, estado.selecionados);
+  canvas.render(
+    estado.circuito,
+    estado.selecionados,
+    estado.fioSelecionadoId,
+    null,
+    estado.fioFantasma
+  );
   renderizarPainel();
 }
 

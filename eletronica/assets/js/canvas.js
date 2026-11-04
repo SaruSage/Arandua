@@ -5,6 +5,7 @@
 
 import { desenharComponente, CORES } from './simbolos.js';
 import { CATALOGO } from './catalogo.js';
+import { desenharFios, desenharFioFantasma } from './fios.js';
 
 const TAMANHO_GRADE = 20;
 
@@ -81,9 +82,13 @@ export function criarCanvas(elemento) {
     ctx.restore();
   }
 
-  function render(circuito, selecionados = []) {
+  function render(circuito, selecionados = [], fioSelecionadoId = null, dobraSelecionada = null, fioFantasma = null) {
     desenharGrade();
 
+    // Fios primeiro (atrás dos componentes)
+    desenharFios(ctx, circuito, view, fioSelecionadoId, dobraSelecionada);
+
+    // Componentes
     for (const comp of circuito.componentes) {
       const dim = CATALOGO[comp.tipo].dimensoes;
       const tela = mundoParaTela(comp.x, comp.y);
@@ -92,9 +97,15 @@ export function criarCanvas(elemento) {
       desenharComponente(ctx, comp, tela.x, tela.y, w, h);
     }
 
+    // Seleção de componentes
     for (const id of selecionados) {
       const comp = circuito.componentes.find((c) => c.id === id);
       if (comp) desenharSelecao(comp);
+    }
+
+    // Fio fantasma por cima de tudo
+    if (fioFantasma) {
+      desenharFioFantasma(ctx, view, fioFantasma.origem, fioFantasma.cursor);
     }
   }
 
