@@ -13,7 +13,7 @@
       <header class="editor-toolbar">
         <h1>Editor Livre</h1>
         <div class="editor-toolbar__acoes">
-          <p class="editor-toolbar__dica">Shift + arrastar: mover a tela · Delete: remover · Esc: desmarcar</p>
+          <p class="editor-toolbar__dica">Ctrl+Z desfaz · Delete remove · Clique em pino para conectar</p>
           <a class="btn btn--ghost btn--sm" href="../index.html">← Voltar</a>
         </div>
       </header>
@@ -21,14 +21,21 @@
       <main class="editor-canvas" aria-label="Área de montagem do circuito">
         <canvas id="canvas" aria-label="Canvas do circuito"></canvas>
       </main>
+      <aside class="editor-propriedades" id="propriedades" aria-label="Propriedades do componente"></aside>
     </div>
     <script type="module">
       import { inicializarEditor } from '../assets/js/editor/editor.js';
+      import { criarPainelPropriedades } from '../assets/js/editor/properties.js';
 
       const editor = inicializarEditor({
         canvas: document.getElementById('canvas'),
         paleta: document.getElementById('paleta'),
       });
+      const painel = criarPainelPropriedades(
+        document.getElementById('propriedades'),
+        editor,
+      );
+      editor.configurarPainel(painel);
       window.arandua = { editor };
     </script>
   </body>

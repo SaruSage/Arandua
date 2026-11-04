@@ -1,3 +1,5 @@
+import { desenharFioFantasma, desenharFios } from './wiring.js';
+
 export const LARGURA_COMPONENTE = 80;
 export const ALTURA_COMPONENTE = 60;
 
@@ -50,7 +52,7 @@ function desenharGrade(ctx, largura, altura, telaParaMundo) {
   }
 }
 
-function desenharComponente(ctx, componente, selecionado) {
+function desenharComponente(ctx, componente, selecionado, pinoSobCursor) {
   const { x, y } = componente.posicao;
 
   ctx.beginPath();
@@ -70,24 +72,30 @@ function desenharComponente(ctx, componente, selecionado) {
   const entradas = componente.entradas || [];
   entradas.forEach((pino, indice) => {
     const posicaoY = y + ((indice + 1) * ALTURA_COMPONENTE) / (entradas.length + 1);
+    const emHover = pinoSobCursor?.componenteId === componente.id
+      && pinoSobCursor.pinoId === pino.id
+      && pinoSobCursor.direcao === 'entrada';
     ctx.beginPath();
-    ctx.arc(x, posicaoY, 5, 0, Math.PI * 2);
-    ctx.fillStyle = corDoPino(pino.valor);
+    ctx.arc(x, posicaoY, emHover ? 8 : 5, 0, Math.PI * 2);
+    ctx.fillStyle = emHover ? '#ffffff' : corDoPino(pino.valor);
     ctx.fill();
-    ctx.strokeStyle = CORES.fundo;
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = emHover ? CORES.acento : CORES.fundo;
+    ctx.lineWidth = emHover ? 2 : 1;
     ctx.stroke();
   });
 
   const saidas = componente.saidas || [];
   saidas.forEach((pino, indice) => {
     const posicaoY = y + ((indice + 1) * ALTURA_COMPONENTE) / (saidas.length + 1);
+    const emHover = pinoSobCursor?.componenteId === componente.id
+      && pinoSobCursor.pinoId === pino.id
+      && pinoSobCursor.direcao === 'saida';
     ctx.beginPath();
-    ctx.arc(x + LARGURA_COMPONENTE, posicaoY, 5, 0, Math.PI * 2);
-    ctx.fillStyle = corDoPino(pino.valor);
+    ctx.arc(x + LARGURA_COMPONENTE, posicaoY, emHover ? 8 : 5, 0, Math.PI * 2);
+    ctx.fillStyle = emHover ? '#ffffff' : corDoPino(pino.valor);
     ctx.fill();
-    ctx.strokeStyle = CORES.fundo;
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = emHover ? CORES.acento : CORES.fundo;
+    ctx.lineWidth = emHover ? 2 : 1;
     ctx.stroke();
   });
 }
@@ -101,6 +109,8 @@ export function criarCanvas(elemento) {
   const view = { zoom: 1, panX: 0, panY: 0 };
   let largura = 0;
   let altura = 0;
+  let pinoSobCursor = null;
+  let circuitoAtual = null;
 
   function telaParaMundo(x, y) {
     return {
@@ -136,7 +146,35 @@ export function criarCanvas(elemento) {
     ctx.setTransform(escala, 0, 0, escala, 0, 0);
   }
 
-  function render(circuito, selecionadoId = null) {
+  function pinoEm(x, y) {
+    let maisProximo = null;
+    let menorDistancia = 10;
+
+    (circuitoAtual?.componentes || []).forEach((componente) => {
+      for (const [direcao, pinos] of [
+        ['entrada', componente.entradas],
+        ['saida', componente.saidas],
+      ]) {
+        pinos.forEach((pino, indice) => {
+          const posicao = {
+            x: componente.posicao.x + (direcao === 'entrada' ? 0 : LARGURA_COMPONENTE),
+            y: componente.posicao.y
+              + ((indice + 1) * ALTURA_COMPONENTE) / (pinos.length + 1),
+          };
+          const distancia = Math.hypot(x - posicao.x, y - posicao.y);
+          if (distancia <= menorDistancia) {
+            menorDistancia = distancia;
+            maisProximo = { componente, pino, direcao };
+          }
+        });
+      }
+    });
+
+    return maisProximo;
+  }
+
+  function render(circuito, selecionadoId = null, fioSelecionadoId = null, fioFantasma = null) {
+    circuitoAtual = circuito;
     const escala = window.devicePixelRatio || 1;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, elemento.width, elemento.height);
@@ -152,19 +190,40 @@ export function criarCanvas(elemento) {
     );
 
     desenharGrade(ctx, largura, altura, telaParaMundo);
+    desenharFios(ctx, circuito, api, fioSelecionadoId);
     circuito.componentes.forEach((componente) => {
-      desenharComponente(ctx, componente, componente.id === selecionadoId);
+      desenharComponente(
+        ctx,
+        componente,
+        componente.id === selecionadoId,
+        pinoSobCursor,
+      );
     });
+    if (fioFantasma) {
+      desenharFioFantasma(ctx, api, fioFantasma.origem, fioFantasma.cursorAtual);
+    }
   }
 
-  return {
+  const api = {
     view,
     redimensionar,
     render,
+    pinoEm,
     telaParaMundo,
     mundoParaTela,
     posicaoPinoTela,
     ctx,
     elemento,
+    get circuito() {
+      return circuitoAtual;
+    },
+    get pinoSobCursor() {
+      return pinoSobCursor;
+    },
+    set pinoSobCursor(valor) {
+      pinoSobCursor = valor;
+    },
   };
+
+  return api;
 }

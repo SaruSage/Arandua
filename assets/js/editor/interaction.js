@@ -8,7 +8,12 @@ function posicaoNoCanvas(evento, elemento) {
   };
 }
 
-export function configurarInteracao(canvas, editor) {
+function campoDeTextoAtivo(evento) {
+  return evento.target instanceof Element
+    && evento.target.closest('input, textarea, select, [contenteditable="true"]');
+}
+
+export function configurarInteracao(canvas, editor, fios) {
   const elemento = canvas.elemento;
   let gesto = null;
 
@@ -28,8 +33,16 @@ export function configurarInteracao(canvas, editor) {
 
     const tela = posicaoNoCanvas(evento, elemento);
     const mundo = canvas.telaParaMundo(tela.x, tela.y);
-    const componente = editor.componenteEm(mundo.x, mundo.y);
+    const pino = canvas.pinoEm(mundo.x, mundo.y);
 
+    if (pino) {
+      fios.iniciar(pino);
+      return;
+    }
+
+    if (fios.selecionarFioEm(mundo.x, mundo.y)) return;
+
+    const componente = editor.componenteEm(mundo.x, mundo.y);
     if (!componente) {
       editor.selecionar(null);
       gesto = null;
@@ -48,6 +61,21 @@ export function configurarInteracao(canvas, editor) {
     elemento.style.cursor = 'grabbing';
   });
 
+  function atualizarPonteiro(evento) {
+    const tela = posicaoNoCanvas(evento, elemento);
+    const mundo = canvas.telaParaMundo(tela.x, tela.y);
+    const pino = canvas.pinoEm(mundo.x, mundo.y);
+    fios.atualizar(mundo, pino);
+
+    if (!gesto) {
+      elemento.style.cursor = pino
+        ? 'crosshair'
+        : editor.componenteEm(mundo.x, mundo.y)
+          ? 'grab'
+          : 'default';
+    }
+  }
+
   elemento.addEventListener('mousemove', (evento) => {
     if (gesto?.tipo === 'pan') {
       canvas.view.panX += evento.clientX - gesto.x;
@@ -58,10 +86,9 @@ export function configurarInteracao(canvas, editor) {
       return;
     }
 
-    const tela = posicaoNoCanvas(evento, elemento);
-    const mundo = canvas.telaParaMundo(tela.x, tela.y);
-
     if (gesto?.tipo === 'componente') {
+      const tela = posicaoNoCanvas(evento, elemento);
+      const mundo = canvas.telaParaMundo(tela.x, tela.y);
       editor.moverComponente(
         gesto.id,
         gesto.posicaoX + mundo.x - gesto.x,
@@ -70,16 +97,55 @@ export function configurarInteracao(canvas, editor) {
       return;
     }
 
-    elemento.style.cursor = editor.componenteEm(mundo.x, mundo.y) ? 'grab' : 'default';
+    atualizarPonteiro(evento);
   });
 
-  function encerrarGesto() {
+  window.addEventListener('mousemove', (evento) => {
+    if (evento.target === elemento) return;
+    if (fios.desenhando) {
+      atualizarPonteiro(evento);
+      return;
+    }
+
+    if (gesto?.tipo === 'pan') {
+      canvas.view.panX += evento.clientX - gesto.x;
+      canvas.view.panY += evento.clientY - gesto.y;
+      gesto.x = evento.clientX;
+      gesto.y = evento.clientY;
+      editor.renderizar();
+    } else if (gesto?.tipo === 'componente') {
+      const tela = posicaoNoCanvas(evento, elemento);
+      const mundo = canvas.telaParaMundo(tela.x, tela.y);
+      editor.moverComponente(
+        gesto.id,
+        gesto.posicaoX + mundo.x - gesto.x,
+        gesto.posicaoY + mundo.y - gesto.y,
+      );
+    }
+  });
+
+  function encerrarGesto(evento) {
+    if (fios.desenhando) {
+      const tela = posicaoNoCanvas(evento, elemento);
+      const mundo = canvas.telaParaMundo(tela.x, tela.y);
+      fios.finalizar(canvas.pinoEm(mundo.x, mundo.y));
+    }
+
+    if (gesto?.tipo === 'componente') {
+      const componente = editor.circuito.componentes.find((item) => item.id === gesto.id);
+      if (
+        componente
+        && (componente.posicao.x !== gesto.posicaoX || componente.posicao.y !== gesto.posicaoY)
+      ) {
+        editor.registrarHistorico();
+      }
+    }
+
     gesto = null;
     elemento.style.cursor = 'default';
   }
 
-  elemento.addEventListener('mouseup', encerrarGesto);
-  elemento.addEventListener('mouseleave', encerrarGesto);
+  window.addEventListener('mouseup', encerrarGesto);
 
   elemento.addEventListener('wheel', (evento) => {
     evento.preventDefault();
@@ -115,17 +181,32 @@ export function configurarInteracao(canvas, editor) {
     editor.adicionarComponente(item, { x: mundo.x - 40, y: mundo.y - 30 });
   });
 
-  window.addEventListener('mouseup', encerrarGesto);
   window.addEventListener('keydown', (evento) => {
+    const modificador = evento.ctrlKey || evento.metaKey;
+    const campoAtivo = campoDeTextoAtivo(evento);
+
+    if (modificador && evento.key.toLowerCase() === 'z') {
+      if (campoAtivo) return;
+      evento.preventDefault();
+      if (evento.shiftKey) editor.refazer();
+      else editor.desfazer();
+      return;
+    }
+
     if (evento.key === 'Escape') {
+      if (fios.cancelar()) return;
       editor.selecionar(null);
       return;
     }
 
-    if ((evento.key === 'Delete' || evento.key === 'Backspace')
-      && editor.selecionadoId !== null) {
-      evento.preventDefault();
-      editor.removerSelecionado();
+    if ((evento.key === 'Delete' || evento.key === 'Backspace') && !campoAtivo) {
+      if (editor.fioSelecionadoId !== null) {
+        evento.preventDefault();
+        editor.desconectarFio(editor.fioSelecionadoId);
+      } else if (editor.selecionadoId !== null) {
+        evento.preventDefault();
+        editor.removerSelecionado();
+      }
     }
   });
 }
