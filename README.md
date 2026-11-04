@@ -40,6 +40,12 @@ arandua/
 O projeto não requer compilação, instalação de pacotes nem conexão com serviços
 externos.
 
+## Testes do motor
+
+Abra `sandbox/teste-motor.html` com o Live Server e, no navegador, abra o
+console de desenvolvedor (F12) para conferir os resultados dos testes do motor
+lógico.
+
 ## Roadmap
 
 1. **Fase 0 — Fundação:** estrutura, estilos-base e páginas iniciais.
