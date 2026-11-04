@@ -152,15 +152,49 @@ html, body {
 .painel-titulo {
   font-size: 0.95rem;
   font-weight: 800;
-  margin-bottom: 14px;
   color: var(--cor-texto);
+  margin-bottom: 4px;
+}
+
+.painel-header {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--cor-borda);
+}
+
+.painel-categoria {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--cor-primaria-escura);
+  background: var(--cor-primaria-clara);
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .painel-vazio {
+  text-align: center;
+  padding: 32px 12px;
+}
+
+.painel-vazio p {
   font-size: 0.85rem;
   color: var(--cor-texto-sec);
-  text-align: center;
-  padding: 24px 0;
+  margin-bottom: 6px;
+}
+
+.painel-vazio-dica {
+  font-size: 0.75rem !important;
+  color: #9a9a9a !important;
+}
+
+.painel-nota {
+  font-size: 0.72rem;
+  color: var(--cor-texto-sec);
+  line-height: 1.5;
+  margin-top: 6px;
 }
 
 .painel-campo {
@@ -171,9 +205,32 @@ html, body {
 }
 
 .painel-campo label {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 600;
   color: var(--cor-texto-sec);
+}
+
+.painel-campo-linha {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.painel-campo-linha input {
+  flex: 1;
+  min-width: 0;
+}
+
+.painel-campo-hint {
+  font-size: 0.72rem;
+  color: var(--cor-texto-sec);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.painel-campo-hint--mono {
+  font-family: ui-monospace, monospace;
+  font-size: 0.68rem;
 }
 
 .painel-campo input,
@@ -184,33 +241,59 @@ html, body {
   font-size: 0.85rem;
   background: #fff;
   color: var(--cor-texto);
+  transition: border-color 0.15s;
+}
+
+.painel-campo input:focus,
+.painel-campo select:focus {
+  outline: none;
+  border-color: var(--cor-primaria);
+  box-shadow: 0 0 0 3px rgba(83, 181, 136, 0.15);
 }
 
 .painel-campo input[type="color"] {
-  height: 36px;
+  width: 44px;
+  height: 34px;
   padding: 2px;
   cursor: pointer;
+  flex: 0 0 auto;
 }
 
-.painel-campo input[type="checkbox"] {
-  width: 20px;
-  height: 20px;
+.painel-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--cor-texto);
+}
+
+.painel-toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--cor-primaria);
 }
 
 .painel-secao {
-  margin-top: 18px;
+  margin-top: 16px;
   padding-top: 14px;
   border-top: 1px solid var(--cor-borda);
 }
 
+.painel-secao--primeira {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
 .painel-secao h4 {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 700;
   color: var(--cor-texto-sec);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .painel-rotacao {
@@ -225,7 +308,7 @@ html, body {
   background: var(--cor-fundo-suave);
   border: 1px solid var(--cor-borda);
   border-radius: var(--raio-sm);
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: var(--cor-texto);
   cursor: pointer;
@@ -238,12 +321,38 @@ html, body {
 }
 
 .input-angulo {
-  width: 64px;
+  width: 56px;
   padding: 8px;
   border: 1px solid var(--cor-borda-forte);
   border-radius: var(--raio-sm);
   font-size: 0.85rem;
   text-align: center;
+}
+
+.btn-montagem {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px;
+  background: var(--cor-primaria-clara);
+  color: var(--cor-primaria-escura);
+  border: 1px solid var(--cor-primaria);
+  border-radius: var(--raio-sm);
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-montagem:hover {
+  background: var(--cor-primaria);
+  color: #fff;
+}
+
+.btn-montagem__icone {
+  font-size: 1.1rem;
 }
 
 .btn-remover {

@@ -4,10 +4,11 @@
  */
 
 import { CATALOGO, CATEGORIAS, itensDaCategoria } from './catalogo.js';
-import { criarCircuito, adicionarComponente, removerComponente, buscarComponente, rotacionarComponente } from './circuito.js';
+import { criarCircuito, adicionarComponente, removerComponente } from './circuito.js';
 import { criarCanvas } from './canvas.js';
 import { configurarInteracao } from './selecao.js';
 import { configurarFios } from './fios.js';
+import { renderizarPainel as renderizarPainelNovo } from './painel.js';
 
 const estado = {
   circuito: criarCircuito(),
@@ -169,146 +170,12 @@ function renderizarTudo() {
 
 function renderizarPainel() {
   if (!elPainel) return;
-  elPainel.innerHTML = '';
+  renderizarPainelNovo(elPainel, estado, renderizarTudo, abrirMontagem);
+}
 
-  if (estado.selecionados.length === 0) {
-    const vazio = document.createElement('p');
-    vazio.className = 'painel-vazio';
-    vazio.textContent = 'Selecione um componente';
-    elPainel.appendChild(vazio);
-    return;
-  }
-
-  if (estado.selecionados.length > 1) {
-    const titulo = document.createElement('h3');
-    titulo.className = 'painel-titulo';
-    titulo.textContent = `${estado.selecionados.length} componentes selecionados`;
-    elPainel.appendChild(titulo);
-    return;
-  }
-
-  const comp = buscarComponente(estado.circuito, estado.selecionados[0]);
-  if (!comp) return;
-
-  const def = CATALOGO[comp.tipo];
-
-  const titulo = document.createElement('h3');
-  titulo.className = 'painel-titulo';
-  titulo.textContent = def.rotulo;
-  elPainel.appendChild(titulo);
-
-  // Propriedades
-  for (const [chave, spec] of Object.entries(def.propriedades || {})) {
-    const campo = document.createElement('div');
-    campo.className = 'painel-campo';
-
-    const label = document.createElement('label');
-    label.textContent = spec.rotulo;
-    label.htmlFor = `prop-${chave}`;
-    campo.appendChild(label);
-
-    let input;
-    if (spec.tipo === 'numero') {
-      input = document.createElement('input');
-      input.type = 'number';
-      input.value = comp.propriedades[chave];
-      if (spec.min !== undefined) input.min = spec.min;
-      if (spec.max !== undefined) input.max = spec.max;
-      if (spec.step !== undefined) input.step = spec.step;
-      input.addEventListener('input', () => {
-        comp.propriedades[chave] = parseFloat(input.value);
-        renderizarTudo();
-      });
-    } else if (spec.tipo === 'cor') {
-      input = document.createElement('input');
-      input.type = 'color';
-      input.value = comp.propriedades[chave];
-      input.addEventListener('input', () => {
-        comp.propriedades[chave] = input.value;
-        renderizarTudo();
-      });
-    } else if (spec.tipo === 'booleano') {
-      input = document.createElement('input');
-      input.type = 'checkbox';
-      input.checked = comp.propriedades[chave];
-      input.addEventListener('change', () => {
-        comp.propriedades[chave] = input.checked;
-        renderizarTudo();
-      });
-    } else if (spec.tipo === 'select') {
-      input = document.createElement('select');
-      for (const opcao of spec.opcoes) {
-        const opt = document.createElement('option');
-        opt.value = opcao;
-        opt.textContent = opcao;
-        if (opcao === comp.propriedades[chave]) opt.selected = true;
-        input.appendChild(opt);
-      }
-      input.addEventListener('change', () => {
-        comp.propriedades[chave] = input.value;
-        renderizarTudo();
-      });
-    }
-
-    input.id = `prop-${chave}`;
-    campo.appendChild(input);
-    elPainel.appendChild(campo);
-  }
-
-  // Rotação
-  const secaoRot = document.createElement('div');
-  secaoRot.className = 'painel-secao';
-
-  const tituloRot = document.createElement('h4');
-  tituloRot.textContent = 'Rotação';
-  secaoRot.appendChild(tituloRot);
-
-  const grupoRot = document.createElement('div');
-  grupoRot.className = 'painel-rotacao';
-
-  const btnEsq = document.createElement('button');
-  btnEsq.type = 'button';
-  btnEsq.className = 'btn-rot';
-  btnEsq.textContent = '↺ 90°';
-  btnEsq.addEventListener('click', () => {
-    rotacionarComponente(estado.circuito, comp.id, comp.rotacao - 90);
-    renderizarTudo();
-  });
-  grupoRot.appendChild(btnEsq);
-
-  const inputAng = document.createElement('input');
-  inputAng.type = 'number';
-  inputAng.value = comp.rotacao;
-  inputAng.min = 0;
-  inputAng.max = 359;
-  inputAng.step = 1;
-  inputAng.className = 'input-angulo';
-  inputAng.addEventListener('input', () => {
-    rotacionarComponente(estado.circuito, comp.id, parseInt(inputAng.value, 10) || 0);
-    renderizarTudo();
-  });
-  grupoRot.appendChild(inputAng);
-
-  const btnDir = document.createElement('button');
-  btnDir.type = 'button';
-  btnDir.className = 'btn-rot';
-  btnDir.textContent = '↻ 90°';
-  btnDir.addEventListener('click', () => {
-    rotacionarComponente(estado.circuito, comp.id, comp.rotacao + 90);
-    renderizarTudo();
-  });
-  grupoRot.appendChild(btnDir);
-
-  secaoRot.appendChild(grupoRot);
-  elPainel.appendChild(secaoRot);
-
-  // Remover
-  const btnRemover = document.createElement('button');
-  btnRemover.type = 'button';
-  btnRemover.className = 'btn-remover';
-  btnRemover.textContent = 'Remover componente';
-  btnRemover.addEventListener('click', () => estado.removerSelecionados());
-  elPainel.appendChild(btnRemover);
+function abrirMontagem(comp) {
+  // Placeholder — será implementado na Fase E7
+  alert(`Ver montagem: ${CATALOGO[comp.tipo].rotulo}\n\nEm breve: visualização do sub-circuito interno.`);
 }
 
 montarInterface();
