@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Explore os blocos de um processador e experimente uma ULA de quatro bits.">
+    <title>Módulo 7 — Arquitetura de Computadores | Arandua</title>
+    <link rel="stylesheet" href="../assets/css/base.css">
+    <link rel="stylesheet" href="../assets/css/components.css">
+    <link rel="stylesheet" href="../assets/css/modulos.css">
+  </head>
+  <body>
+    <header class="modulo-header container">
+      <span class="badge">Módulo 7</span>
+      <h1>Arquitetura de Computadores</h1>
+      <a class="btn btn--ghost" href="../index.html">← Voltar</a>
+    </header>
+    <main class="container modulo-conteudo">
+      <section class="modulo-secao modulo-teoria" aria-labelledby="m7-teoria">
+        <h2 id="m7-teoria">Teoria</h2>
+        <p>Um computador reúne blocos que armazenam e transformam informações. A unidade lógica e aritmética (ULA) realiza operações; a unidade de controle coordena o que acontece em cada etapa.</p>
+        <p>Registradores são pequenas memórias rápidas dentro do processador. Eles guardam valores temporários, endereços e instruções que estão sendo usados naquele momento.</p>
+        <p>O contador de programa (PC) indica onde está a próxima instrução. A memória fornece essa instrução, que é mantida no registrador de instrução enquanto a unidade de controle a interpreta.</p>
+        <p>O processador trabalha em ciclos: busca uma instrução, decodifica o que ela pede e executa a operação. Em seguida, guarda ou encaminha o resultado e começa a próxima instrução.</p>
+        <p>A hierarquia de memória equilibra velocidade, capacidade e custo. Registradores são muito rápidos e pequenos; memórias maiores armazenam mais dados, mas podem levar mais tempo para responder.</p>
+        <p>Entradas, processamento e saídas conectam o computador ao mundo. Mesmo um sistema pequeno pode combinar esses blocos para executar uma tarefa completa.</p>
+      </section>
+      <section class="modulo-secao" aria-labelledby="m7-experimente">
+        <h2 id="m7-experimente">Experimente</h2>
+        <div class="widget-container" id="widget-m7"></div>
+      </section>
+      <section class="modulo-secao" aria-labelledby="m7-exercicios">
+        <h2 id="m7-exercicios">Exercício</h2>
+        <form class="widget-exercicio" data-resposta="b">
+          <fieldset>
+            <legend>1. Qual é o trabalho principal da ULA?</legend>
+            <label><input type="radio" name="m7-q1" value="a"> Armazenar permanentemente todos os programas.</label>
+            <label><input type="radio" name="m7-q1" value="b"> Realizar operações aritméticas e lógicas.</label>
+            <label><input type="radio" name="m7-q1" value="c"> Escolher a próxima instrução sem consultar o PC.</label>
+          </fieldset>
+          <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
+          <p aria-live="polite"></p>
+        </form>
+        <form class="widget-exercicio" data-resposta="c">
+          <fieldset>
+            <legend>2. O que o PC indica?</legend>
+            <label><input type="radio" name="m7-q2" value="a"> O resultado da última operação lógica.</label>
+            <label><input type="radio" name="m7-q2" value="b"> O conteúdo atual do acumulador.</label>
+            <label><input type="radio" name="m7-q2" value="c"> O endereço da próxima instrução.</label>
+          </fieldset>
+          <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
+          <p aria-live="polite"></p>
+        </form>
+        <form class="widget-exercicio" data-resposta="a">
+          <fieldset>
+            <legend>3. Qual é a sequência básica de um ciclo de instrução?</legend>
+            <label><input type="radio" name="m7-q3" value="a"> Buscar, decodificar e executar.</label>
+            <label><input type="radio" name="m7-q3" value="b"> Sintetizar, posicionar e rotear.</label>
+            <label><input type="radio" name="m7-q3" value="c"> Ligar, compilar e desligar.</label>
+          </fieldset>
+          <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
+          <p aria-live="polite"></p>
+        </form>
+      </section>
+      <section class="modulo-secao modulo-projeto" aria-labelledby="m7-projeto">
+        <h2 id="m7-projeto">Peça do projeto</h2>
+        <p>O caça-níqueis do próximo módulo é um sistema completo: tem entrada (botões), processamento (lógica de sorteio e comparação) e saída (display). É a arquitetura de computadores em miniatura.</p>
+      </section>
+      <nav class="modulo-nav" aria-label="Próxima etapa">
+        <a class="btn btn--primary" href="../projeto/cacaniqueis.html">Próximo módulo →</a>
+      </nav>
+    </main>
+    <script type="module">
+      import { inicializarM7 } from '../assets/js/modules/m7.js';
+
+      inicializarM7(document.getElementById('widget-m7'));
+    </script>
+  </body>
+</html>

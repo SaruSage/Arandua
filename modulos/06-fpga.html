@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Conheça FPGAs, linguagens de descrição de hardware e o fluxo de projeto digital.">
+    <title>Módulo 6 — Dispositivos Lógicos Programáveis | Arandua</title>
+    <link rel="stylesheet" href="../assets/css/base.css">
+    <link rel="stylesheet" href="../assets/css/components.css">
+    <link rel="stylesheet" href="../assets/css/modulos.css">
+  </head>
+  <body>
+    <header class="modulo-header container">
+      <span class="badge">Módulo 6</span>
+      <h1>Dispositivos Lógicos Programáveis</h1>
+      <a class="btn btn--ghost" href="../index.html">← Voltar</a>
+    </header>
+    <main class="container modulo-conteudo">
+      <section class="modulo-secao modulo-teoria" aria-labelledby="m6-teoria">
+        <h2 id="m6-teoria">Teoria</h2>
+        <p>Uma FPGA é um chip cujos blocos lógicos e conexões podem ser configurados depois de fabricados. Em vez de executar apenas um programa em uma CPU fixa, ela pode ser organizada para implementar circuitos digitais específicos.</p>
+        <p>CPLDs também são dispositivos lógicos programáveis, geralmente com uma estrutura menor e mais previsível. FPGAs costumam oferecer mais recursos, como blocos de memória, lógica configurável e conexões internas abundantes.</p>
+        <p>Um microcontrolador, como o usado em uma placa Arduino, já contém uma CPU que executa instruções. Na FPGA, o projeto configura o próprio hardware: várias partes do circuito podem operar em paralelo.</p>
+        <p>VHDL e Verilog são linguagens de descrição de hardware. Elas descrevem sinais, componentes e relações temporais; não são simplesmente linguagens de programação convencionais executadas por uma CPU.</p>
+        <p>O fluxo de projeto costuma começar com a descrição do circuito, seguida por simulação, síntese e place &amp; route. Ao final, uma ferramenta gera um bitstream que configura o dispositivo físico.</p>
+        <p>Simular e validar em cada etapa ajuda a detectar erros antes de programar o chip. Depois de configurada, a FPGA realiza as operações do circuito em paralelo, de acordo com seu clock e suas conexões.</p>
+      </section>
+      <section class="modulo-secao" aria-labelledby="m6-experimente">
+        <h2 id="m6-experimente">Experimente</h2>
+        <div class="widget-container" id="widget-m6"></div>
+      </section>
+      <section class="modulo-secao" aria-labelledby="m6-exercicios">
+        <h2 id="m6-exercicios">Exercício</h2>
+        <form class="widget-exercicio" data-resposta="b">
+          <fieldset>
+            <legend>1. O que uma FPGA permite configurar?</legend>
+            <label><input type="radio" name="m6-q1" value="a"> Apenas o conjunto de instruções de uma CPU fixa.</label>
+            <label><input type="radio" name="m6-q1" value="b"> Blocos lógicos e conexões que implementam circuitos.</label>
+            <label><input type="radio" name="m6-q1" value="c"> Somente a velocidade de execução de um programa C.</label>
+          </fieldset>
+          <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
+          <p aria-live="polite"></p>
+        </form>
+        <form class="widget-exercicio" data-resposta="a">
+          <fieldset>
+            <legend>2. Qual é o papel da síntese no fluxo de FPGA?</legend>
+            <label><input type="radio" name="m6-q2" value="a"> Converter a descrição em uma rede de elementos de hardware.</label>
+            <label><input type="radio" name="m6-q2" value="b"> Executar o programa no processador da placa.</label>
+            <label><input type="radio" name="m6-q2" value="c"> Desenhar a placa e soldar os componentes.</label>
+          </fieldset>
+          <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
+          <p aria-live="polite"></p>
+        </form>
+        <form class="widget-exercicio" data-resposta="c">
+          <fieldset>
+            <legend>3. Como o hardware descrito em VHDL/Verilog opera em uma FPGA?</legend>
+            <label><input type="radio" name="m6-q3" value="a"> Como uma sequência de comandos executada por uma CPU fixa.</label>
+            <label><input type="radio" name="m6-q3" value="b"> Apenas depois de ser convertido para linguagem C.</label>
+            <label><input type="radio" name="m6-q3" value="c"> Como circuitos configurados no chip, com partes que podem operar em paralelo.</label>
+          </fieldset>
+          <button class="btn btn--ghost btn--sm" type="submit">Conferir resposta</button>
+          <p aria-live="polite"></p>
+        </form>
+      </section>
+      <section class="modulo-secao modulo-projeto" aria-labelledby="m6-projeto">
+        <h2 id="m6-projeto">Peça do projeto</h2>
+        <p>Neste curso usamos Arduino porque o foco é a lógica digital, não o projeto de hardware reconfigurável. Mas os conceitos que você aprendeu aqui — portas, flip-flops, contadores — são exatamente os blocos que você descreveria em VHDL numa FPGA.</p>
+      </section>
+      <nav class="modulo-nav" aria-label="Próximo módulo">
+        <a class="btn btn--primary" href="07-arquitetura.html">Próximo módulo →</a>
+      </nav>
+    </main>
+    <script type="module">
+      import { inicializarM6 } from '../assets/js/modules/m6.js';
+
+      inicializarM6(document.getElementById('widget-m6'));
+    </script>
+  </body>
+</html>

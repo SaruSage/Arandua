@@ -447,6 +447,298 @@
   font-weight: 800;
 }
 
+.widget-paradigmas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--esp-4);
+}
+
+.widget-paradigma,
+.widget-razoes article {
+  min-width: 0;
+  padding: var(--esp-4);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-sm);
+  background: var(--cor-superficie-alta);
+}
+
+.widget-paradigma h4,
+.widget-razoes h4 {
+  margin-bottom: var(--esp-3);
+}
+
+.widget-paradigma ul {
+  display: grid;
+  gap: var(--esp-2);
+  min-height: 9.5em;
+  padding-left: 1.25rem;
+  color: var(--cor-texto-sec);
+}
+
+.widget-codigo {
+  max-width: 100%;
+  margin: var(--esp-4) 0 0;
+  padding: var(--esp-4);
+  overflow: auto;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-sm);
+  background: #0b0d12;
+  color: var(--cor-texto);
+  font: 0.875rem/1.65 var(--fonte-mono);
+  tab-size: 2;
+}
+
+.widget-codigo .kw {
+  color: #82aaff;
+  font-weight: 700;
+}
+
+.widget-codigo .str {
+  color: #c3e88d;
+}
+
+.widget-codigo .num {
+  color: #f78c6c;
+}
+
+.widget-codigo .com {
+  color: var(--cor-texto-sec);
+  font-style: italic;
+}
+
+.widget-fluxo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--esp-2);
+}
+
+.widget-fluxo-seta {
+  flex: 0 0 auto;
+  color: var(--cor-texto-sec);
+  font-weight: 700;
+}
+
+.widget-etapa {
+  min-height: 48px;
+  padding: var(--esp-2) var(--esp-3);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-sm);
+  background: var(--cor-superficie-alta);
+  color: var(--cor-texto);
+  cursor: pointer;
+  font: inherit;
+}
+
+.widget-etapa:hover,
+.widget-etapa:focus-visible,
+.widget-etapa.ativo {
+  border-color: var(--cor-acento-2);
+  background: #12362f;
+  color: var(--cor-acento-2);
+}
+
+.widget-etapa:focus-visible,
+.widget-caminho-dados [tabindex]:focus-visible,
+.widget-escala-nivel:focus-visible {
+  outline: 3px solid var(--cor-acento-2);
+  outline-offset: 2px;
+}
+
+.widget-fluxo-explicacao {
+  min-height: 3em;
+  margin: 0;
+  padding: var(--esp-4);
+  border-radius: var(--raio-sm);
+  background: var(--cor-superficie-alta);
+  color: var(--cor-texto-sec);
+}
+
+.widget-razoes {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--esp-3);
+}
+
+.widget-razoes p {
+  margin: 0;
+  color: var(--cor-texto-sec);
+}
+
+.widget-nota-tecnica {
+  padding: var(--esp-4);
+  border: 1px solid var(--cor-acento);
+  border-left-width: 4px;
+  border-radius: var(--raio-sm);
+  background: rgb(79 140 255 / 8%);
+}
+
+.widget-nota-tecnica::before {
+  margin-right: var(--esp-2);
+  color: var(--cor-acento);
+  content: "ⓘ";
+  font-weight: 800;
+}
+
+.widget-nota-tecnica p {
+  display: inline;
+  margin: 0;
+  color: var(--cor-texto);
+}
+
+.widget-ula {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.8fr) minmax(0, 1.2fr);
+  align-items: start;
+  gap: var(--esp-4);
+}
+
+.widget-ula-controles {
+  display: grid;
+  align-content: start;
+  gap: var(--esp-3);
+  min-width: 0;
+}
+
+.widget-ula-controles fieldset {
+  min-width: 0;
+  padding: var(--esp-3);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-sm);
+}
+
+.widget-ula-controles legend {
+  padding-inline: var(--esp-1);
+  color: var(--cor-texto-sec);
+}
+
+.widget-ula-canvas {
+  height: 500px;
+}
+
+.widget-caminho-dados {
+  display: block;
+  width: 100%;
+  min-height: 180px;
+  overflow: visible;
+}
+
+.widget-caminho-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.widget-caminho-dados marker path {
+  fill: var(--cor-texto-sec);
+}
+
+.widget-caminho-dados .caminho-seta,
+.widget-caminho-dados .caminho-retorno {
+  fill: none;
+  stroke: var(--cor-texto-sec);
+  stroke-width: 2;
+  marker-end: url(#m7-seta);
+}
+
+.widget-caminho-dados .caminho-retorno {
+  stroke-dasharray: 6 5;
+}
+
+.widget-caminho-dados .caminho-bloco {
+  cursor: pointer;
+}
+
+.widget-caminho-dados .caminho-bloco rect {
+  fill: var(--cor-superficie-alta);
+  stroke: var(--cor-borda);
+  stroke-width: 2;
+}
+
+.widget-caminho-dados .caminho-bloco text {
+  fill: var(--cor-texto);
+  font: 14px var(--fonte-base);
+  pointer-events: none;
+  text-anchor: middle;
+}
+
+.widget-caminho-dados .caminho-bloco:hover rect,
+.widget-caminho-dados .caminho-bloco.ativo rect {
+  fill: #12362f;
+  stroke: var(--cor-acento-2);
+}
+
+.widget-caminho-dados .caminho-bloco.ativo text {
+  fill: var(--cor-acento-2);
+  font-weight: 700;
+}
+
+.widget-caminho-controles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--esp-3);
+}
+
+.widget-caminho-controles p {
+  margin: 0;
+}
+
+.widget-escala {
+  display: grid;
+  gap: var(--esp-2);
+}
+
+.widget-escala-nivel {
+  display: grid;
+  gap: var(--esp-2);
+  width: 100%;
+  padding: var(--esp-3);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-sm);
+  background: var(--cor-superficie-alta);
+  color: var(--cor-texto);
+  cursor: pointer;
+  text-align: left;
+}
+
+.widget-escala-nivel:hover,
+.widget-escala-nivel.ativo {
+  border-color: var(--cor-acento-2);
+}
+
+.widget-escala-cabecalho {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--esp-2);
+}
+
+.widget-escala-cabecalho span {
+  color: var(--cor-texto-sec);
+  font-size: 0.875rem;
+}
+
+.widget-escala-barra {
+  display: block;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--cor-fundo);
+}
+
+.widget-escala-barra span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--cor-acento);
+  transition: width 180ms ease, background-color 180ms ease;
+}
+
+.widget-escala-nivel.ativo .widget-escala-barra span {
+  background: var(--cor-acento-2);
+}
+
 @media (max-width: 767px) {
   .modulo-header {
     grid-template-columns: auto minmax(0, 1fr);
@@ -464,8 +756,34 @@
   }
 
   .widget-controles,
-  .widget-bases {
+  .widget-bases,
+  .widget-paradigmas,
+  .widget-ula {
     grid-template-columns: 1fr;
+  }
+
+  .widget-paradigma ul {
+    min-height: 0;
+  }
+
+  .widget-razoes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .widget-fluxo {
+    flex-wrap: wrap;
+  }
+
+  .widget-ula-canvas {
+    height: 420px;
+  }
+
+  .widget-caminho-dados {
+    min-width: 700px;
+  }
+
+  .widget-caminho-scroll {
+    padding-bottom: var(--esp-2);
   }
 
   .simulador-grade {
@@ -474,6 +792,10 @@
 
   .simulador-canvas {
     height: 260px;
+  }
+
+  .simulador-canvas.widget-ula-canvas {
+    height: 420px;
   }
 
   .widget-karnaugh-legenda,
