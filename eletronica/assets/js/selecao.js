@@ -284,17 +284,21 @@ export function configurarInteracao(canvas, estado, aoMudar) {
       );
 
       if (comp) {
-        for (const p of comp.pinos) {
+        const pinosComp = comp.pinos || CATALOGO[comp.tipo]?.pinos || [];
+        for (const p of pinosComp) {
           const m = posicaoPino(comp, p);
+          if (!m) continue;
 
           for (const outro of estado.circuito.componentes) {
             if (outro.id === comp.id) continue;
 
-            for (const pOutro of outro.pinos) {
+            const pinosOutro = outro.pinos || CATALOGO[outro.tipo]?.pinos || [];
+            for (const pOutro of pinosOutro) {
               const mOutro = posicaoPino(outro, pOutro);
+              if (!mOutro) continue;
 
-              if (Math.abs(m.y - mOutro.y) < 1) guiaY = m.y;
-              if (Math.abs(m.x - mOutro.x) < 1) guiaX = m.x;
+              if (Math.abs(m.y - mOutro.y) < 2) guiaY = m.y;
+              if (Math.abs(m.x - mOutro.x) < 2) guiaX = m.x;
             }
           }
         }

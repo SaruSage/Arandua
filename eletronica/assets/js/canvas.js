@@ -54,31 +54,32 @@ export function criarCanvas(elemento, estado) {
   }
 
   function desenharGuias(ctx) {
-    const g = estado?.guiaAtiva;
+    const g = estado.guiaAtiva;
     if (!g) return;
+
+    const largura = ctx.canvas.width / (window.devicePixelRatio || 1);
+    const altura  = ctx.canvas.height / (window.devicePixelRatio || 1);
 
     ctx.save();
     ctx.strokeStyle = '#00bcd4';
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
 
-    // Guia vertical (alinhamento em X)
+    // Guia VERTICAL (alinhamento em X) — cobre toda a altura
     if (g.guiaX !== null && g.guiaX !== undefined) {
-      const a = tela({ x: g.guiaX, y: 0 });
-      const b = tela({ x: g.guiaX, y: estado.alturaMundo || 2000 });
+      const px = tela({ x: g.guiaX, y: 0 }).x;
       ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
+      ctx.moveTo(px, 0);
+      ctx.lineTo(px, altura);
       ctx.stroke();
     }
 
-    // Guia horizontal (alinhamento em Y)
+    // Guia HORIZONTAL (alinhamento em Y) — cobre toda a largura
     if (g.guiaY !== null && g.guiaY !== undefined) {
-      const a = tela({ x: 0, y: g.guiaY });
-      const b = tela({ x: estado.larguraMundo || 2000, y: g.guiaY });
+      const py = tela({ x: 0, y: g.guiaY }).y;
       ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
+      ctx.moveTo(0, py);
+      ctx.lineTo(largura, py);
       ctx.stroke();
     }
 

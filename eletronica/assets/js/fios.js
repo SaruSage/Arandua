@@ -475,7 +475,7 @@ export function configurarFios(canvas, estado, aoMudar) {
    * Retorna { x, y, guiaX, guiaY } onde guiaX/guiaY indicam se há
    * alinhamento naquele eixo.
    */
-  function alinharDobra(fio, dobra, indice) {
+  function alinharDobra(fio, dobra, indice, posBruta = dobra) {
     const pO = posicaoPinoPorId(fio.origem);
     const pD = posicaoPinoPorId(fio.destino);
 
@@ -490,7 +490,7 @@ export function configurarFios(canvas, estado, aoMudar) {
 
     // Alinhamento vertical (mesma coluna) → guia vertical
     for (const r of refs) {
-      if (Math.abs(dobra.x - r.x) < TOLERANCIA_EIXO) {
+      if (Math.abs(posBruta.x - r.x) < TOLERANCIA_EIXO || Math.abs(dobra.x - r.x) < TOLERANCIA_EIXO) {
         dobra.x = r.x;
         guiaX = r.x;
         break;
@@ -499,7 +499,7 @@ export function configurarFios(canvas, estado, aoMudar) {
 
     // Alinhamento horizontal (mesma altura) → guia horizontal
     for (const r of refs) {
-      if (Math.abs(dobra.y - r.y) < TOLERANCIA_EIXO) {
+      if (Math.abs(posBruta.y - r.y) < TOLERANCIA_EIXO || Math.abs(dobra.y - r.y) < TOLERANCIA_EIXO) {
         dobra.y = r.y;
         guiaY = r.y;
         break;
@@ -641,7 +641,8 @@ export function configurarFios(canvas, estado, aoMudar) {
         const { guiaX, guiaY } = alinharDobra(
           dobraArrastando.fio,
           dobra,
-          dobraArrastando.indice
+          dobraArrastando.indice,
+          mundo
         );
         estado.guiaAtiva = (guiaX !== null || guiaY !== null)
           ? { guiaX, guiaY }
@@ -693,8 +694,39 @@ export function configurarFios(canvas, estado, aoMudar) {
       }
 
       // Aplica snap
-      const novoY = snap(pA.y + deslocY);
-      const novoX = snap(pA.x + deslocX);
+      let novoY = snap(pA.y + deslocY);
+      let novoX = snap(pA.x + deslocX);
+
+      // Alinha com os pinos de origem/destino e ativa guia correspondente
+      const pO = posicaoPinoPorId(fio.origem);
+      const pD = posicaoPinoPorId(fio.destino);
+      const refsSeg = [pO, pD].filter(Boolean);
+      let guiaX = null;
+      let guiaY = null;
+
+      if (s.orientacao === 'v' || s.orientacao === 'd') {
+        const xBruto = pA.x + deslocX;
+        for (const r of refsSeg) {
+          if (Math.abs(xBruto - r.x) < TOLERANCIA_EIXO || Math.abs(novoX - r.x) < TOLERANCIA_EIXO) {
+            novoX = r.x;
+            guiaX = r.x;
+            break;
+          }
+        }
+      }
+      if (s.orientacao === 'h' || s.orientacao === 'd') {
+        const yBruto = pA.y + deslocY;
+        for (const r of refsSeg) {
+          if (Math.abs(yBruto - r.y) < TOLERANCIA_EIXO || Math.abs(novoY - r.y) < TOLERANCIA_EIXO) {
+            novoY = r.y;
+            guiaY = r.y;
+            break;
+          }
+        }
+      }
+      estado.guiaAtiva = (guiaX !== null || guiaY !== null)
+        ? { guiaX, guiaY }
+        : null;
 
       // Cria ou move as dobras nas extremidades do segmento
       inserirOuMoverDobraNoSegmento(
@@ -746,6 +778,7 @@ export function configurarFios(canvas, estado, aoMudar) {
         registrar(estado.circuito, 'mover-segmento', true);
       }
       estado.arrastandoSegmento = null;
+      estado.guiaAtiva = null;
       aoMudar();
       return;
     }
