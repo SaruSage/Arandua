@@ -29,6 +29,9 @@ export function configurarInteracao(canvas, estado, aoMudar) {
       mundo: posicaoPino(comp, p),
     })).filter((item) => item.mundo);
 
+    let alinhouY = false;
+    let alinhouX = false;
+
     for (const outro of estado.circuito.componentes) {
       if (outro.id === comp.id) continue;
 
@@ -39,20 +42,24 @@ export function configurarInteracao(canvas, estado, aoMudar) {
 
         for (const { mundo } of pinos) {
           // Alinhamento horizontal (mesma altura)
-          if (Math.abs(mundo.y - mOutro.y) < TOLERANCIA
+          if (!alinhouY
+              && Math.abs(mundo.y - mOutro.y) < TOLERANCIA
               && Math.abs(mundo.y - mOutro.y) > 0) {
             const ajuste = mOutro.y - mundo.y;
             comp.y += ajuste;
-            return; // um ajuste por vez
+            alinhouY = true;
           }
 
           // Alinhamento vertical (mesma coluna)
-          if (Math.abs(mundo.x - mOutro.x) < TOLERANCIA
+          if (!alinhouX
+              && Math.abs(mundo.x - mOutro.x) < TOLERANCIA
               && Math.abs(mundo.x - mOutro.x) > 0) {
             const ajuste = mOutro.x - mundo.x;
             comp.x += ajuste;
-            return;
+            alinhouX = true;
           }
+
+          if (alinhouY && alinhouX) return;
         }
       }
     }
@@ -269,7 +276,8 @@ export function configurarInteracao(canvas, estado, aoMudar) {
         }
       }
 
-      estado.guiaAtiva = null;
+      let guiaX = null;
+      let guiaY = null;
 
       const comp = estado.circuito.componentes.find(
         (c) => c.id === estado.arrastandoId
@@ -285,19 +293,16 @@ export function configurarInteracao(canvas, estado, aoMudar) {
             for (const pOutro of outro.pinos) {
               const mOutro = posicaoPino(outro, pOutro);
 
-              if (Math.abs(m.y - mOutro.y) < 1) {
-                estado.guiaAtiva = { guiaX: null, guiaY: m.y };
-              }
-              if (Math.abs(m.x - mOutro.x) < 1) {
-                estado.guiaAtiva = {
-                  guiaX: m.x,
-                  guiaY: estado.guiaAtiva?.guiaY ?? null,
-                };
-              }
+              if (Math.abs(m.y - mOutro.y) < 1) guiaY = m.y;
+              if (Math.abs(m.x - mOutro.x) < 1) guiaX = m.x;
             }
           }
         }
       }
+
+      estado.guiaAtiva = (guiaX !== null || guiaY !== null)
+        ? { guiaX, guiaY }
+        : null;
 
       // Move os grupos selecionados
       for (const g of estado.circuito.grupos) {
