@@ -27,11 +27,20 @@ const RAIO_PINO = 10;
 const RAIO_DOBRA = 6;
 const TOLERANCIA_FIO = 8;
 const TOLERANCIA_EIXO = 6; // px
+const TOLERANCIA_SEGMENTO = 6; // px
+const RAIO_CURVA = 8; // px — ajustável
+
+let _circuitoAtual = null;
 
 /* ===== GEOMETRIA ===== */
 
 /** Retorna os pontos absolutos de um fio: origem → dobras → destino. */
-export function pontosDoFio(circuito, fio) {
+export function pontosDoFio(circuitoOuFio, fioOpcional) {
+  const circuito = fioOpcional ? circuitoOuFio : _circuitoAtual;
+  const fio = fioOpcional ? fioOpcional : circuitoOuFio;
+  if (!circuito || !fio) return [];
+  _circuitoAtual = circuito;
+
   const compO = circuito.componentes.find((c) => c.id === fio.origem.componente);
   const compD = circuito.componentes.find((c) => c.id === fio.destino.componente);
   if (!compO || !compD) return [];
@@ -41,11 +50,14 @@ export function pontosDoFio(circuito, fio) {
   if (!pO || !pD) return [];
 
   if (!fio.dobras || fio.dobras.length === 0) {
-    // Sem dobras: cria um L automático
-    // Escolhe o eixo dominante para decidir a ordem
+    // Sem dobras: se já estiver alinhado em X ou Y, reta direta
     const dx = Math.abs(pD.x - pO.x);
     const dy = Math.abs(pD.y - pO.y);
+    if (dx < 1 || dy < 1) {
+      return [pO, pD];
+    }
 
+    // Caso contrário, cria um L automático escolhendo o eixo dominante
     if (dx > dy) {
       // Horizontal primeiro, depois vertical
       return [pO, { x: pD.x, y: pO.y }, pD];
@@ -56,6 +68,126 @@ export function pontosDoFio(circuito, fio) {
   }
 
   return [pO, ...fio.dobras, pD];
+}
+
+/**
+ * Distância de um ponto a um segmento de reta.
+ */
+function distanciaPontoSegmento(p, a, b) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) return Math.hypot(p.x - a.x, p.y - a.y);
+
+  let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+
+  const px = a.x + t * dx;
+  const py = a.y + t * dy;
+  return Math.hypot(p.x - px, p.y - py);
+}
+
+/**
+ * Retorna { indice, orientacao } do segmento sob o ponto,
+ * ou null. indice é o índice do ponto inicial do segmento.
+ */
+function segmentoSobPonto(fio, ponto) {
+  const pts = pontosDoFio(fio);
+
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i];
+    const b = pts[i + 1];
+
+    if (distanciaPontoSegmento(ponto, a, b) < TOLERANCIA_SEGMENTO) {
+      const horizontal = Math.abs(a.y - b.y) < 1;
+      const vertical = Math.abs(a.x - b.x) < 1;
+      return {
+        indice: i,
+        orientacao: horizontal ? 'h' : vertical ? 'v' : 'd',
+      };
+    }
+  }
+  return null;
+}
+
+function pontoSobreDobra(fio, ponto) {
+  for (const d of fio.dobras || []) {
+    if (Math.hypot(d.x - ponto.x, d.y - ponto.y) < RAIO_DOBRA + 4) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Move um segmento criando/movendo dobras nas suas extremidades.
+ * indice = índice do ponto inicial do segmento em pontosDoFio.
+ */
+function inserirOuMoverDobraNoSegmento(fio, indice, orientacao, x, y) {
+  const pts = pontosDoFio(fio);
+  const pA = pts[indice];
+  const pB = pts[indice + 1];
+  if (!pA || !pB) return;
+
+  // Quantas dobras existem antes deste segmento?
+  // pontosDoFio = [pinoO, ...dobras, pinoD]
+  // índice 0 = pinoO → dobra[0] (ou pinoD)
+  // índice k = dobra[k-1] → dobra[k] (ou pinoD)
+  const ehPontaOrigem = indice === 0;
+  const ehPontaDestino = indice === pts.length - 2;
+
+  const dobras = fio.dobras || (fio.dobras = []);
+
+  if (orientacao === 'h') {
+    // Segmento horizontal: precisa de dobras acima/abaixo
+    // nas duas pontas, com o mesmo y
+    const yNovo = y;
+
+    if (ehPontaDestino) {
+      dobras.push({ x: pB.x, y: yNovo });
+    } else {
+      dobras[indice].y = yNovo;
+    }
+
+    if (ehPontaOrigem) {
+      // Cria dobra logo após o pino de origem
+      dobras.unshift({ x: pA.x, y: yNovo });
+    } else {
+      dobras[indice - 1].y = yNovo;
+    }
+  } else if (orientacao === 'v') {
+    const xNovo = x;
+
+    if (ehPontaDestino) {
+      dobras.push({ x: xNovo, y: pB.y });
+    } else {
+      dobras[indice].x = xNovo;
+    }
+
+    if (ehPontaOrigem) {
+      dobras.unshift({ x: xNovo, y: pA.y });
+    } else {
+      dobras[indice - 1].x = xNovo;
+    }
+  } else {
+    // Diagonal: move as duas pontas livremente preservando o deslocamento do segmento
+    const dxSeg = x - pA.x;
+    const dySeg = y - pA.y;
+
+    if (ehPontaDestino) {
+      dobras.push({ x: pB.x + dxSeg, y: pB.y + dySeg });
+    } else {
+      dobras[indice].x = pB.x + dxSeg;
+      dobras[indice].y = pB.y + dySeg;
+    }
+
+    if (ehPontaOrigem) {
+      dobras.unshift({ x: pA.x + dxSeg, y: pA.y + dySeg });
+    } else {
+      dobras[indice - 1].x = pA.x + dxSeg;
+      dobras[indice - 1].y = pA.y + dySeg;
+    }
+  }
 }
 
 /** Distância de um ponto a um segmento de reta. */
@@ -194,25 +326,77 @@ export function removerDobra(circuito, fio, indice) {
 
 /* ===== DESENHO ===== */
 
+/**
+ * Desenha um caminho passando pelos pontos com cantos
+ * arredondados.
+ */
+function desenharCaminhoArredondado(ctx, pontos, raio) {
+  if (pontos.length < 2) return;
+
+  ctx.beginPath();
+  ctx.moveTo(pontos[0].x, pontos[0].y);
+
+  for (let i = 1; i < pontos.length - 1; i++) {
+    const ant = pontos[i - 1];
+    const atual = pontos[i];
+    const prox = pontos[i + 1];
+
+    // Distâncias até os vizinhos
+    const dAnt = Math.hypot(atual.x - ant.x, atual.y - ant.y);
+    const dProx = Math.hypot(prox.x - atual.x, prox.y - atual.y);
+
+    // Raio efetivo não pode passar da metade do menor trecho
+    const r = Math.min(raio, dAnt / 2, dProx / 2);
+
+    if (r < 0.5) {
+      ctx.lineTo(atual.x, atual.y);
+      continue;
+    }
+
+    // Ponto de entrada da curva (antes do vértice)
+    const tAnt = r / dAnt;
+    const entrada = {
+      x: atual.x + (ant.x - atual.x) * tAnt,
+      y: atual.y + (ant.y - atual.y) * tAnt,
+    };
+
+    // Ponto de saída da curva (depois do vértice)
+    const tProx = r / dProx;
+    const saida = {
+      x: atual.x + (prox.x - atual.x) * tProx,
+      y: atual.y + (prox.y - atual.y) * tProx,
+    };
+
+    ctx.lineTo(entrada.x, entrada.y);
+    ctx.quadraticCurveTo(atual.x, atual.y, saida.x, saida.y);
+  }
+
+  const ultimo = pontos[pontos.length - 1];
+  ctx.lineTo(ultimo.x, ultimo.y);
+  ctx.stroke();
+}
+
 /** Desenha todos os fios do circuito. */
 export function desenharFios(ctx, circuito, view, fioSelecionadoId, dobraSelecionada) {
+  _circuitoAtual = circuito;
+  const tela = (p) => ({
+    x: p.x * view.zoom + view.panX,
+    y: p.y * view.zoom + view.panY,
+  });
+
   for (const fio of circuito.fios) {
-    const pts = pontosDoFio(circuito, fio);
-    if (pts.length < 2) continue;
+    const ptsMundo = pontosDoFio(circuito, fio);
+    if (ptsMundo.length < 2) continue;
 
     const selecionado = fio.id === fioSelecionadoId;
 
     ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x * view.zoom + view.panX, pts[0].y * view.zoom + view.panY);
-    for (let i = 1; i < pts.length; i++) {
-      ctx.lineTo(pts[i].x * view.zoom + view.panX, pts[i].y * view.zoom + view.panY);
-    }
     ctx.strokeStyle = fio.cor || CORES.traco;
     ctx.lineWidth = (selecionado ? 3 : 2) * view.zoom;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.stroke();
+    const pts = ptsMundo.map((p) => tela(p));
+    desenharCaminhoArredondado(ctx, pts, RAIO_CURVA * view.zoom);
     ctx.restore();
 
     if (selecionado && fio.dobras?.length) {
@@ -266,6 +450,8 @@ export function desenharFioFantasma(ctx, view, origem, cursor, cor) {
  */
 export function configurarFios(canvas, estado, aoMudar) {
   const el = canvas.elemento;
+  const renderizarTudo = aoMudar;
+  _circuitoAtual = estado.circuito;
 
   let fioEmConstrucao = null;   // { origem, posicaoOrigem }
   let dobraArrastando = null;   // { fio, indice }
@@ -326,6 +512,7 @@ export function configurarFios(canvas, estado, aoMudar) {
   // ---- mousedown ----
   el.addEventListener('mousedown', (e) => {
     if (e.button !== 0 || e.shiftKey) return;
+    _circuitoAtual = estado.circuito;
 
     const mundo = telaParaMundo(e);
 
@@ -341,6 +528,7 @@ export function configurarFios(canvas, estado, aoMudar) {
       dobraArrastando = dobra;
       dobraSelecionada = dobra;
       fioSelecionadoId = dobra.fio.id;
+      estado.fioSelecionadoId = dobra.fio.id;
       e.stopPropagation();
       e.preventDefault();
       aoMudar();
@@ -371,7 +559,41 @@ export function configurarFios(canvas, estado, aoMudar) {
       return;
     }
 
-    // 3. Fio sob o cursor → seleciona
+    // 3. Segmento de fio sob o cursor → seleciona fio e inicia arrasto de segmento
+    for (const fio of estado.circuito.fios) {
+      const seg = segmentoSobPonto(fio, mundo);
+      if (seg && !pontoSobreDobra(fio, mundo)) {
+        for (const id of estado.selecionados) {
+          const g = estado.circuito.grupos.find((x) => x.id === id);
+          if (g) recalcularMembros(g);
+        }
+        fioSelecionadoId = fio.id;
+        dobraSelecionada = null;
+        estado.fioSelecionadoId = fio.id;
+        estado.selecionados = [];
+        estado.grupoSelecionadoId = null;
+
+        const ptsAtuais = pontosDoFio(estado.circuito, fio);
+        const dobrasBase = (fio.dobras && fio.dobras.length > 0)
+          ? fio.dobras.map((d) => ({ ...d }))
+          : ptsAtuais.slice(1, -1).map((d) => ({ ...d }));
+
+        estado.arrastandoSegmento = {
+          fioId: fio.id,
+          indice: seg.indice,
+          orientacao: seg.orientacao,
+          pontoInicial: { x: mundo.x, y: mundo.y },
+          dobrasOriginais: dobrasBase,
+          moveu: false,
+        };
+        e.stopPropagation();
+        e.preventDefault();
+        aoMudar();
+        return;
+      }
+    }
+
+    // 4. Fio sob o cursor → seleciona
     const fio = fioEm(estado.circuito, mundo.x, mundo.y);
     if (fio) {
       for (const id of estado.selecionados) {
@@ -389,7 +611,7 @@ export function configurarFios(canvas, estado, aoMudar) {
       return;
     }
 
-    // 4. Clique em área vazia → limpa seleção de fio
+    // 5. Clique em área vazia → limpa seleção de fio
     fioSelecionadoId = null;
     dobraSelecionada = null;
     estado.fioSelecionadoId = null;
@@ -429,6 +651,56 @@ export function configurarFios(canvas, estado, aoMudar) {
       return;
     }
 
+    if (estado.arrastandoSegmento) {
+      _circuitoAtual = estado.circuito;
+      const s = estado.arrastandoSegmento;
+      const fio = estado.circuito.fios.find((f) => f.id === s.fioId);
+      if (!fio) return;
+
+      const dx = mundo.x - s.pontoInicial.x;
+      const dy = mundo.y - s.pontoInicial.y;
+
+      if (Math.abs(dx) > 0 || Math.abs(dy) > 0) {
+        estado.arrastandoSegmento.moveu = true;
+      }
+
+      // Restaura as dobras originais antes de recalcular
+      fio.dobras = s.dobrasOriginais.map((d) => ({ ...d }));
+
+      // Constrói a lista de pontos atual
+      const pts = pontosDoFio(fio);
+
+      // Pontos das extremidades do segmento
+      const pA = pts[s.indice];
+      const pB = pts[s.indice + 1];
+      if (!pA || !pB) return;
+
+      // Calcula o deslocamento permitido pela orientação
+      let deslocX = 0;
+      let deslocY = 0;
+
+      if (s.orientacao === 'h') {
+        deslocY = dy; // horizontal move na vertical
+      } else if (s.orientacao === 'v') {
+        deslocX = dx; // vertical move na horizontal
+      } else {
+        deslocX = dx;
+        deslocY = dy;
+      }
+
+      // Aplica snap
+      const novoY = snap(pA.y + deslocY);
+      const novoX = snap(pA.x + deslocX);
+
+      // Cria ou move as dobras nas extremidades do segmento
+      inserirOuMoverDobraNoSegmento(
+        fio, s.indice, s.orientacao, novoX, novoY
+      );
+
+      renderizarTudo();
+      return;
+    }
+
     // Cursor de crosshair quando sobre pino
     const pino = pinoEm(estado.circuito, mundo.x, mundo.y);
     if (pino && !estado.arrastandoComponente) {
@@ -462,6 +734,16 @@ export function configurarFios(canvas, estado, aoMudar) {
       dobraArrastando = null;
       estado.guiaAtiva = null;
       aoMudar();
+      return;
+    }
+
+    if (estado.arrastandoSegmento) {
+      if (estado.arrastandoSegmento.moveu) {
+        registrar(estado.circuito, 'mover-segmento', true);
+      }
+      estado.arrastandoSegmento = null;
+      aoMudar();
+      return;
     }
   });
 
