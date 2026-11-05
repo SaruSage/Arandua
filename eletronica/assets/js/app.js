@@ -1164,6 +1164,7 @@ function abrirPopupEntidade(tipo, id) {
     const pos = calcularPosicaoPadrao(container);
     estado.popups[chave] = {
       fixado: false,
+      minimizado: false,
       x: pos.x,
       y: pos.y,
     };
@@ -1181,6 +1182,8 @@ function ligarEventosPopup(el, chave) {
   const cfg = estado.popups[chave];
   if (!cfg) return;
   const btnAlfinete = el.querySelector('.popup-alfinete');
+  const btnMinimizar = el.querySelector('.popup-minimizar');
+  const btnFechar = el.querySelector('.popup-fechar');
   const cabecalho = el.querySelector('.popup-cabecalho');
 
   el.addEventListener('mousedown', () => {
@@ -1196,13 +1199,32 @@ function ligarEventosPopup(el, chave) {
     renderizarPopups(true);
   });
 
+  // Minimizar / expandir (atualiza classe e ícone preservando o estado do DOM interno)
+  btnMinimizar.addEventListener('click', (e) => {
+    e.stopPropagation();
+    cfg.minimizado = !cfg.minimizado;
+    el.className = 'popup-propriedades' + (cfg.minimizado ? ' minimizado' : '');
+    btnMinimizar.title = cfg.minimizado ? 'Expandir' : 'Minimizar';
+    btnMinimizar.innerHTML = cfg.minimizado
+      ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 9l6 6 6-6z"/></svg>'
+      : '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 15l6-6 6 6z"/></svg>';
+  });
+
+  // Fechar
+  btnFechar.addEventListener('click', (e) => {
+    e.stopPropagation();
+    delete estado.popups[chave];
+    if (estado.popupAtivo === chave) estado.popupAtivo = null;
+    renderizarPopups(true);
+  });
+
   // Arrasto pelo cabeçalho
   let arrastando = false;
   let offsetX = 0;
   let offsetY = 0;
 
   cabecalho.addEventListener('mousedown', (e) => {
-    if (e.target.closest('.popup-alfinete')) return;
+    if (e.target.closest('.popup-alfinete, .popup-minimizar, .popup-fechar')) return;
     arrastando = true;
     const rect = el.getBoundingClientRect();
     offsetX = e.clientX - rect.left;
@@ -1279,7 +1301,7 @@ function renderizarPopups(forcar = false) {
     }
 
     const el = document.createElement('div');
-    el.className = 'popup-propriedades';
+    el.className = 'popup-propriedades' + (cfg.minimizado ? ' minimizado' : '');
     el.style.left = cfg.x + 'px';
     el.style.top = cfg.y + 'px';
     if (!cfg.zIndex) {
@@ -1305,6 +1327,18 @@ function renderizarPopups(forcar = false) {
           </svg>
         </button>
         <span class="popup-titulo">${tituloPopup}</span>
+        <button type="button" class="popup-minimizar" title="${cfg.minimizado ? 'Expandir' : 'Minimizar'}">
+          ${cfg.minimizado
+            ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 9l6 6 6-6z"/></svg>'
+            : '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 15l6-6 6 6z"/></svg>'}
+        </button>
+        <button type="button" class="popup-fechar" title="Fechar">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2.5">
+            <line x1="6" y1="6" x2="18" y2="18"/>
+            <line x1="18" y1="6" x2="6" y2="18"/>
+          </svg>
+        </button>
       </div>
       <div class="popup-corpo"></div>
     `;

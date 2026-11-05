@@ -194,6 +194,41 @@ html, body {
   text-overflow: ellipsis;
 }
 
+.popup-minimizar,
+.popup-fechar {
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888;
+  flex-shrink: 0;
+}
+
+.popup-minimizar:hover,
+.popup-fechar:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.popup-fechar:hover {
+  background: #fee;
+  color: #d33;
+}
+
+.popup-propriedades.minimizado .popup-corpo {
+  display: none;
+}
+
+.popup-propriedades.minimizado {
+  width: auto;
+  min-width: 180px;
+}
+
 .popup-corpo { padding: 10px; }
 
 .eletronica-canvas canvas {
