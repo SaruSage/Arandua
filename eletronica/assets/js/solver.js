@@ -18,8 +18,9 @@
 import { CATALOGO } from './catalogo.js';
 
 const VCC_PADRAO = 5;
-const TOLERANCIA = 1e-6;
-const MAX_ITERACOES = 80;
+const TOLERANCIA = 1e-5;
+const MAX_ITERACOES = 120;
+const FATOR_RELAXACAO = 0.5;
 const VT = 0.026; // tensão térmica a 300K
 const G_MIN = 1e-12;
 
@@ -198,34 +199,46 @@ function resolverGauss(G, I) {
 /* ===== MODELOS NÃO-LINEARES ===== */
 
 /** Diodo: linearização de Newton em torno de vd. */
-function tensaoDiretaLED(comp, avisos) {
-  const tensaoDireta = comp.propriedades?.tensaoDireta;
-  if (Number.isFinite(tensaoDireta) && tensaoDireta > 0) return tensaoDireta;
+/**
+ * Modelo do LED: linearização por partes com joelho em Vf e transição cúbica (smoothstep).
+ *
+ * Abaixo de Vf - LARGURA: região de bloqueio (1 MΩ)
+ * Acima de Vf + LARGURA: região de condução (0.2 Ω em série com Vf)
+ * Entre os dois: transição suave com curva cúbica (smoothstep)
+ *
+ * Retorna { corrente, condutancia, iEq } para o MNA.
+ */
+function modeloLED(vd, propriedades) {
+  const VF = Number(propriedades?.tensaoDireta ?? 1.8);
+  const R_OFF = 1e6;
+  const R_ON = 5;   // era 0.2
+  const LARGURA = 0.5;   // AUMENTADO de 0.2 para 0.5
 
-  const aviso = `LED ${comp.id} sem tensaoDireta; usado 1.8 V`;
-  if (!avisos.includes(aviso)) avisos.push(aviso);
-  return 1.8;
-}
+  const v = Math.max(-100, Math.min(vd, 100));
+  const gOff = 1 / R_OFF;
+  const gOn = 1 / R_ON;
 
-function parametrosLED(comp, avisos) {
-  const tensaoDireta = tensaoDiretaLED(comp, avisos);
-  const correnteNominal = comp.propriedades?.correnteNominal;
-  const corrente = Number.isFinite(correnteNominal) && correnteNominal > 0
-    ? correnteNominal
-    : 0.02;
-  return { tensaoDireta, resistenciaDinamica: tensaoDireta / corrente };
-}
+  let condutancia;
+  let corrente;
 
-function linearizarLED(vd, comp, avisos) {
-  const { tensaoDireta, resistenciaDinamica } = parametrosLED(comp, avisos);
-  if (vd <= tensaoDireta) return { g: G_MIN, iEq: 0 };
-  const g = 1 / resistenciaDinamica;
-  return { g, iEq: -g * tensaoDireta };
-}
+  if (v <= VF - LARGURA) {
+    condutancia = gOff;
+    corrente = gOff * v;
+  } else if (v >= VF + LARGURA) {
+    condutancia = gOn;
+    corrente = gOff * v + (gOn - gOff) * (v - VF);
+  } else {
+    // Transição suave com curva cúbica (mais estável que linear)
+    const t = (v - (VF - LARGURA)) / (2 * LARGURA);
+    const s = t * t * (3 - 2 * t);   // smoothstep
+    condutancia = gOff + (gOn - gOff) * s;
+    // Integral exata de condutancia(v) para manter continuidade C¹ de corrente e tensão Vf
+    const integralS = (2 * LARGURA) * (t * t * t * (1 - 0.5 * t));
+    corrente = gOff * v + (gOn - gOff) * integralS;
+  }
 
-function correnteLED(vd, comp, avisos) {
-  const { tensaoDireta, resistenciaDinamica } = parametrosLED(comp, avisos);
-  return vd > tensaoDireta ? (vd - tensaoDireta) / resistenciaDinamica : 0;
+  const iEq = corrente - condutancia * v;
+  return { corrente, condutancia, iEq };
 }
 
 function linearizarDiodo(vd, is, n = 1.5) {
@@ -326,7 +339,38 @@ function montarSistema(circuito, nos, pinoParaNo, tensoesAnteriores, noTerra, av
 
     /* ---- LINEARES ---- */
     if (modelo === 'linear') {
-      if (['RESISTOR', 'POTENCIOMETRO', 'LDR', 'TERMISTOR'].includes(comp.tipo)) {
+      if (comp.tipo === 'RESISTOR' || comp.tipo === 'FUSIVEL') {
+        const queimado = comp.tipo === 'FUSIVEL'
+                      && comp.propriedades?.queimado === true;
+
+        // Lê a resistência da propriedade correta
+        let resistencia;
+        if (comp.tipo === 'FUSIVEL') {
+          resistencia = comp.propriedades?.resistencia ?? 0.01;
+        } else {
+          resistencia = comp.propriedades?.resistencia
+                     ?? comp.propriedades?.valor
+                     ?? 1000;
+        }
+
+        // Converte para número, com proteção
+        resistencia = Number(resistencia);
+        if (!isFinite(resistencia) || resistencia <= 0) {
+          resistencia = 1000;
+        }
+
+        // Fusível queimado = circuito aberto
+        if (queimado) resistencia = 1e9;
+
+        const condutancia = 1 / resistencia;
+
+        const noA = pinoParaNo.get(`${comp.id}:p1`);
+        const noB = pinoParaNo.get(`${comp.id}:p2`);
+
+        if (noA !== undefined && noB !== undefined && noA !== noB) {
+          adicionarCondutancia(G, noA, noB, condutancia);
+        }
+      } else if (['POTENCIOMETRO', 'LDR', 'TERMISTOR'].includes(comp.tipo)) {
         const r = calcularResistencia(comp);
         adicionarCondutancia(G, pinoParaNo.get(`${comp.id}:p1`), pinoParaNo.get(`${comp.id}:p2`), 1 / Math.max(r, 1e-9));
       } else if (comp.tipo === 'CAPACITOR') {
@@ -385,12 +429,20 @@ function montarSistema(circuito, nos, pinoParaNo, tensoesAnteriores, noTerra, av
 
     /* ---- NÃO-LINEARES ---- */
     else if (modelo === 'nao-linear') {
-      if (['DIODO', 'LED', 'FOTODIODO'].includes(comp.tipo)) {
+      if (comp.tipo === 'LED') {
+        const noAnodo = pinoParaNo.get(`${comp.id}:p1`);
+        const noCatodo = pinoParaNo.get(`${comp.id}:p2`);
+
+        if (noAnodo !== undefined && noCatodo !== undefined && noAnodo !== noCatodo) {
+          const vd = (tensoesAnteriores[noAnodo] ?? 0) - (tensoesAnteriores[noCatodo] ?? 0);
+          const { condutancia, iEq } = modeloLED(vd, comp.propriedades);
+
+          adicionarCondutancia(G, noAnodo, noCatodo, condutancia);
+          adicionarFonteCorrente(I, noAnodo, noCatodo, -iEq);
+        }
+      } else if (['DIODO', 'FOTODIODO'].includes(comp.tipo)) {
         const vd = vAnt;
-        const modeloDiodo = comp.tipo === 'LED'
-          ? linearizarLED(vd, comp, avisos)
-          : linearizarDiodo(vd, comp.propriedades.correnteSaturacao || 1e-12);
-        const { g, iEq } = modeloDiodo;
+        const { g, iEq } = linearizarDiodo(vd, comp.propriedades.correnteSaturacao || 1e-12);
         const n1 = pinoParaNo.get(`${comp.id}:p1`);
         const n2 = pinoParaNo.get(`${comp.id}:p2`);
         adicionarCondutancia(G, n1, n2, g);
@@ -543,7 +595,17 @@ function montarSistema(circuito, nos, pinoParaNo, tensoesAnteriores, noTerra, av
 }
 
 function calcularResistencia(comp) {
-  if (comp.tipo === 'RESISTOR') return comp.propriedades.resistencia;
+  if (comp.tipo === 'RESISTOR') {
+    let resistencia = comp.propriedades?.resistencia ?? comp.propriedades?.valor ?? 1000;
+    resistencia = Number(resistencia);
+    if (!isFinite(resistencia) || resistencia <= 0) resistencia = 1000;
+    return resistencia;
+  }
+  if (comp.tipo === 'FUSIVEL') {
+    return comp.propriedades?.queimado === true
+      ? 1e9
+      : Math.max(comp.propriedades?.resistencia ?? 0.01, 0.001);
+  }
   if (comp.tipo === 'POTENCIOMETRO') {
     const total = comp.propriedades.resistencia;
     const pos = comp.propriedades.posicao ?? 0.5;
@@ -585,17 +647,23 @@ export function simular(circuito) {
 
   let tensoesAnteriores = {};
   let V = null;
+  let Vant = null;
   let convergiu = false;
   const componentes = componentesPorId(circuito);
 
   for (let iter = 0; iter < MAX_ITERACOES; iter++) {
     const { G, I } = montarSistema(circuito, nos, pinoParaNo, tensoesAnteriores, noTerra, avisos);
-    const Vnovo = resolverGauss(G, I);
+    const Vbruto = resolverGauss(G, I);
 
     let maxDelta = 0;
+    let Vnovo = Vbruto;
     if (V) {
+      Vant = [...V];
+      Vnovo = Vbruto.map(
+        (v, i) => V[i] * (1 - FATOR_RELAXACAO) + v * FATOR_RELAXACAO
+      );
       for (let i = 0; i < V.length; i++) {
-        maxDelta = Math.max(maxDelta, Math.abs(Vnovo[i] - V[i]));
+        maxDelta = Math.max(maxDelta, Math.abs(Vbruto[i] - V[i]));
       }
     }
     V = Vnovo;
@@ -643,7 +711,91 @@ export function simular(circuito) {
     }
   }
 
-  return finalizar(circuito, nos, pinoParaNo, V, convergiu, avisos);
+  // Se não atingiu TOLERANCIA estrita mas a variação entre as duas últimas
+  // iterações for menor que 5%, considera o resultado estável e utilizável
+  if (!convergiu && V && Vant) {
+    let maxDiffRel = 0;
+    for (let i = 0; i < V.length; i++) {
+      const ref = Math.max(Math.abs(V[i]), 0.01);
+      maxDiffRel = Math.max(maxDiffRel, Math.abs(V[i] - Vant[i]) / ref);
+    }
+    if (maxDiffRel < 0.05) {
+      convergiu = true;
+    }
+  }
+
+  let resultado = finalizar(circuito, nos, pinoParaNo, V, convergiu, avisos);
+
+  // Verifica queima de fusíveis (APENAS com excesso real, margem de 1%)
+  let queimouAlgum = false;
+  const avisosQueima = [];
+  for (const comp of circuito.componentes) {
+    if (comp.tipo !== 'FUSIVEL') continue;
+    if (comp.propriedades?.queimado === true) continue;
+
+    const corrente = Math.abs(resultado.correntes?.[comp.id] ?? 0);
+    const nominal = comp.propriedades?.correnteNominal ?? 0.5;
+
+    // Queima APENAS com excesso real, com 1% de tolerância
+    if (corrente > nominal * 1.01) {
+      comp.propriedades.queimado = true;
+      queimouAlgum = true;
+      avisosQueima.push(
+        `Fusível queimou: ${(corrente * 1000).toFixed(1)} mA excede ${(nominal * 1000).toFixed(0)} mA.`
+      );
+    }
+  }
+
+  // Se algum fusível queimou agora, recalcula imediatamente o circuito com ele aberto
+  if (queimouAlgum) {
+    let tensoesPos = {};
+    let Vpos = null;
+    let VposAnt = null;
+    let convPos = false;
+    const avisosPos = [];
+    for (let iter = 0; iter < MAX_ITERACOES; iter++) {
+      const { G, I } = montarSistema(circuito, nos, pinoParaNo, tensoesPos, noTerra, avisosPos);
+      const Vbruto = resolverGauss(G, I);
+      let maxDelta = 0;
+      let Vnovo = Vbruto;
+      if (Vpos) {
+        VposAnt = [...Vpos];
+        Vnovo = Vbruto.map(
+          (v, i) => Vpos[i] * (1 - FATOR_RELAXACAO) + v * FATOR_RELAXACAO
+        );
+        for (let i = 0; i < Vpos.length; i++) {
+          maxDelta = Math.max(maxDelta, Math.abs(Vbruto[i] - Vpos[i]));
+        }
+      }
+      Vpos = Vnovo;
+      tensoesPos = {};
+      for (let i = 0; i < Vpos.length; i++) tensoesPos[i] = Vpos[i];
+      for (const comp of componentes) {
+        const pinoIds = comp.pinos.map((p) => p.id);
+        if (pinoIds.length >= 2) {
+          const n1 = pinoParaNo.get(`${comp.id}:${pinoIds[0]}`);
+          const n2 = pinoParaNo.get(`${comp.id}:${pinoIds[1]}`);
+          tensoesPos[comp.id] = (Vpos[n1] ?? 0) - (Vpos[n2] ?? 0);
+        }
+      }
+      if (iter > 0 && maxDelta < TOLERANCIA) {
+        convPos = true;
+        break;
+      }
+    }
+    if (!convPos && Vpos && VposAnt) {
+      let maxDiffRel = 0;
+      for (let i = 0; i < Vpos.length; i++) {
+        const ref = Math.max(Math.abs(Vpos[i]), 0.01);
+        maxDiffRel = Math.max(maxDiffRel, Math.abs(Vpos[i] - VposAnt[i]) / ref);
+      }
+      if (maxDiffRel < 0.05) convPos = true;
+    }
+    resultado = finalizar(circuito, nos, pinoParaNo, Vpos, convPos, [...avisosPos, ...avisosQueima]);
+    resultado.queimouFusivel = true;
+  }
+
+  return resultado;
 }
 
 function finalizar(circuito, nos, pinoParaNo, V, convergiu, avisos) {
@@ -670,7 +822,8 @@ function finalizar(circuito, nos, pinoParaNo, V, convergiu, avisos) {
       const n2 = pinoParaNo.get(`${comp.id}:p2`);
       const vd = (V[n1] ?? 0) - (V[n2] ?? 0);
       if (comp.tipo === 'LED') {
-        correntes[comp.id] = correnteLED(vd, comp, avisos);
+        const { corrente } = modeloLED(vd, comp.propriedades);
+        correntes[comp.id] = corrente;
       } else {
         const is = comp.propriedades.correnteSaturacao || 1e-12;
         const exp = Math.exp(Math.min(Math.max(vd, -5) / (1.5 * VT), 40));
@@ -693,11 +846,10 @@ function finalizar(circuito, nos, pinoParaNo, V, convergiu, avisos) {
   // Estados visuais
   for (const comp of componentes) {
     if (comp.tipo === 'LED') {
-      const i = correntes[comp.id] || 0;
-      const tensaoLed = (tensoes[`${comp.id}:p1`] ?? 0) - (tensoes[`${comp.id}:p2`] ?? 0);
-      const vf = tensaoDiretaLED(comp, avisos);
+      const vd = (tensoes[`${comp.id}:p1`] ?? 0) - (tensoes[`${comp.id}:p2`] ?? 0);
+      const { corrente } = modeloLED(vd, comp.propriedades);
       comp.estado = comp.estado || {};
-      comp.estado.aceso = i > 0.001 && tensaoLed > vf;
+      comp.estado.aceso = Math.abs(corrente) > 0.001;
     }
     if (comp.tipo === 'DISPLAY_7SEG') {
       comp.estado = comp.estado || {};

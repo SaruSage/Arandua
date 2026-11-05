@@ -14,6 +14,8 @@ export function criarCanvas(elemento) {
   const ctx = elemento.getContext('2d');
   const view = { zoom: 1, panX: 0, panY: 0 };
 
+  elemento.addEventListener('contextmenu', (e) => e.preventDefault());
+
   function redimensionar() {
     const dpr = window.devicePixelRatio || 1;
     const rect = elemento.getBoundingClientRect();

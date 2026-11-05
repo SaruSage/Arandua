@@ -41,6 +41,9 @@ const estado = {
   simulando: false,
   selecaoRetangular: null,
   adicionar(tipo, x, y) {
+    if (estado.simulando) {
+      pararSimulacao();
+    }
     const comp = adicionarComponente(estado.circuito, tipo, x, y);
     registrar(estado.circuito, 'adicionar', true);
     estado.selecionados = [comp.id];
@@ -48,6 +51,9 @@ const estado = {
     renderizarTudo();
   },
   removerSelecionados() {
+    if (estado.simulando) {
+      pararSimulacao();
+    }
     for (const id of estado.selecionados) {
       removerComponente(estado.circuito, id);
     }
@@ -56,11 +62,132 @@ const estado = {
     estado.grupoSelecionadoId = null;
     renderizarTudo();
   },
+  recalcular() {
+    recalcular();
+  },
 };
 
 let canvas = null;
 let elPainel = null;
 let areaTransferencia = null;
+
+function pararSimulacao() {
+  estado.simulando = false;
+  estado.resultado = null;
+
+  // Limpa o estado de todos os componentes
+  for (const comp of estado.circuito.componentes) {
+    comp.estado = {};
+  }
+
+  // Restaura o botão
+  const btn = document.getElementById('btn-simular');
+  if (btn) {
+    btn.textContent = 'Simular';
+    btn.classList.remove('btn-simulando');
+  }
+
+  // Remove o aviso SIMULANDO e avisos da simulação
+  const aviso = document.getElementById('aviso-simulando');
+  if (aviso) aviso.remove();
+  const avisosSim = document.getElementById('avisos-simulacao');
+  if (avisosSim) avisosSim.remove();
+
+  renderizarTudo();
+}
+
+function limparResultados() {
+  estado.resultado = null;
+  for (const comp of estado.circuito.componentes) {
+    comp.estado = {};
+  }
+  const avisosSim = document.getElementById('avisos-simulacao');
+  if (avisosSim) avisosSim.remove();
+  renderizarTudo();
+}
+
+function iniciarSimulacao() {
+  estado.simulando = true;
+
+  const btn = document.getElementById('btn-simular');
+  if (btn) {
+    btn.textContent = 'Parar simulação';
+    btn.classList.add('btn-simulando');
+  }
+
+  mostrarAvisoSimulando();
+  recalcular();
+  renderizarPainel();
+}
+
+function mostrarAvisoSimulando() {
+  if (document.getElementById('aviso-simulando')) return;
+
+  const aviso = document.createElement('div');
+  aviso.id = 'aviso-simulando';
+  aviso.className = 'aviso-simulando';
+  aviso.textContent = 'SIMULANDO';
+
+  const area = document.querySelector('.area-canvas') || canvas.elemento.parentElement;
+  area.appendChild(aviso);
+}
+
+function recalcular() {
+  if (!estado.simulando) return;
+
+  try {
+    const resultado = simular(estado.circuito);
+    estado.resultado = resultado;
+
+    // Aplica o estado calculado em cada componente
+    for (const comp of estado.circuito.componentes) {
+      const r = resultado.componentes?.find((x) => x.id === comp.id);
+      if (r) {
+        comp.estado = { ...comp.estado, ...r.estado };
+        if (r.pinos) {
+          comp.estado.pinos = r.pinos;
+        }
+      }
+    }
+  } catch (e) {
+    // Circuito inválido durante a edição: mantém o último resultado
+    console.warn('Simulação falhou durante edição:', e);
+  }
+
+  // Mostra avisos da simulação
+  const avisos = estado.resultado?.avisos || [];
+  let caixaAvisos = document.getElementById('avisos-simulacao');
+
+  if (avisos.length > 0) {
+    if (!caixaAvisos) {
+      caixaAvisos = document.createElement('div');
+      caixaAvisos.id = 'avisos-simulacao';
+      caixaAvisos.className = 'avisos-simulacao';
+      const area = document.querySelector('.area-canvas')
+                 || canvas.elemento.parentElement;
+      area.appendChild(caixaAvisos);
+    }
+    caixaAvisos.innerHTML = avisos
+      .map((a) => `<div class="aviso-item">${a}</div>`)
+      .join('');
+  } else if (caixaAvisos) {
+    caixaAvisos.remove();
+  }
+
+  canvas.render(
+    estado.circuito,
+    estado.selecionados,
+    estado.fioSelecionadoId,
+    null,
+    estado.fioFantasma,
+    estado.selecaoRetangular,
+    estado.grupoSelecionadoId
+  );
+
+  if (estado.resultado?.queimouFusivel) {
+    renderizarPainel(true);
+  }
+}
 
 function copiarSelecionados() {
   if (estado.selecionados.length === 0) return;
@@ -94,6 +221,9 @@ function copiarSelecionados() {
 }
 
 function colar() {
+  if (estado.simulando) {
+    pararSimulacao();
+  }
   if (!areaTransferencia || areaTransferencia.componentes.length === 0) return;
 
   const deslocamento = 24;
@@ -171,8 +301,7 @@ function montarInterface() {
     <div class="eletronica-layout">
       <header class="eletronica-toolbar">
         <h1>Laboratório de Eletrônica</h1>
-        <button type="button" class="btn-simular" id="btn-simular">▶ Simular</button>
-        <button type="button" class="btn-limpar" id="btn-limpar">Limpar resultados</button>
+        <button type="button" class="btn-simular" id="btn-simular">Simular</button>
         <button type="button" class="btn-juntar" id="btn-juntar">Juntar</button>
         <button type="button" class="btn-toolbar" id="btn-salvar">Salvar</button>
         <button type="button" class="btn-toolbar" id="btn-abrir">Abrir</button>
@@ -185,10 +314,6 @@ function montarInterface() {
       </header>
       <aside class="eletronica-paleta" id="paleta"></aside>
       <div class="eletronica-canvas">
-        <div class="aviso-simulando" id="aviso-simulando" hidden>
-          <span class="pulso"></span>
-          SIMULANDO
-        </div>
         <canvas id="canvas"></canvas>
       </div>
       <aside class="eletronica-painel" id="painel"></aside>
@@ -221,41 +346,13 @@ function montarInterface() {
   configurarInteracao(canvas, estado, renderizarTudo);
 
   document.getElementById('btn-simular').addEventListener('click', () => {
-    const btn = document.getElementById('btn-simular');
-    const aviso = document.getElementById('aviso-simulando');
-
     if (estado.simulando) {
-      estado.simulando = false;
-      estado.resultado = null;
-      btn.textContent = 'Simular';
-      btn.classList.remove('btn-parar');
-      aviso.hidden = true;
-      renderizarTudo();
-      return;
+      // Parar + limpar
+      pararSimulacao();
+      limparResultados();
+    } else {
+      iniciarSimulacao();
     }
-
-    estado.resultado = simular(estado.circuito);
-    estado.simulando = true;
-    btn.textContent = 'Parar simulação';
-    btn.classList.add('btn-parar');
-    aviso.hidden = false;
-    renderizarTudo();
-  });
-
-  document.getElementById('btn-limpar').addEventListener('click', () => {
-    estado.resultado = null;
-    estado.simulando = false;
-    const btnSimular = document.getElementById('btn-simular');
-    btnSimular.textContent = '▶ Simular';
-    btnSimular.classList.remove('btn-parar');
-    document.getElementById('aviso-simulando').hidden = true;
-    for (const c of estado.circuito.componentes) {
-      if (c.estado) {
-        c.estado.aceso = false;
-        c.estado.segmentos = [0, 0, 0, 0, 0, 0, 0];
-      }
-    }
-    renderizarTudo();
   });
 
   document.getElementById('btn-juntar').addEventListener('click', () => {
@@ -470,22 +567,83 @@ async function desenharMiniatura(canvasMini, tipo) {
 function renderizarTudo() {
   if (!canvas) return;
   atualizarTodosBounds(estado.circuito);
-  canvas.render(
-    estado.circuito,
-    estado.selecionados,
-    estado.fioSelecionadoId,
-    null,
-    estado.fioFantasma,
-    estado.selecaoRetangular,
-    estado.grupoSelecionadoId
-  );
+  if (estado.simulando) {
+    recalcular();
+  } else {
+    canvas.render(
+      estado.circuito,
+      estado.selecionados,
+      estado.fioSelecionadoId,
+      null,
+      estado.fioFantasma,
+      estado.selecaoRetangular,
+      estado.grupoSelecionadoId
+    );
+  }
   renderizarPainel();
   agendarAutosave(estado);
   atualizarBotoesHistorico();
 }
 
-function renderizarPainel() {
+function atualizarSecaoSimulacaoPainel() {
   if (!elPainel) return;
+  const antigaSecao = elPainel.querySelector('.painel-secao-simulacao');
+  if (antigaSecao) antigaSecao.remove();
+  const antigoAviso = elPainel.querySelector('.painel-aviso');
+  if (antigoAviso) antigoAviso.remove();
+
+  // Adiciona seção de resultado da simulação
+  if (estado.resultado && estado.selecionados.length === 1) {
+    const comp = estado.circuito.componentes.find((c) => c.id === estado.selecionados[0]);
+    if (comp) {
+      const secao = document.createElement('div');
+      secao.className = 'painel-secao painel-secao-simulacao';
+      const titulo = document.createElement('h4');
+      titulo.textContent = 'Simulação';
+      secao.appendChild(titulo);
+
+      const tensao = tensaoEm(estado.resultado, comp.id, comp.pinos[0]?.id);
+      const corrente = correnteEm(estado.resultado, comp.id);
+
+      const linhaT = document.createElement('p');
+      linhaT.className = 'painel-resultado';
+      linhaT.textContent = `Tensão: ${tensao.toFixed(3)} V`;
+      secao.appendChild(linhaT);
+
+      const linhaI = document.createElement('p');
+      linhaI.className = 'painel-resultado';
+      const mA = corrente * 1000;
+      linhaI.textContent = `Corrente: ${Math.abs(mA) < 1 ? (corrente * 1e6).toFixed(1) + ' µA' : mA.toFixed(2) + ' mA'}`;
+      secao.appendChild(linhaI);
+
+      elPainel.appendChild(secao);
+    }
+  }
+
+  if (estado.resultado && !estado.resultado.convergiu) {
+    const aviso = document.createElement('div');
+    aviso.className = 'painel-aviso';
+    aviso.textContent = estado.resultado.erro;
+    elPainel.appendChild(aviso);
+  }
+}
+
+function renderizarPainel(forcar = false) {
+  if (!elPainel) return;
+
+  // Se o usuário estiver digitando em um input numérico/texto do painel,
+  // atualiza apenas a seção de simulação para não destruir o input em foco
+  const ativo = document.activeElement;
+  if (
+    !forcar &&
+    ativo &&
+    elPainel.contains(ativo) &&
+    ativo.tagName === 'INPUT' &&
+    (ativo.type === 'number' || ativo.type === 'text')
+  ) {
+    atualizarSecaoSimulacaoPainel();
+    return;
+  }
 
   // Grupo selecionado
   if (estado.selecionados.length === 1) {
@@ -523,6 +681,7 @@ function renderizarPainel() {
         grupo.nome = inputNome.value || 'Grupo';
         registrar(estado.circuito, 'propriedade');
         renderizarTudo();
+        recalcular();
       });
       secao.appendChild(inputNome);
 
@@ -548,6 +707,7 @@ function renderizarPainel() {
           grupo.cor = cor;
           registrar(estado.circuito, 'cor-grupo', true);
           renderizarTudo();
+          recalcular();
         });
         paletaGrupo.appendChild(botaoCor);
       }
@@ -571,41 +731,7 @@ function renderizarPainel() {
   }
 
   renderizarPainelNovo(elPainel, estado, renderizarTudo, abrirMontagem);
-
-  // Adiciona seção de resultado da simulação
-  if (estado.resultado && estado.selecionados.length === 1) {
-    const comp = estado.circuito.componentes.find((c) => c.id === estado.selecionados[0]);
-    if (comp) {
-      const secao = document.createElement('div');
-      secao.className = 'painel-secao';
-      const titulo = document.createElement('h4');
-      titulo.textContent = 'Simulação';
-      secao.appendChild(titulo);
-
-      const tensao = tensaoEm(estado.resultado, comp.id, comp.pinos[0]?.id);
-      const corrente = correnteEm(estado.resultado, comp.id);
-
-      const linhaT = document.createElement('p');
-      linhaT.className = 'painel-resultado';
-      linhaT.textContent = `Tensão: ${tensao.toFixed(3)} V`;
-      secao.appendChild(linhaT);
-
-      const linhaI = document.createElement('p');
-      linhaI.className = 'painel-resultado';
-      const mA = corrente * 1000;
-      linhaI.textContent = `Corrente: ${Math.abs(mA) < 1 ? (corrente * 1e6).toFixed(1) + ' µA' : mA.toFixed(2) + ' mA'}`;
-      secao.appendChild(linhaI);
-
-      elPainel.appendChild(secao);
-    }
-  }
-
-  if (estado.resultado && !estado.resultado.convergiu) {
-    const aviso = document.createElement('div');
-    aviso.className = 'painel-aviso';
-    aviso.textContent = estado.resultado.erro;
-    elPainel.appendChild(aviso);
-  }
+  atualizarSecaoSimulacaoPainel();
 }
 
 function abrirMontagem(comp) {

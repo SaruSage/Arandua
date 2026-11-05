@@ -390,6 +390,31 @@ export function renderizarPainel(container, estado, aoMudar, aoVerMontagem) {
     container.appendChild(secaoProps);
   }
 
+  if (comp.tipo === 'FUSIVEL') {
+    const status = document.createElement('div');
+    status.className = 'prop-status';
+    status.innerHTML = comp.propriedades?.queimado
+      ? '<span style="color:#c0392b; font-weight:700;">● QUEIMADO</span>'
+      : '<span style="color:#53b588; font-weight:600;">● Íntegro</span>';
+    container.appendChild(status);
+
+    if (comp.propriedades?.queimado) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn-toolbar';
+      btn.textContent = 'Trocar fusível';
+      btn.style.marginTop = '8px';
+      btn.style.width = '100%';
+      btn.addEventListener('click', () => {
+        comp.propriedades.queimado = false;
+        registrar(estado.circuito, 'trocar-fusivel', true);
+        aoMudar();
+        if (typeof estado.recalcular === 'function') estado.recalcular();
+      });
+      container.appendChild(btn);
+    }
+  }
+
   // Rotação
   container.appendChild(criarSecaoRotacao(comp, aoMudar, estado.circuito));
 

@@ -192,6 +192,70 @@ export function desenharRESISTOR(ctx, comp, x, y, w, h) {
 }
 
 /**
+ * Fusível: retângulo (padrão IEC) com a linha condutora
+ * atravessando o corpo de ponta a ponta.
+ * Quando queimado, a linha é rompida com um vão visível e as
+ * pontas ficam afastadas, em vermelho, com um X no centro.
+ */
+export function desenharFUSIVEL(ctx, comp, x, y, w, h) {
+  preparar(ctx);
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  const corpoW = w * 0.55;
+  const corpoH = h * 0.42;
+  const queimado = comp.propriedades?.queimado === true;
+
+  // Hastes horizontais até o corpo
+  ctx.beginPath();
+  ctx.moveTo(x, cy);
+  ctx.lineTo(cx - corpoW / 2, cy);
+  ctx.moveTo(cx + corpoW / 2, cy);
+  ctx.lineTo(x + w, cy);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
+  ctx.stroke();
+
+  // Corpo
+  ctx.beginPath();
+  ctx.rect(cx - corpoW / 2, cy - corpoH / 2, corpoW, corpoH);
+  ctx.fillStyle = CORES.preenchimento;
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
+  ctx.stroke();
+
+  // Linha condutora horizontal atravessando o corpo
+  ctx.beginPath();
+  if (queimado) {
+    // Rompimento: vão grande no meio, pontas afastadas
+    const vao = corpoW * 0.25;
+    ctx.moveTo(cx - corpoW / 2, cy);
+    ctx.lineTo(cx - vao, cy);
+    ctx.moveTo(cx + vao, cy);
+    ctx.lineTo(cx + corpoW / 2, cy);
+  } else {
+    ctx.moveTo(cx - corpoW / 2, cy);
+    ctx.lineTo(cx + corpoW / 2, cy);
+  }
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = queimado ? '#c0392b' : CORES.traco;
+  ctx.stroke();
+
+  // Marca de queimado: pequeno X no vão
+  if (queimado) {
+    const r = 3;
+    ctx.beginPath();
+    ctx.moveTo(cx - r, cy - r);
+    ctx.lineTo(cx + r, cy + r);
+    ctx.moveTo(cx + r, cy - r);
+    ctx.lineTo(cx - r, cy + r);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = '#c0392b';
+    ctx.stroke();
+  }
+}
+
+/**
  * Potenciômetro: resistor com corpo de cantos arredondados e seta
  * de cursor bem definida (haste + ponta triangular).
  */
@@ -1159,6 +1223,7 @@ export function desenharCI_GENERICO(ctx, comp, x, y, w, h) {
 
 export const DESENHADORES = {
   RESISTOR: desenharRESISTOR,
+  FUSIVEL: desenharFUSIVEL,
   POTENCIOMETRO: desenharPOTENCIOMETRO,
   CAPACITOR: desenharCAPACITOR,
   INDUTOR: desenharINDUTOR,

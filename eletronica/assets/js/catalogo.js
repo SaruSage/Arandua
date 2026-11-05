@@ -30,6 +30,27 @@ export const CATALOGO = {
     dimensoes: { w: 64, h: 30 },
   },
 
+  FUSIVEL: {
+    nome: 'Fusível',
+    rotulo: 'Fusível',
+    categoria: 'Passivos',
+    modelo: 'linear',
+    pinos: [
+      { id: 'p1', x: -32, y: 0, nome: 'A' },
+      { id: 'p2', x: 32, y: 0, nome: 'B' },
+    ],
+    dimensoes: { w: 64, h: 30 },
+    padrao: {
+      correnteNominal: 0.5,   // ampères
+      resistencia: 0.01,      // ohms (quase um fio)
+      queimado: false,
+    },
+    propriedades: {
+      correnteNominal: { tipo: 'numero', valor: 0.5, min: 0.01, step: 0.01, unidade: 'A', rotulo: 'Corrente nominal (A)' },
+      resistencia: { tipo: 'numero', valor: 0.01, min: 0.001, step: 0.001, unidade: 'Ω', rotulo: 'Resistência (Ω)' },
+    },
+  },
+
   POTENCIOMETRO: {
     rotulo: 'Potenciômetro',
     categoria: 'Passivos',
@@ -482,7 +503,7 @@ export function criarInstancia(tipo, x = 0, y = 0) {
   const def = CATALOGO[tipo];
   if (!def) throw new Error(`Componente desconhecido: ${tipo}`);
 
-  const propriedades = {};
+  const propriedades = { ...(def.padrao || {}) };
   for (const [chave, spec] of Object.entries(def.propriedades || {})) {
     propriedades[chave] = spec.valor;
   }

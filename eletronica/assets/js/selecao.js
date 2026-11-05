@@ -8,6 +8,8 @@ import { registrar } from './historico.js';
 
 export function configurarInteracao(canvas, estado, aoMudar) {
   const el = canvas.elemento;
+  const renderizarTudo = aoMudar;
+  const recalcular = () => estado.recalcular?.();
   let arrastando = null;
   let panIniciado = null;
 
@@ -17,6 +19,7 @@ export function configurarInteracao(canvas, estado, aoMudar) {
     if (moveu) {
       registrar(estado.circuito, 'mover', true);
       aoMudar();
+      recalcular();
     }
   }
 
@@ -70,6 +73,41 @@ export function configurarInteracao(canvas, estado, aoMudar) {
     }
 
     aoMudar();
+  });
+
+  el.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  el.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+
+    const rect = el.getBoundingClientRect();
+    const mundo = canvas.telaParaMundo(e.clientX - rect.left, e.clientY - rect.top);
+
+    // Procura um componente alternável sob o cursor
+    const comp = estado.circuito.componentes.find((c) => {
+      if (!['CHAVE', 'CHAVE_SIMPLES', 'BOTAO'].includes(c.tipo)) return false;
+      const dim = c.dimensoes || { w: 64, h: 30 };
+      return (
+        mundo.x >= c.x &&
+        mundo.x <= c.x + dim.w &&
+        mundo.y >= c.y &&
+        mundo.y <= c.y + dim.h
+      );
+    });
+
+    if (!comp) return; // fora de componente alternável: não faz nada
+
+    // Alterna o estado
+    if (comp.tipo === 'BOTAO') {
+      comp.propriedades.pressionado = !comp.propriedades.pressionado;
+    } else {
+      comp.propriedades.fechada = !comp.propriedades.fechada;
+    }
+
+    // Registra no histórico e recalcula ao vivo
+    registrar(estado.circuito, 'alternar', true);
+    renderizarTudo();
+    if (typeof recalcular === 'function') recalcular();
   });
 
   el.addEventListener('mousemove', (e) => {
@@ -163,6 +201,7 @@ export function configurarInteracao(canvas, estado, aoMudar) {
           rotacionarComponente(estado.circuito, comp.id, comp.rotacao + 90);
           registrar(estado.circuito, 'rotacionar', true);
           aoMudar();
+          recalcular();
         }
       }
     }

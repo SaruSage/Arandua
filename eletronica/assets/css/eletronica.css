@@ -739,3 +739,79 @@ html, body {
 @media (max-width: 640px) {
   .legenda-atalhos { display: none; }
 }
+
+
+.btn-simulando {
+  background: #9ca3af !important;
+  color: #ffffff !important;
+  border-color: #9ca3af !important;
+}
+
+.aviso-simulando {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  padding: 6px 16px;
+  background: rgba(83, 181, 136, 0.95);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+
+.btn-simulando {
+  background: #9ca3af !important;
+  color: #ffffff !important;
+  border-color: #9ca3af !important;
+}
+
+.aviso-simulando {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  padding: 6px 16px;
+  background: rgba(83, 181, 136, 0.95);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.prop-status {
+  margin-top: 10px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.04);
+  font-size: 13px;
+}
+
+.avisos-simulacao {
+  position: absolute;
+  top: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.aviso-item {
+  padding: 8px 16px;
+  background: rgba(192, 57, 43, 0.95);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 8px;
+  white-space: nowrap;
+}
