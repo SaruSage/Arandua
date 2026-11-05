@@ -49,6 +49,42 @@ export function criarCanvas(elemento, estado) {
     return { x: x * view.zoom + view.panX, y: y * view.zoom + view.panY };
   }
 
+  function tela(pt) {
+    return mundoParaTela(pt.x, pt.y);
+  }
+
+  function desenharGuias(ctx) {
+    const g = estado?.guiaAtiva;
+    if (!g) return;
+
+    ctx.save();
+    ctx.strokeStyle = '#00bcd4';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+
+    // Guia vertical (alinhamento em X)
+    if (g.guiaX !== null && g.guiaX !== undefined) {
+      const a = tela({ x: g.guiaX, y: 0 });
+      const b = tela({ x: g.guiaX, y: estado.alturaMundo || 2000 });
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    }
+
+    // Guia horizontal (alinhamento em Y)
+    if (g.guiaY !== null && g.guiaY !== undefined) {
+      const a = tela({ x: 0, y: g.guiaY });
+      const b = tela({ x: estado.larguraMundo || 2000, y: g.guiaY });
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
   function desenharGrade() {
     const rect = elemento.getBoundingClientRect();
     ctx.save();
@@ -110,6 +146,9 @@ export function criarCanvas(elemento, estado) {
 
     // Fios
     desenharFios(ctx, circuito, view, fioSelecionadoId, dobraSelecionada);
+
+    // Guias visuais de alinhamento
+    desenharGuias(ctx);
 
     // Componentes
     for (const comp of circuito.componentes) {

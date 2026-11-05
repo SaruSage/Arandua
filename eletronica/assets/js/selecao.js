@@ -62,6 +62,7 @@ export function configurarInteracao(canvas, estado, aoMudar) {
     const moveu = arrastando?.movido;
     const idsMovidos = arrastando?.ids ? new Set(arrastando.ids) : null;
     arrastando = null;
+    estado.guiaAtiva = null;
     if (moveu) {
       // Snap na posição absoluta e alinhamento de pinos dos componentes movidos
       if (idsMovidos) {
@@ -113,6 +114,8 @@ export function configurarInteracao(canvas, estado, aoMudar) {
       registrar(estado.circuito, 'mover', true);
       aoMudar();
       recalcular();
+    } else {
+      aoMudar();
     }
     estado.arrastandoId = null;
   }
@@ -262,6 +265,37 @@ export function configurarInteracao(canvas, estado, aoMudar) {
             comp.x = snap(comp.x + dx);
             comp.y = snap(comp.y + dy);
           }
+          alinharPinos(comp);
+        }
+      }
+
+      estado.guiaAtiva = null;
+
+      const comp = estado.circuito.componentes.find(
+        (c) => c.id === estado.arrastandoId
+      );
+
+      if (comp) {
+        for (const p of comp.pinos) {
+          const m = posicaoPino(comp, p);
+
+          for (const outro of estado.circuito.componentes) {
+            if (outro.id === comp.id) continue;
+
+            for (const pOutro of outro.pinos) {
+              const mOutro = posicaoPino(outro, pOutro);
+
+              if (Math.abs(m.y - mOutro.y) < 1) {
+                estado.guiaAtiva = { guiaX: null, guiaY: m.y };
+              }
+              if (Math.abs(m.x - mOutro.x) < 1) {
+                estado.guiaAtiva = {
+                  guiaX: m.x,
+                  guiaY: estado.guiaAtiva?.guiaY ?? null,
+                };
+              }
+            }
+          }
         }
       }
 
@@ -362,6 +396,7 @@ export function configurarInteracao(canvas, estado, aoMudar) {
       // Depois limpa a seleção normalmente
       estado.selecionados = [];
       estado.grupoSelecionadoId = null;
+      estado.guiaAtiva = null;
       aoMudar();
     } else if (e.key === 'r' || e.key === 'R') {
       if (estado.selecionados.length > 0) {

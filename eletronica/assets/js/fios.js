@@ -26,6 +26,7 @@ export const CORES_FIO = [
 const RAIO_PINO = 10;
 const RAIO_DOBRA = 6;
 const TOLERANCIA_FIO = 8;
+const TOLERANCIA_EIXO = 6; // px
 
 /* ===== GEOMETRIA ===== */
 
@@ -277,6 +278,51 @@ export function configurarFios(canvas, estado, aoMudar) {
     return canvas.telaParaMundo(e.clientX - rect.left, e.clientY - rect.top);
   }
 
+  function posicaoPinoPorId(ref) {
+    if (!ref) return null;
+    const comp = estado.circuito.componentes.find((c) => c.id === ref.componente);
+    return comp ? posicaoPino(comp, ref.pino) : null;
+  }
+
+  /**
+   * Ajusta a dobra para alinhar com eixos de pinos e outras dobras.
+   * Retorna { x, y, guiaX, guiaY } onde guiaX/guiaY indicam se há
+   * alinhamento naquele eixo.
+   */
+  function alinharDobra(fio, dobra, indice) {
+    const pO = posicaoPinoPorId(fio.origem);
+    const pD = posicaoPinoPorId(fio.destino);
+
+    // Pontos de referência: pinos + outras dobras
+    const refs = [pO, pD].filter(Boolean);
+    (fio.dobras || []).forEach((d, i) => {
+      if (i !== indice && d) refs.push(d);
+    });
+
+    let guiaX = null;
+    let guiaY = null;
+
+    // Alinhamento vertical (mesma coluna) → guia vertical
+    for (const r of refs) {
+      if (Math.abs(dobra.x - r.x) < TOLERANCIA_EIXO) {
+        dobra.x = r.x;
+        guiaX = r.x;
+        break;
+      }
+    }
+
+    // Alinhamento horizontal (mesma altura) → guia horizontal
+    for (const r of refs) {
+      if (Math.abs(dobra.y - r.y) < TOLERANCIA_EIXO) {
+        dobra.y = r.y;
+        guiaY = r.y;
+        break;
+      }
+    }
+
+    return { x: dobra.x, y: dobra.y, guiaX, guiaY };
+  }
+
   // ---- mousedown ----
   el.addEventListener('mousedown', (e) => {
     if (e.button !== 0 || e.shiftKey) return;
@@ -370,6 +416,14 @@ export function configurarFios(canvas, estado, aoMudar) {
       if (dobra) {
         dobra.x = snap(mundo.x);
         dobra.y = snap(mundo.y);
+        const { guiaX, guiaY } = alinharDobra(
+          dobraArrastando.fio,
+          dobra,
+          dobraArrastando.indice
+        );
+        estado.guiaAtiva = (guiaX !== null || guiaY !== null)
+          ? { guiaX, guiaY }
+          : null;
       }
       aoMudar();
       return;
@@ -406,6 +460,7 @@ export function configurarFios(canvas, estado, aoMudar) {
     if (dobraArrastando) {
       registrar(estado.circuito, 'dobra', true);
       dobraArrastando = null;
+      estado.guiaAtiva = null;
       aoMudar();
     }
   });
@@ -451,12 +506,18 @@ export function configurarFios(canvas, estado, aoMudar) {
       }
     }
 
-    // Escape: cancela fio em construção
-    if (e.key === 'Escape' && fioEmConstrucao) {
-      fioEmConstrucao = null;
-      estado.fioFantasma = null;
-      el.style.cursor = 'default';
-      aoMudar();
+    // Escape: cancela fio em construção e limpa guias
+    if (e.key === 'Escape') {
+      if (estado.guiaAtiva) {
+        estado.guiaAtiva = null;
+        aoMudar();
+      }
+      if (fioEmConstrucao) {
+        fioEmConstrucao = null;
+        estado.fioFantasma = null;
+        el.style.cursor = 'default';
+        aoMudar();
+      }
     }
   });
 
