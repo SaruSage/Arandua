@@ -37,12 +37,18 @@ function snapshot(circuito) {
       origem: { ...f.origem },
       destino: { ...f.destino },
       dobras: (f.dobras || []).map((d) => ({ x: d.x, y: d.y })),
+      cor: f.cor,
     })),
     grupos: circuito.grupos.map((g) => ({
       id: g.id,
       nome: g.nome,
       membros: [...g.membros],
       cor: g.cor,
+      x: g.x ?? g.bounds?.x ?? 0,
+      y: g.y ?? g.bounds?.y ?? 0,
+      w: g.w ?? g.bounds?.w ?? 0,
+      h: g.h ?? g.bounds?.h ?? 0,
+      vertices: g.vertices?.map((ponto) => ({ ...ponto })) ?? null,
     })),
   };
 }
@@ -54,6 +60,7 @@ function snapshot(circuito) {
 function reconstruir(snap, CATALOGO) {
   const componentes = snap.componentes.map((c) => {
     const def = CATALOGO[c.tipo];
+    if (!def) return null;
     return {
       id: c.id,
       tipo: c.tipo,
@@ -65,13 +72,14 @@ function reconstruir(snap, CATALOGO) {
       dimensoes: { ...def.dimensoes },
       estado: {},
     };
-  });
+  }).filter(Boolean);
 
   const fios = snap.fios.map((f) => ({
     id: f.id,
     origem: { ...f.origem },
     destino: { ...f.destino },
     dobras: (f.dobras || []).map((d) => ({ x: d.x, y: d.y })),
+    cor: f.cor || '#2b2b2b',
   }));
 
   const grupos = snap.grupos.map((g) => ({
@@ -79,7 +87,17 @@ function reconstruir(snap, CATALOGO) {
     nome: g.nome,
     membros: [...g.membros],
     cor: g.cor,
-    bounds: { x: 0, y: 0, w: 0, h: 0 },
+    x: g.x ?? g.bounds?.x ?? 0,
+    y: g.y ?? g.bounds?.y ?? 0,
+    w: g.w ?? g.bounds?.w ?? 0,
+    h: g.h ?? g.bounds?.h ?? 0,
+    vertices: g.vertices?.map((ponto) => ({ ...ponto })) ?? null,
+    bounds: {
+      x: g.x ?? g.bounds?.x ?? 0,
+      y: g.y ?? g.bounds?.y ?? 0,
+      w: g.w ?? g.bounds?.w ?? 0,
+      h: g.h ?? g.bounds?.h ?? 0,
+    },
     nomeEditando: false,
   }));
 

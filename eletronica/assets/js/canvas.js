@@ -83,11 +83,11 @@ export function criarCanvas(elemento) {
     ctx.restore();
   }
 
-  function render(circuito, selecionados = [], fioSelecionadoId = null, dobraSelecionada = null, fioFantasma = null, selecaoRetangular = null) {
+  function render(circuito, selecionados = [], fioSelecionadoId = null, dobraSelecionada = null, fioFantasma = null, selecaoRetangular = null, grupoSelecionadoId = null) {
     desenharGrade();
 
     // Grupos primeiro (atrás de tudo)
-    desenharGrupos(ctx, circuito, view, null);
+    desenharGrupos(ctx, circuito, view, grupoSelecionadoId);
 
     // Fios
     desenharFios(ctx, circuito, view, fioSelecionadoId, dobraSelecionada);
@@ -106,7 +106,7 @@ export function criarCanvas(elemento) {
 
     // Fio fantasma
     if (fioFantasma) {
-      desenharFioFantasma(ctx, view, fioFantasma.origem, fioFantasma.cursor);
+      desenharFioFantasma(ctx, view, fioFantasma.origem, fioFantasma.cursor, fioFantasma.cor);
     }
 
     // Seleção retangular em andamento

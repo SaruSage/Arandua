@@ -9,6 +9,8 @@
  * - Setas dos transistores: simétricas, na direção da linha
  */
 
+import { CATALOGO } from './catalogo.js';
+
 export const CORES = {
   traco: '#2b2b2b',
   tracoFino: '#6b6b6b',
@@ -137,6 +139,27 @@ function desenharSeta(ctx, x, y, dx, dy, tamanho = 7, cor = CORES.traco) {
 
 /* ===== PASSIVOS ===== */
 
+/**
+ * Formata o valor de resistência para exibição.
+ * Até 999 Ω, até 999,99 kΩ, acima disso MΩ.
+ * Máximo 5 dígitos significativos.
+ */
+export function formatarResistencia(ohms) {
+  if (!Number.isFinite(ohms) || ohms <= 0) return '—';
+
+  const formatar = (valor) => {
+    const arredondado = Math.round(valor * 100) / 100;
+    if (arredondado >= 100) return String(Math.round(arredondado));
+    if (arredondado >= 10) return arredondado.toFixed(1).replace(/\.0$/, '');
+    return arredondado.toFixed(2).replace(/\.?0+$/, '');
+  };
+
+  if (ohms < 1000) return `${formatar(ohms)} Ω`;
+  const kiloohms = ohms / 1000;
+  if (Math.round(kiloohms * 100) / 100 < 1000) return `${formatar(kiloohms)} kΩ`;
+  return `${formatar(ohms / 1e6)} MΩ`;
+}
+
 export function desenharRESISTOR(ctx, comp, x, y, w, h) {
   preparar(ctx);
   const corpoW = w * 0.55;
@@ -155,6 +178,17 @@ export function desenharRESISTOR(ctx, comp, x, y, w, h) {
   ctx.rect(cx - corpoW / 2, cy - corpoH / 2, corpoW, corpoH);
   ctx.fill();
   ctx.stroke();
+
+  const valor = comp.propriedades?.resistencia;
+  if (valor !== undefined) {
+    ctx.save();
+    ctx.fillStyle = CORES.texto;
+    ctx.font = '700 7px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(formatarResistencia(valor), cx, cy);
+    ctx.restore();
+  }
 }
 
 /**
@@ -214,6 +248,17 @@ export function desenharPOTENCIOMETRO(ctx, comp, x, y, w, h) {
   ctx.lineWidth = 1;
   ctx.strokeStyle = CORES.traco;
   ctx.stroke();
+
+  const valorPot = comp.propriedades?.resistencia;
+  if (valorPot !== undefined) {
+    ctx.save();
+    ctx.fillStyle = CORES.texto;
+    ctx.font = '700 7px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(formatarResistencia(valorPot), cx, cy);
+    ctx.restore();
+  }
 }
 
 export function desenharCAPACITOR(ctx, comp, x, y, w, h) {
@@ -279,10 +324,12 @@ export function desenharTRANSFORMADOR(ctx, comp, x, y, w, h) {
 
   const nucleoH = h * 0.62;
   ctx.beginPath();
-  ctx.moveTo(cx - 2, cy - nucleoH / 2);
-  ctx.lineTo(cx - 2, cy + nucleoH / 2);
-  ctx.moveTo(cx + 2, cy - nucleoH / 2);
-  ctx.lineTo(cx + 2, cy + nucleoH / 2);
+  ctx.moveTo(cx - 3, cy - nucleoH / 2);
+  ctx.lineTo(cx - 3, cy + nucleoH / 2);
+  ctx.moveTo(cx + 3, cy - nucleoH / 2);
+  ctx.lineTo(cx + 3, cy + nucleoH / 2);
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 
   const n = 4;
@@ -293,35 +340,33 @@ export function desenharTRANSFORMADOR(ctx, comp, x, y, w, h) {
 
   // Primário (esquerda)
   ctx.beginPath();
-  ctx.moveTo(cx - 10, topo);
+  ctx.moveTo(cx - 16, topo);
   for (let i = 0; i < n; i++) {
     const yy = topo + passo * i + raio;
-    ctx.arc(cx - 10, yy, raio, -Math.PI / 2, Math.PI / 2, true);
+    ctx.arc(cx - 16, yy, raio, -Math.PI / 2, Math.PI / 2, true);
   }
   ctx.stroke();
 
   // Secundário (direita)
   ctx.beginPath();
-  ctx.moveTo(cx + 10, topo);
+  ctx.moveTo(cx + 16, topo);
   for (let i = 0; i < n; i++) {
     const yy = topo + passo * i + raio;
-    ctx.arc(cx + 10, yy, raio, -Math.PI / 2, Math.PI / 2, false);
+    ctx.arc(cx + 16, yy, raio, -Math.PI / 2, Math.PI / 2, false);
   }
   ctx.stroke();
 
-  // Hastes horizontais: das pontas das bobinas até os PINOS
-  // Pinos estão em x = -32 e x = +32 relativos ao centro
-  const pinoEsqX = cx - 32;
-  const pinoDirX = cx + 32;
+  const pinoEsqX = cx - 64;
+  const pinoDirX = cx + 64;
 
   ctx.beginPath();
-  ctx.moveTo(cx - 10, topo);
+  ctx.moveTo(cx - 16, topo);
   ctx.lineTo(pinoEsqX, topo);
-  ctx.moveTo(cx - 10, topo + alturaEnrol);
+  ctx.moveTo(cx - 16, topo + alturaEnrol);
   ctx.lineTo(pinoEsqX, topo + alturaEnrol);
-  ctx.moveTo(cx + 10, topo);
+  ctx.moveTo(cx + 16, topo);
   ctx.lineTo(pinoDirX, topo);
-  ctx.moveTo(cx + 10, topo + alturaEnrol);
+  ctx.moveTo(cx + 16, topo + alturaEnrol);
   ctx.lineTo(pinoDirX, topo + alturaEnrol);
   ctx.lineWidth = 2;
   ctx.strokeStyle = CORES.traco;
@@ -462,7 +507,6 @@ export function desenharLED(ctx, comp, x, y, w, h) {
     ctx.lineTo(pontaX, pontaY);
     ctx.stroke();
 
-    // Ponta da seta na direção (1, -1)
     const dx = 1 / Math.SQRT2;
     const dy = -1 / Math.SQRT2;
     const t = 5;
@@ -1164,7 +1208,7 @@ function desenharPinosDoComponente(ctx, comp, dim) {
  * Desenha um componente completo com transformação uniforme.
  */
 export function desenharComponente(ctx, comp, telaX, telaY, escala) {
-  const dim = comp.dimensoes || { w: 80, h: 60 };
+  const dim = comp.dimensoes || CATALOGO[comp.tipo]?.dimensoes || { w: 80, h: 60 };
   const cx = dim.w / 2;
   const cy = dim.h / 2;
 
@@ -1198,7 +1242,7 @@ export function posicaoPino(comp, pinoId) {
   const pino = comp.pinos.find((p) => p.id === pinoId);
   if (!pino) return null;
 
-  const dim = comp.dimensoes || { w: 80, h: 60 };
+  const dim = comp.dimensoes || CATALOGO[comp.tipo]?.dimensoes || { w: 80, h: 60 };
   const cx = dim.w / 2;
   const cy = dim.h / 2;
 

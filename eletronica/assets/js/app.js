@@ -12,7 +12,7 @@ import { renderizarPainel as renderizarPainelNovo } from './painel.js';
 import { simular, tensaoEm, correnteEm } from './solver.js';
 import { obterMontagem, desenharMontagem } from './montagens.js';
 import { desenharComponente } from './simbolos.js';
-import { configurarGrupos, juntarSelecionados, desfazerGrupo, atualizarTodosBounds } from './grupos.js';
+import { configurarGrupos, juntarSelecionados, desfazerGrupo, atualizarTodosBounds, CORES_GRUPO } from './grupos.js';
 import { exportarPNG } from './exportar.js';
 import {
   baixarArquivo,
@@ -36,12 +36,15 @@ import {
 const estado = {
   circuito: criarCircuito(),
   selecionados: [],
+  grupoSelecionadoId: null,
   resultado: null,
+  simulando: false,
   selecaoRetangular: null,
   adicionar(tipo, x, y) {
     const comp = adicionarComponente(estado.circuito, tipo, x, y);
     registrar(estado.circuito, 'adicionar', true);
     estado.selecionados = [comp.id];
+    estado.grupoSelecionadoId = null;
     renderizarTudo();
   },
   removerSelecionados() {
@@ -50,6 +53,7 @@ const estado = {
     }
     registrar(estado.circuito, 'remover', true);
     estado.selecionados = [];
+    estado.grupoSelecionadoId = null;
     renderizarTudo();
   },
 };
@@ -84,6 +88,10 @@ function montarInterface() {
       </header>
       <aside class="eletronica-paleta" id="paleta"></aside>
       <div class="eletronica-canvas">
+        <div class="aviso-simulando" id="aviso-simulando" hidden>
+          <span class="pulso"></span>
+          SIMULANDO
+        </div>
         <canvas id="canvas"></canvas>
       </div>
       <aside class="eletronica-painel" id="painel"></aside>
@@ -116,12 +124,34 @@ function montarInterface() {
   configurarInteracao(canvas, estado, renderizarTudo);
 
   document.getElementById('btn-simular').addEventListener('click', () => {
+    const btn = document.getElementById('btn-simular');
+    const aviso = document.getElementById('aviso-simulando');
+
+    if (estado.simulando) {
+      estado.simulando = false;
+      estado.resultado = null;
+      btn.textContent = 'Simular';
+      btn.classList.remove('btn-parar');
+      aviso.hidden = true;
+      renderizarTudo();
+      return;
+    }
+
     estado.resultado = simular(estado.circuito);
+    estado.simulando = true;
+    btn.textContent = 'Parar simulação';
+    btn.classList.add('btn-parar');
+    aviso.hidden = false;
     renderizarTudo();
   });
 
   document.getElementById('btn-limpar').addEventListener('click', () => {
     estado.resultado = null;
+    estado.simulando = false;
+    const btnSimular = document.getElementById('btn-simular');
+    btnSimular.textContent = '▶ Simular';
+    btnSimular.classList.remove('btn-parar');
+    document.getElementById('aviso-simulando').hidden = true;
     for (const c of estado.circuito.componentes) {
       if (c.estado) {
         c.estado.aceso = false;
@@ -135,6 +165,7 @@ function montarInterface() {
     const grupo = juntarSelecionados(estado.circuito, estado.selecionados);
     if (grupo) {
       estado.selecionados = [grupo.id];
+      estado.grupoSelecionadoId = grupo.id;
       renderizarTudo();
     }
   });
@@ -153,6 +184,7 @@ function montarInterface() {
     estado.circuito = circuito;
     estado.selecionados = [];
     estado.fioSelecionadoId = null;
+    estado.grupoSelecionadoId = null;
     estado.resultado = null;
     if (canvas.view) {
       canvas.view.zoom = view.zoom;
@@ -174,6 +206,7 @@ function montarInterface() {
       estado.circuito = novo;
       estado.selecionados = [];
       estado.fioSelecionadoId = null;
+      estado.grupoSelecionadoId = null;
       estado.resultado = null;
       renderizarTudo();
       atualizarBotoesHistorico();
@@ -186,6 +219,7 @@ function montarInterface() {
       estado.circuito = novo;
       estado.selecionados = [];
       estado.fioSelecionadoId = null;
+      estado.grupoSelecionadoId = null;
       estado.resultado = null;
       renderizarTudo();
       atualizarBotoesHistorico();
@@ -333,7 +367,8 @@ function renderizarTudo() {
     estado.fioSelecionadoId,
     null,
     estado.fioFantasma,
-    estado.selecaoRetangular
+    estado.selecaoRetangular,
+    estado.grupoSelecionadoId
   );
   renderizarPainel();
   agendarAutosave(estado);
@@ -384,6 +419,32 @@ function renderizarPainel() {
 
       elPainel.appendChild(secao);
 
+      const secaoCor = document.createElement('div');
+      secaoCor.className = 'painel-secao';
+      const tituloCor = document.createElement('h4');
+      tituloCor.textContent = 'Cor do grupo';
+      secaoCor.appendChild(tituloCor);
+      const paletaGrupo = document.createElement('div');
+      paletaGrupo.className = 'paleta-cores';
+      for (const cor of CORES_GRUPO) {
+        const botaoCor = document.createElement('button');
+        botaoCor.type = 'button';
+        botaoCor.className = 'cor-fio';
+        botaoCor.style.background = cor;
+        botaoCor.title = cor;
+        botaoCor.setAttribute('aria-label', `Cor ${cor}`);
+        botaoCor.setAttribute('aria-pressed', String(grupo.cor === cor));
+        botaoCor.addEventListener('click', () => {
+          if (grupo.cor === cor) return;
+          grupo.cor = cor;
+          registrar(estado.circuito, 'cor-grupo', true);
+          renderizarTudo();
+        });
+        paletaGrupo.appendChild(botaoCor);
+      }
+      secaoCor.appendChild(paletaGrupo);
+      elPainel.appendChild(secaoCor);
+
       const btnDesfazer = document.createElement('button');
       btnDesfazer.type = 'button';
       btnDesfazer.className = 'btn-remover';
@@ -391,6 +452,7 @@ function renderizarPainel() {
       btnDesfazer.addEventListener('click', () => {
         desfazerGrupo(estado.circuito, grupo.id);
         estado.selecionados = [];
+        estado.grupoSelecionadoId = null;
         renderizarTudo();
       });
       elPainel.appendChild(btnDesfazer);

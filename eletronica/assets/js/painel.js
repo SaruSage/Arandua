@@ -7,6 +7,7 @@
 import { CATALOGO } from './catalogo.js';
 import { rotacionarComponente } from './circuito.js';
 import { registrar } from './historico.js';
+import { CORES_FIO } from './fios.js';
 
 /** Formata um número com unidade de engenharia. */
 function formatarValor(valor, unidade) {
@@ -231,6 +232,48 @@ function criarSecaoRotacao(comp, aoMudar, circuito) {
 export function renderizarPainel(container, estado, aoMudar, aoVerMontagem) {
   container.innerHTML = '';
 
+  if (estado.fioSelecionadoId) {
+    const fio = estado.circuito.fios.find((item) => item.id === estado.fioSelecionadoId);
+    if (fio) {
+      const header = document.createElement('div');
+      header.className = 'painel-header';
+      const titulo = document.createElement('h3');
+      titulo.className = 'painel-titulo';
+      titulo.textContent = 'Fio';
+      header.appendChild(titulo);
+      container.appendChild(header);
+
+      const secao = document.createElement('div');
+      secao.className = 'painel-secao painel-secao--primeira';
+      const tituloCores = document.createElement('h4');
+      tituloCores.textContent = 'Cor';
+      secao.appendChild(tituloCores);
+
+      const paleta = document.createElement('div');
+      paleta.className = 'paleta-cores';
+      for (const cor of CORES_FIO) {
+        const botao = document.createElement('button');
+        botao.type = 'button';
+        botao.className = 'cor-fio';
+        botao.dataset.cor = cor;
+        botao.style.background = cor;
+        botao.title = cor;
+        botao.setAttribute('aria-label', `Cor ${cor}`);
+        botao.setAttribute('aria-pressed', String(fio.cor === cor));
+        botao.addEventListener('click', () => {
+          if (fio.cor === cor) return;
+          fio.cor = cor;
+          registrar(estado.circuito, 'cor-fio', true);
+          aoMudar();
+        });
+        paleta.appendChild(botao);
+      }
+      secao.appendChild(paleta);
+      container.appendChild(secao);
+      return;
+    }
+  }
+
   if (estado.selecionados.length === 0) {
     const vazio = document.createElement('div');
     vazio.className = 'painel-vazio';
@@ -307,6 +350,12 @@ export function renderizarPainel(container, estado, aoMudar, aoVerMontagem) {
   if (!comp) return;
 
   const def = CATALOGO[comp.tipo];
+  if (!def) return;
+  if (!comp.propriedades) {
+    comp.propriedades = Object.fromEntries(
+      Object.entries(def.propriedades || {}).map(([chave, spec]) => [chave, spec.valor])
+    );
+  }
 
   // Cabeçalho
   const header = document.createElement('div');

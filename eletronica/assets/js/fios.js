@@ -10,8 +10,16 @@
  * - Clique num fio o seleciona; Delete remove o fio inteiro
  */
 
-import { posicaoPino } from './simbolos.js';
+import { CORES, posicaoPino } from './simbolos.js';
 import { registrar } from './historico.js';
+import { CATALOGO } from './catalogo.js';
+
+export const CORES_FIO = [
+  '#2b2b2b', '#e05a5a', '#e88a3a', '#e8c33a', '#8fbf3a',
+  '#53b588', '#3ab8b8', '#3a8fe8', '#4a5ae8', '#8a4ae8',
+  '#c44ae8', '#e84a9e', '#8a5a3a', '#5a5a5a', '#a0a0a0',
+  '#ffffff', '#1a1d27', '#ff6b6b', '#4ecdc4', '#ffe66d',
+];
 
 const RAIO_PINO = 10;
 const RAIO_DOBRA = 6;
@@ -78,8 +86,10 @@ export function dobraEm(circuito, x, y) {
 export function pinoEm(circuito, x, y) {
   for (let i = circuito.componentes.length - 1; i >= 0; i--) {
     const comp = circuito.componentes[i];
-    for (const pino of comp.pinos) {
-      const pos = posicaoPino(comp, pino.id);
+    const pinos = comp.pinos || CATALOGO[comp.tipo]?.pinos || [];
+    const compComPinos = comp.pinos ? comp : { ...comp, pinos };
+    for (const pino of pinos) {
+      const pos = posicaoPino(compComPinos, pino.id);
       if (pos && Math.hypot(pos.x - x, pos.y - y) < RAIO_PINO) {
         return { componente: comp, pino, posicao: pos };
       }
@@ -103,10 +113,11 @@ export function criarFio(circuito, origem, destino) {
   if (existe) return null;
 
   const fio = {
-    id: `f${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    id: `fio-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     origem: { ...origem },
     destino: { ...destino },
     dobras: [],
+    cor: CORES_FIO[0],
   };
   circuito.fios.push(fio);
   registrar(circuito, 'fio', true);
@@ -179,7 +190,7 @@ export function desenharFios(ctx, circuito, view, fioSelecionadoId, dobraSelecio
     for (let i = 1; i < pts.length; i++) {
       ctx.lineTo(pts[i].x * view.zoom + view.panX, pts[i].y * view.zoom + view.panY);
     }
-    ctx.strokeStyle = selecionado ? '#e05a5a' : '#2b2b2b';
+    ctx.strokeStyle = fio.cor || CORES.traco;
     ctx.lineWidth = (selecionado ? 3 : 2) * view.zoom;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -207,13 +218,13 @@ export function desenharFios(ctx, circuito, view, fioSelecionadoId, dobraSelecio
 }
 
 /** Desenha o fio fantasma durante o arrasto. */
-export function desenharFioFantasma(ctx, view, origem, cursor) {
+export function desenharFioFantasma(ctx, view, origem, cursor, cor) {
   ctx.save();
   ctx.beginPath();
   ctx.moveTo(origem.x * view.zoom + view.panX, origem.y * view.zoom + view.panY);
   ctx.lineTo(cursor.x, cursor.y);
   ctx.setLineDash([6, 5]);
-  ctx.strokeStyle = '#53b588';
+  ctx.strokeStyle = cor || CORES.primaria;
   ctx.lineWidth = 2;
   ctx.stroke();
   ctx.restore();
@@ -257,6 +268,8 @@ export function configurarFios(canvas, estado, aoMudar) {
     // 1. Dobra sob o cursor → inicia arrasto
     const dobra = dobraEm(estado.circuito, mundo.x, mundo.y);
     if (dobra) {
+      estado.selecionados = [];
+      estado.grupoSelecionadoId = null;
       dobraArrastando = dobra;
       dobraSelecionada = dobra;
       fioSelecionadoId = dobra.fio.id;
@@ -269,6 +282,11 @@ export function configurarFios(canvas, estado, aoMudar) {
     // 2. Pino sob o cursor → inicia fio
     const pino = pinoEm(estado.circuito, mundo.x, mundo.y);
     if (pino) {
+      estado.selecionados = [];
+      estado.grupoSelecionadoId = null;
+      estado.fioSelecionadoId = null;
+      fioSelecionadoId = null;
+      dobraSelecionada = null;
       fioEmConstrucao = {
         origem: { componente: pino.componente.id, pino: pino.pino.id },
         posicaoOrigem: pino.posicao,
@@ -287,6 +305,8 @@ export function configurarFios(canvas, estado, aoMudar) {
       fioSelecionadoId = fio.id;
       dobraSelecionada = null;
       estado.fioSelecionadoId = fio.id;
+      estado.selecionados = [];
+      estado.grupoSelecionadoId = null;
       e.stopPropagation();
       e.preventDefault();
       aoMudar();
@@ -297,6 +317,7 @@ export function configurarFios(canvas, estado, aoMudar) {
     fioSelecionadoId = null;
     dobraSelecionada = null;
     estado.fioSelecionadoId = null;
+    estado.grupoSelecionadoId = null;
   }, true); // captura antes do handler de seleção de componentes
 
   // ---- mousemove ----

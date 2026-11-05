@@ -43,6 +43,7 @@ export function serializar(estado) {
     origem: { ...f.origem },
     destino: { ...f.destino },
     dobras: (f.dobras || []).map((d) => ({ x: d.x, y: d.y })),
+    cor: f.cor || '#2b2b2b',
   }));
 
   const grupos = estado.circuito.grupos.map((g) => ({
@@ -50,6 +51,17 @@ export function serializar(estado) {
     nome: g.nome,
     membros: [...g.membros],
     cor: g.cor,
+    x: g.x ?? g.bounds?.x ?? 0,
+    y: g.y ?? g.bounds?.y ?? 0,
+    w: g.w ?? g.bounds?.w ?? 0,
+    h: g.h ?? g.bounds?.h ?? 0,
+    vertices: g.vertices?.map((ponto) => ({ ...ponto })) ?? null,
+    bounds: {
+      x: g.x ?? g.bounds?.x ?? 0,
+      y: g.y ?? g.bounds?.y ?? 0,
+      w: g.w ?? g.bounds?.w ?? 0,
+      h: g.h ?? g.bounds?.h ?? 0,
+    },
   }));
 
   return {
@@ -150,6 +162,7 @@ export function reconstruir(dados) {
 
   const componentes = c.componentes.map((comp) => {
     const def = CATALOGO[comp.tipo];
+    if (!def) return null;
     return {
       id: comp.id,
       tipo: comp.tipo,
@@ -161,13 +174,14 @@ export function reconstruir(dados) {
       dimensoes: { ...def.dimensoes },
       estado: {},
     };
-  });
+  }).filter(Boolean);
 
   const fios = c.fios.map((f) => ({
     id: f.id,
     origem: { ...f.origem },
     destino: { ...f.destino },
     dobras: (f.dobras || []).map((d) => ({ x: d.x, y: d.y })),
+    cor: f.cor || '#2b2b2b',
   }));
 
   const grupos = (c.grupos || []).map((g) => ({
@@ -175,7 +189,17 @@ export function reconstruir(dados) {
     nome: g.nome || 'Grupo',
     membros: [...(g.membros || [])],
     cor: g.cor || '#53b588',
-    bounds: { x: 0, y: 0, w: 0, h: 0 },
+    x: g.x ?? g.bounds?.x ?? 0,
+    y: g.y ?? g.bounds?.y ?? 0,
+    w: g.w ?? g.bounds?.w ?? 0,
+    h: g.h ?? g.bounds?.h ?? 0,
+    vertices: g.vertices?.map((ponto) => ({ ...ponto })) ?? null,
+    bounds: {
+      x: g.x ?? g.bounds?.x ?? 0,
+      y: g.y ?? g.bounds?.y ?? 0,
+      w: g.w ?? g.bounds?.w ?? 0,
+      h: g.h ?? g.bounds?.h ?? 0,
+    },
     nomeEditando: false,
   }));
 

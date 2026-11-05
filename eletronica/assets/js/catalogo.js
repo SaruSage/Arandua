@@ -21,13 +21,13 @@ export const CATALOGO = {
     categoria: 'Passivos',
     modelo: 'linear',
     pinos: [
-      { id: 'p1', x: -22, y: 0, nome: 'A' },
-      { id: 'p2', x: 22, y: 0, nome: 'B' },
+      { id: 'p1', x: -32, y: 0, nome: 'A' },
+      { id: 'p2', x: 32, y: 0, nome: 'B' },
     ],
     propriedades: {
       resistencia: { tipo: 'numero', valor: 1000, min: 1, max: 1e7, unidade: 'Ω', rotulo: 'Resistência' },
     },
-    dimensoes: { w: 44, h: 20 },
+    dimensoes: { w: 64, h: 30 },
   },
 
   POTENCIOMETRO: {
@@ -35,15 +35,14 @@ export const CATALOGO = {
     categoria: 'Passivos',
     modelo: 'linear',
     pinos: [
-      { id: 'p1', x: -22, y: 0, nome: 'A' },
-      { id: 'p2', x: 22, y: 0, nome: 'B' },
-      { id: 'p3', x: 0, y: -22, nome: 'W' },
+      { id: 'p1', x: -32, y: 0, nome: 'A' },
+      { id: 'p2', x: 32, y: 0, nome: 'B' },
     ],
     propriedades: {
       resistencia: { tipo: 'numero', valor: 10000, min: 1, max: 1e6, unidade: 'Ω', rotulo: 'Resistência total' },
       posicao: { tipo: 'numero', valor: 0.5, min: 0, max: 1, step: 0.01, rotulo: 'Posição do cursor' },
     },
-    dimensoes: { w: 44, h: 44 },
+    dimensoes: { w: 64, h: 30 },
   },
 
   CAPACITOR: {
@@ -80,16 +79,16 @@ export const CATALOGO = {
     categoria: 'Passivos',
     modelo: 'linear',
     pinos: [
-      { id: 'p1', x: -32, y: -12, nome: 'P1' },
-      { id: 'p2', x: -32, y: 12, nome: 'P2' },
-      { id: 's1', x: 32, y: -12, nome: 'S1' },
-      { id: 's2', x: 32, y: 12, nome: 'S2' },
+      { id: 'p1', x: -64, y: -24, nome: 'P1' },
+      { id: 'p2', x: -64, y: 24, nome: 'P2' },
+      { id: 's1', x: 64, y: -24, nome: 'S1' },
+      { id: 's2', x: 64, y: 24, nome: 'S2' },
     ],
     propriedades: {
       espirasPrimario: { tipo: 'numero', valor: 100, min: 1, max: 10000, rotulo: 'Espiras primário' },
       espirasSecundario: { tipo: 'numero', valor: 100, min: 1, max: 10000, rotulo: 'Espiras secundário' },
     },
-    dimensoes: { w: 52, h: 40 },
+    dimensoes: { w: 128, h: 96 },
   },
 
   /* ===== PASSIVOS SENSÍVEIS ===== */

@@ -40,6 +40,7 @@ export function configurarInteracao(canvas, estado, aoMudar) {
     const comp = componenteEm(estado.circuito, mundo.x, mundo.y);
 
     if (comp) {
+      estado.grupoSelecionadoId = null;
       if (e.ctrlKey || e.metaKey) {
         // Alterna seleção
         const idx = estado.selecionados.indexOf(comp.id);
@@ -61,6 +62,7 @@ export function configurarInteracao(canvas, estado, aoMudar) {
       el.style.cursor = 'grabbing';
     } else {
       estado.selecionados = [];
+      estado.grupoSelecionadoId = null;
     }
 
     aoMudar();
