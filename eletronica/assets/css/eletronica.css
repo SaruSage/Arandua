@@ -43,7 +43,7 @@ html, body {
 
 .eletronica-layout {
   display: grid;
-  grid-template-columns: 260px 1fr 280px;
+  grid-template-columns: 260px 1fr;
   grid-template-rows: 56px 1fr;
   height: 100vh;
   background: var(--cor-fundo-suave);
@@ -65,19 +65,11 @@ html, body {
   letter-spacing: -0.01em;
 }
 
-.eletronica-paleta,
-.eletronica-painel {
+.eletronica-paleta {
   background: var(--cor-fundo);
   overflow-y: auto;
   padding: 12px;
-}
-
-.eletronica-paleta {
   border-right: 1px solid var(--cor-borda);
-}
-
-.eletronica-painel {
-  border-left: 1px solid var(--cor-borda);
 }
 
 .paleta-grupo { margin-bottom: 18px; }
@@ -139,6 +131,70 @@ html, body {
   overflow: hidden;
   background: #f5f6f7;
 }
+
+.eletronica-canvas-wrap {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+}
+
+.popups-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;   /* não bloqueia o canvas */
+  z-index: 50;
+}
+
+.popup-propriedades {
+  position: absolute;
+  pointer-events: auto;   /* o popup em si recebe eventos */
+  width: 260px;
+  max-height: 70%;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+  font-size: 13px;
+}
+
+.popup-cabecalho {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #eee;
+  cursor: grab;
+  user-select: none;
+}
+
+.popup-cabecalho:active { cursor: grabbing; }
+
+.popup-alfinete {
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+}
+
+.popup-alfinete.ativo { color: #53b588; }
+
+.popup-titulo {
+  flex: 1;
+  font-weight: 600;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.popup-corpo { padding: 10px; }
 
 .eletronica-canvas canvas {
   display: block;
@@ -771,7 +827,7 @@ html, body {
 @media (max-width: 1024px) {
   .eletronica-layout {
     grid-template-columns: 220px minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr);
   }
   .eletronica-toolbar {
     min-height: 56px;
@@ -780,20 +836,12 @@ html, body {
     gap: 8px;
     padding: 8px 12px;
   }
-  .eletronica-painel {
-    display: block;
-    grid-column: 1 / -1;
-    grid-row: 3;
-    max-height: 30vh;
-    border-left: none;
-    border-top: 1px solid var(--cor-borda);
-  }
 }
 
 @media (max-width: 768px) {
   .eletronica-layout {
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto minmax(400px, 1fr) auto;
+    grid-template-rows: auto auto minmax(400px, 1fr);
     height: auto;
     min-height: 100vh;
   }
@@ -816,11 +864,6 @@ html, body {
   }
   .paleta-grade { grid-template-columns: repeat(4, 1fr); }
   .eletronica-canvas { min-height: 400px; }
-  .eletronica-painel {
-    grid-column: auto;
-    grid-row: auto;
-    max-height: 45vh;
-  }
 }
 
 @media (max-width: 640px) {

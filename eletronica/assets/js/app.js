@@ -8,7 +8,7 @@ import { criarCircuito, adicionarComponente, removerComponente } from './circuit
 import { criarCanvas } from './canvas.js';
 import { configurarInteracao } from './selecao.js';
 import { configurarFios } from './fios.js';
-import { renderizarPainel as renderizarPainelNovo } from './painel.js';
+import { renderizarPainel as renderizarPainelNovo, montarPropriedadesComponente } from './painel.js';
 import { simular, tensaoEm, correnteEm } from './solver.js';
 import { obterMontagem, desenharMontagem } from './montagens.js';
 import { desenharComponente } from './simbolos.js';
@@ -43,6 +43,28 @@ const estado = {
   ultimoMouse: { x: 0, y: 0 },
   _ultimoDx: 0,
   _ultimoDy: 0,
+  popups: {},
+  popupAtivo: null,
+  abrirPopupComponente(compId) {
+    abrirPopupComponente(compId);
+  },
+  renderizarPopups(forcar = false) {
+    renderizarPopups(forcar);
+  },
+  removerComponentePorId(compId) {
+    if (estado.simulando) {
+      pararSimulacao();
+    }
+    removerComponente(estado.circuito, compId);
+    delete estado.popups[compId];
+    if (estado.popupAtivo === compId) {
+      estado.popupAtivo = null;
+    }
+    estado.selecionados = estado.selecionados.filter((id) => id !== compId);
+    registrar(estado.circuito, 'remover', true);
+    renderizarTudo();
+    renderizarPopups(true);
+  },
   adicionar(tipo, x, y) {
     if (estado.simulando) {
       pararSimulacao();
@@ -65,6 +87,7 @@ const estado = {
     registrar(estado.circuito, 'adicionar', true);
     estado.selecionados = [novoComp.id];
     estado.grupoSelecionadoId = null;
+    abrirPopupComponente(novoComp.id);
     renderizarTudo();
   },
   removerSelecionados() {
@@ -73,11 +96,16 @@ const estado = {
     }
     for (const id of estado.selecionados) {
       removerComponente(estado.circuito, id);
+      delete estado.popups[id];
+      if (estado.popupAtivo === id) {
+        estado.popupAtivo = null;
+      }
     }
     registrar(estado.circuito, 'remover', true);
     estado.selecionados = [];
     estado.grupoSelecionadoId = null;
     renderizarTudo();
+    renderizarPopups(true);
   },
   recalcular() {
     recalcular();
@@ -615,15 +643,15 @@ function montarInterface() {
         </div>
       </header>
       <aside class="eletronica-paleta" id="paleta"></aside>
-      <div class="eletronica-canvas">
+      <div id="area-simulacao" class="eletronica-canvas eletronica-canvas-wrap">
         <canvas id="canvas"></canvas>
+        <div id="popups-container" class="popups-container"></div>
       </div>
-      <aside class="eletronica-painel" id="painel"></aside>
     </div>
   `;
 
   montarPaleta(document.getElementById('paleta'));
-  elPainel = document.getElementById('painel');
+  elPainel = document.getElementById('popups-container');
   canvas = criarCanvas(document.getElementById('canvas'), estado);
   estado.view = canvas.view;
   canvas.redimensionar();
@@ -925,59 +953,158 @@ function renderizarTudo() {
   atualizarBotoesHistorico();
 }
 
-function atualizarSecaoSimulacaoPainel() {
-  if (!elPainel) return;
-  const antigaSecao = elPainel.querySelector('.painel-secao-simulacao');
+let limpezasPopups = [];
+
+function limparListenersPopups() {
+  for (const limpar of limpezasPopups) {
+    limpar();
+  }
+  limpezasPopups = [];
+}
+
+function atualizarSecaoSimulacaoNoCorpo(corpo, comp) {
+  if (!corpo || !comp) return;
+  const antigaSecao = corpo.querySelector('.painel-secao-simulacao');
   if (antigaSecao) antigaSecao.remove();
-  const antigoAviso = elPainel.querySelector('.painel-aviso');
+  const antigoAviso = corpo.querySelector('.painel-aviso');
   if (antigoAviso) antigoAviso.remove();
 
-  // Adiciona seção de resultado da simulação
-  if (estado.resultado && estado.selecionados.length === 1) {
-    const comp = estado.circuito.componentes.find((c) => c.id === estado.selecionados[0]);
-    if (comp) {
-      const secao = document.createElement('div');
-      secao.className = 'painel-secao painel-secao-simulacao';
-      const titulo = document.createElement('h4');
-      titulo.textContent = 'Simulação';
-      secao.appendChild(titulo);
+  if (estado.resultado) {
+    const secao = document.createElement('div');
+    secao.className = 'painel-secao painel-secao-simulacao';
+    const titulo = document.createElement('h4');
+    titulo.textContent = 'Simulação';
+    secao.appendChild(titulo);
 
-      const tensao = tensaoEm(estado.resultado, comp.id, comp.pinos[0]?.id);
-      const corrente = correnteEm(estado.resultado, comp.id);
+    const tensao = tensaoEm(estado.resultado, comp.id, comp.pinos[0]?.id);
+    const corrente = correnteEm(estado.resultado, comp.id);
 
-      const linhaT = document.createElement('p');
-      linhaT.className = 'painel-resultado';
-      linhaT.textContent = `Tensão: ${tensao.toFixed(3)} V`;
-      secao.appendChild(linhaT);
+    const linhaT = document.createElement('p');
+    linhaT.className = 'painel-resultado';
+    linhaT.textContent = `Tensão: ${tensao.toFixed(3)} V`;
+    secao.appendChild(linhaT);
 
-      const linhaI = document.createElement('p');
-      linhaI.className = 'painel-resultado';
-      const mA = corrente * 1000;
-      linhaI.textContent = `Corrente: ${Math.abs(mA) < 1 ? (corrente * 1e6).toFixed(1) + ' µA' : mA.toFixed(2) + ' mA'}`;
-      secao.appendChild(linhaI);
+    const linhaI = document.createElement('p');
+    linhaI.className = 'painel-resultado';
+    const mA = corrente * 1000;
+    linhaI.textContent = `Corrente: ${Math.abs(mA) < 1 ? (corrente * 1e6).toFixed(1) + ' µA' : mA.toFixed(2) + ' mA'}`;
+    secao.appendChild(linhaI);
 
-      elPainel.appendChild(secao);
+    corpo.appendChild(secao);
+
+    if (!estado.resultado.convergiu && estado.resultado.erro) {
+      const aviso = document.createElement('div');
+      aviso.className = 'painel-aviso';
+      aviso.textContent = estado.resultado.erro;
+      corpo.appendChild(aviso);
     }
-  }
-
-  if (estado.resultado && !estado.resultado.convergiu) {
-    const aviso = document.createElement('div');
-    aviso.className = 'painel-aviso';
-    aviso.textContent = estado.resultado.erro;
-    elPainel.appendChild(aviso);
   }
 }
 
-function renderizarPainel(forcar = false) {
-  if (!elPainel) return;
+function montarPropriedades(corpo, comp) {
+  montarPropriedadesComponente(corpo, comp, estado, renderizarTudo, abrirMontagem);
+  atualizarSecaoSimulacaoNoCorpo(corpo, comp);
+}
 
-  // Se o usuário estiver digitando em um input numérico/texto do painel,
-  // atualiza apenas a seção de simulação para não destruir o input em foco
+function abrirPopupComponente(compId) {
+  // 1. Se o popup anterior não está fixado, remove
+  if (estado.popupAtivo && estado.popupAtivo !== compId) {
+    const anterior = estado.popups[estado.popupAtivo];
+    if (!anterior || !anterior.fixado) {
+      delete estado.popups[estado.popupAtivo];
+    }
+  }
+
+  // 2. Se o componente já tem popup fixado, não cria outro
+  if (estado.popups[compId]?.fixado) {
+    estado.popupAtivo = compId;
+    renderizarPopups(true);
+    return;
+  }
+
+  // 3. Cria o popup no canto superior direito por padrão
+  if (!estado.popups[compId]) {
+    const container = document.getElementById('popups-container');
+    const largura = container ? container.clientWidth : 800;
+    estado.popups[compId] = {
+      fixado: false,
+      x: Math.max(12, largura - 272), // 260 + margem
+      y: 12,
+    };
+  }
+
+  estado.popupAtivo = compId;
+  renderizarPopups(true);
+}
+
+function ligarEventosPopup(el, compId) {
+  const cfg = estado.popups[compId];
+  if (!cfg) return;
+  const btnAlfinete = el.querySelector('.popup-alfinete');
+  const cabecalho = el.querySelector('.popup-cabecalho');
+
+  // Alfinete
+  btnAlfinete.addEventListener('click', (e) => {
+    e.stopPropagation();
+    cfg.fixado = !cfg.fixado;
+    renderizarPopups(true);
+  });
+
+  // Arrasto pelo cabeçalho
+  let arrastando = false;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  cabecalho.addEventListener('mousedown', (e) => {
+    if (e.target.closest('.popup-alfinete')) return;
+    arrastando = true;
+    const rect = el.getBoundingClientRect();
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
+    e.preventDefault();
+  });
+
+  function mover(e) {
+    if (!arrastando || !el.parentElement) return;
+    const contRect = el.parentElement.getBoundingClientRect();
+    let nx = e.clientX - contRect.left - offsetX;
+    let ny = e.clientY - contRect.top - offsetY;
+
+    // Limita ao espaço do container
+    const maxX = Math.max(0, contRect.width - el.offsetWidth);
+    const maxY = Math.max(0, contRect.height - el.offsetHeight);
+    nx = Math.max(0, Math.min(nx, maxX));
+    ny = Math.max(0, Math.min(ny, maxY));
+
+    cfg.x = nx;
+    cfg.y = ny;
+    el.style.left = nx + 'px';
+    el.style.top = ny + 'px';
+  }
+
+  function soltar() {
+    arrastando = false;
+  }
+
+  document.addEventListener('mousemove', mover);
+  document.addEventListener('mouseup', soltar);
+
+  limpezasPopups.push(() => {
+    document.removeEventListener('mousemove', mover);
+    document.removeEventListener('mouseup', soltar);
+  });
+}
+
+function renderizarPopups(forcar = false) {
+  const container = document.getElementById('popups-container');
+  if (!container) return;
+
+  // Se o usuário estiver digitando num input dentro de um popup, não destrói o DOM em foco
   const ativo = document.activeElement;
   if (
     !forcar &&
     ativo &&
-    elPainel.contains(ativo) &&
+    container.contains(ativo) &&
     ativo.tagName === 'INPUT' &&
     (ativo.type === 'number' || ativo.type === 'text')
   ) {
@@ -985,93 +1112,65 @@ function renderizarPainel(forcar = false) {
     return;
   }
 
-  // Grupo selecionado
-  if (estado.selecionados.length === 1) {
-    const grupo = estado.circuito.grupos.find((g) => g.id === estado.selecionados[0]);
-    if (grupo) {
-      elPainel.innerHTML = '';
+  limparListenersPopups();
+  container.innerHTML = '';
 
-      const header = document.createElement('div');
-      header.className = 'painel-header';
+  for (const [compId, cfg] of Object.entries(estado.popups)) {
+    const comp = estado.circuito.componentes.find(
+      (c) => c.id === compId
+    );
+    if (!comp) {
+      delete estado.popups[compId];
+      continue;
+    }
 
-      const titulo = document.createElement('h3');
-      titulo.className = 'painel-titulo';
-      titulo.textContent = grupo.nome;
-      header.appendChild(titulo);
+    const el = document.createElement('div');
+    el.className = 'popup-propriedades';
+    el.style.left = cfg.x + 'px';
+    el.style.top = cfg.y + 'px';
+    el.dataset.compId = compId;
 
-      const badge = document.createElement('span');
-      badge.className = 'painel-categoria';
-      badge.textContent = `Grupo · ${grupo.membros.length} itens`;
-      header.appendChild(badge);
+    el.innerHTML = `
+      <div class="popup-cabecalho">
+        <button type="button" class="popup-alfinete ${cfg.fixado ? 'ativo' : ''}"
+                title="${cfg.fixado ? 'Desafixar' : 'Fixar'}">
+          <svg width="14" height="14" viewBox="0 0 24 24"
+               fill="${cfg.fixado ? 'currentColor' : 'none'}"
+               stroke="currentColor" stroke-width="2">
+            <path d="M12 17v5"/>
+            <path d="M9 10.76V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v5.76
+                     l2 3.24H7l2-3.24Z"/>
+          </svg>
+        </button>
+        <span class="popup-titulo">${comp.tipo}</span>
+      </div>
+      <div class="popup-corpo"></div>
+    `;
 
-      elPainel.appendChild(header);
+    // Preenche o corpo com as propriedades do componente
+    const corpo = el.querySelector('.popup-corpo');
+    montarPropriedades(corpo, comp);
 
-      const secao = document.createElement('div');
-      secao.className = 'painel-secao painel-secao--primeira';
+    container.appendChild(el);
+    ligarEventosPopup(el, compId);
+  }
+}
 
-      const tituloSecao = document.createElement('h4');
-      tituloSecao.textContent = 'Nome do grupo';
-      secao.appendChild(tituloSecao);
-
-      const inputNome = document.createElement('input');
-      inputNome.type = 'text';
-      inputNome.value = grupo.nome;
-      inputNome.className = 'input-nome-grupo';
-      inputNome.addEventListener('input', () => {
-        grupo.nome = inputNome.value || 'Grupo';
-        registrar(estado.circuito, 'propriedade');
-        renderizarTudo();
-        recalcular();
-      });
-      secao.appendChild(inputNome);
-
-      elPainel.appendChild(secao);
-
-      const secaoCor = document.createElement('div');
-      secaoCor.className = 'painel-secao';
-      const tituloCor = document.createElement('h4');
-      tituloCor.textContent = 'Cor do grupo';
-      secaoCor.appendChild(tituloCor);
-      const paletaGrupo = document.createElement('div');
-      paletaGrupo.className = 'paleta-cores';
-      for (const cor of CORES_GRUPO) {
-        const botaoCor = document.createElement('button');
-        botaoCor.type = 'button';
-        botaoCor.className = 'cor-fio';
-        botaoCor.style.background = cor;
-        botaoCor.title = cor;
-        botaoCor.setAttribute('aria-label', `Cor ${cor}`);
-        botaoCor.setAttribute('aria-pressed', String(grupo.cor === cor));
-        botaoCor.addEventListener('click', () => {
-          if (grupo.cor === cor) return;
-          grupo.cor = cor;
-          registrar(estado.circuito, 'cor-grupo', true);
-          renderizarTudo();
-          recalcular();
-        });
-        paletaGrupo.appendChild(botaoCor);
-      }
-      secaoCor.appendChild(paletaGrupo);
-      elPainel.appendChild(secaoCor);
-
-      const btnDesfazer = document.createElement('button');
-      btnDesfazer.type = 'button';
-      btnDesfazer.className = 'btn-remover';
-      btnDesfazer.textContent = 'Desfazer grupo';
-      btnDesfazer.addEventListener('click', () => {
-        desfazerGrupo(estado.circuito, grupo.id);
-        estado.selecionados = [];
-        estado.grupoSelecionadoId = null;
-        renderizarTudo();
-      });
-      elPainel.appendChild(btnDesfazer);
-
-      return;
+function atualizarSecaoSimulacaoPainel() {
+  const container = document.getElementById('popups-container');
+  if (!container) return;
+  for (const el of container.querySelectorAll('.popup-propriedades')) {
+    const compId = el.dataset.compId;
+    const comp = estado.circuito.componentes.find((c) => c.id === compId);
+    const corpo = el.querySelector('.popup-corpo');
+    if (comp && corpo) {
+      atualizarSecaoSimulacaoNoCorpo(corpo, comp);
     }
   }
+}
 
-  renderizarPainelNovo(elPainel, estado, renderizarTudo, abrirMontagem);
-  atualizarSecaoSimulacaoPainel();
+function renderizarPainel(forcar = false) {
+  renderizarPopups(forcar);
 }
 
 function abrirMontagem(comp) {

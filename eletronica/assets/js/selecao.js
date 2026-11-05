@@ -181,6 +181,7 @@ export function configurarInteracao(canvas, estado, aoMudar) {
         movido: false,
       };
       el.style.cursor = 'grabbing';
+      estado.abrirPopupComponente?.(comp.id);
     } else {
       // Recalcula membros das áreas que estavam selecionadas
       for (const id of estado.selecionados) {
@@ -191,6 +192,15 @@ export function configurarInteracao(canvas, estado, aoMudar) {
       // Depois limpa a seleção normalmente
       estado.selecionados = [];
       estado.grupoSelecionadoId = null;
+
+      if (estado.popupAtivo) {
+        const cfg = estado.popups?.[estado.popupAtivo];
+        if (!cfg || !cfg.fixado) {
+          delete estado.popups[estado.popupAtivo];
+        }
+        estado.popupAtivo = null;
+        estado.renderizarPopups?.(true);
+      }
     }
 
     aoMudar();
@@ -406,6 +416,15 @@ export function configurarInteracao(canvas, estado, aoMudar) {
       estado.selecionados = [];
       estado.grupoSelecionadoId = null;
       estado.guiaAtiva = null;
+
+      if (estado.popupAtivo) {
+        const cfg = estado.popups?.[estado.popupAtivo];
+        if (!cfg || !cfg.fixado) {
+          delete estado.popups[estado.popupAtivo];
+        }
+        estado.popupAtivo = null;
+        estado.renderizarPopups?.(true);
+      }
       aoMudar();
     } else if (e.key === 'r' || e.key === 'R') {
       if (estado.selecionados.length > 0) {

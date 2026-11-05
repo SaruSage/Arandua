@@ -223,6 +223,123 @@ function criarSecaoRotacao(comp, aoMudar, circuito) {
 }
 
 /**
+ * Monta as propriedades de um componente específico dentro do container informado (ex.: corpo de um popup).
+ */
+export function montarPropriedadesComponente(container, comp, estado, aoMudar, aoVerMontagem) {
+  container.innerHTML = '';
+  if (!comp) return;
+
+  const def = CATALOGO[comp.tipo];
+  if (!def) return;
+  if (!comp.propriedades) {
+    comp.propriedades = Object.fromEntries(
+      Object.entries(def.propriedades || {}).map(([chave, spec]) => [chave, spec.valor])
+    );
+  }
+
+  // Cabeçalho interno com rótulo e categoria
+  const header = document.createElement('div');
+  header.className = 'painel-header';
+
+  const titulo = document.createElement('h3');
+  titulo.className = 'painel-titulo';
+  titulo.textContent = def.rotulo;
+  header.appendChild(titulo);
+
+  const categoria = document.createElement('span');
+  categoria.className = 'painel-categoria';
+  categoria.textContent = def.categoria;
+  header.appendChild(categoria);
+
+  container.appendChild(header);
+
+  // Propriedades
+  const props = Object.entries(def.propriedades || {});
+  if (props.length > 0) {
+    const secaoProps = document.createElement('div');
+    secaoProps.className = 'painel-secao painel-secao--primeira';
+
+    const tituloProps = document.createElement('h4');
+    tituloProps.textContent = 'Propriedades';
+    secaoProps.appendChild(tituloProps);
+
+    for (const [chave, spec] of props) {
+      secaoProps.appendChild(criarCampo(chave, spec, comp, aoMudar, estado.circuito));
+    }
+
+    container.appendChild(secaoProps);
+  }
+
+  if (comp.tipo === 'FUSIVEL') {
+    const status = document.createElement('div');
+    status.className = 'prop-status';
+    status.innerHTML = comp.propriedades?.queimado
+      ? '<span style="color:#c0392b; font-weight:700;">● QUEIMADO</span>'
+      : '<span style="color:#53b588; font-weight:600;">● Íntegro</span>';
+    container.appendChild(status);
+
+    if (comp.propriedades?.queimado) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn-toolbar';
+      btn.textContent = 'Trocar fusível';
+      btn.style.marginTop = '8px';
+      btn.style.width = '100%';
+      btn.addEventListener('click', () => {
+        comp.propriedades.queimado = false;
+        registrar(estado.circuito, 'trocar-fusivel', true);
+        aoMudar();
+        if (typeof estado.recalcular === 'function') estado.recalcular();
+      });
+      container.appendChild(btn);
+    }
+  }
+
+  // Rotação
+  container.appendChild(criarSecaoRotacao(comp, aoMudar, estado.circuito));
+
+  // Ver montagem
+  if (def.montagem) {
+    const secaoMontagem = document.createElement('div');
+    secaoMontagem.className = 'painel-secao';
+
+    const btnMontagem = document.createElement('button');
+    btnMontagem.type = 'button';
+    btnMontagem.className = 'btn-montagem';
+    btnMontagem.innerHTML = `
+      <span class="btn-montagem__icone">◈</span>
+      <span>Ver montagem</span>
+    `;
+    btnMontagem.addEventListener('click', () => {
+      if (aoVerMontagem) aoVerMontagem(comp);
+    });
+
+    secaoMontagem.appendChild(btnMontagem);
+
+    const nota = document.createElement('p');
+    nota.className = 'painel-nota';
+    nota.textContent = 'Veja como este componente é construído internamente.';
+    secaoMontagem.appendChild(nota);
+
+    container.appendChild(secaoMontagem);
+  }
+
+  // Remover
+  const btnRemover = document.createElement('button');
+  btnRemover.type = 'button';
+  btnRemover.className = 'btn-remover';
+  btnRemover.textContent = 'Remover componente';
+  btnRemover.addEventListener('click', () => {
+    if (typeof estado.removerComponentePorId === 'function') {
+      estado.removerComponentePorId(comp.id);
+    } else {
+      estado.removerSelecionados();
+    }
+  });
+  container.appendChild(btnRemover);
+}
+
+/**
  * Renderiza o painel de propriedades.
  * @param {HTMLElement} container
  * @param {object} estado - estado da aplicação
@@ -230,6 +347,7 @@ function criarSecaoRotacao(comp, aoMudar, circuito) {
  * @param {function} aoVerMontagem - callback para abrir "Ver montagem"
  */
 export function renderizarPainel(container, estado, aoMudar, aoVerMontagem) {
+  if (!container) return;
   container.innerHTML = '';
 
   if (estado.fioSelecionadoId) {
