@@ -14,7 +14,7 @@ import { CORES, posicaoPino } from './simbolos.js';
 import { registrar } from './historico.js';
 import { CATALOGO } from './catalogo.js';
 import { recalcularMembros } from './grupos.js';
-import { snap } from './canvas.js';
+import { snap, TAMANHO_GRADE } from './canvas.js';
 
 export const CORES_FIO = [
   '#2b2b2b', '#e05a5a', '#e88a3a', '#e8c33a', '#8fbf3a',
@@ -660,9 +660,13 @@ export function configurarFios(canvas, estado, aoMudar) {
       const dx = mundo.x - s.pontoInicial.x;
       const dy = mundo.y - s.pontoInicial.y;
 
-      if (Math.abs(dx) > 0 || Math.abs(dy) > 0) {
+      const LIMIAR_ARRASTO = TAMANHO_GRADE / 2; // 5 px
+
+      if (Math.abs(dx) > LIMIAR_ARRASTO || Math.abs(dy) > LIMIAR_ARRASTO) {
         estado.arrastandoSegmento.moveu = true;
       }
+
+      if (!estado.arrastandoSegmento.moveu) return;
 
       // Restaura as dobras originais antes de recalcular
       fio.dobras = s.dobrasOriginais.map((d) => ({ ...d }));
