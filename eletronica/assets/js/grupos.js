@@ -148,6 +148,40 @@ export function cabecalhoGrupoEm(circuito, x, y) {
   return null;
 }
 
+/**
+ * Move um grupo inteiro: desloca todos os componentes e grupos
+ * membros pelo delta informado.
+ */
+export function moverGrupo(circuito, grupoId, dx, dy) {
+  const grupo = circuito.grupos.find((g) => g.id === grupoId);
+  if (!grupo) return;
+
+  const movidos = new Set();
+
+  function moverMembro(id) {
+    if (movidos.has(id)) return;
+    movidos.add(id);
+
+    const comp = circuito.componentes.find((c) => c.id === id);
+    if (comp) {
+      comp.x += dx;
+      comp.y += dy;
+      return;
+    }
+
+    const sub = circuito.grupos.find((g) => g.id === id);
+    if (sub) {
+      for (const membro of sub.membros) {
+        moverMembro(membro);
+      }
+    }
+  }
+
+  for (const membro of grupo.membros) {
+    moverMembro(membro);
+  }
+}
+
 /* ===== SELEÇÃO RETANGULAR ===== */
 
 /**
@@ -258,11 +292,69 @@ export function configurarGrupos(canvas, estado, aoMudar) {
 
   let selecaoIniciada = null; // { x1, y1, x2, y2 }
   let nomeEditando = null;    // { grupo, input }
+  let arrastandoGrupo = null;
 
   function telaParaMundo(e) {
     const rect = el.getBoundingClientRect();
     return canvas.telaParaMundo(e.clientX - rect.left, e.clientY - rect.top);
   }
+
+  function moverGrupoArrastado(e) {
+    if (!arrastandoGrupo) return;
+    const mundo = telaParaMundo(e);
+    const dxInicial = mundo.x - arrastandoGrupo.inicioX;
+    const dyInicial = mundo.y - arrastandoGrupo.inicioY;
+
+    if (!arrastandoGrupo.moveu && (Math.abs(dxInicial) > 2 || Math.abs(dyInicial) > 2)) {
+      arrastandoGrupo.moveu = true;
+    }
+
+    if (arrastandoGrupo.moveu) {
+      moverGrupo(
+        estado.circuito,
+        arrastandoGrupo.id,
+        mundo.x - arrastandoGrupo.ultimoX,
+        mundo.y - arrastandoGrupo.ultimoY
+      );
+      arrastandoGrupo.ultimoX = mundo.x;
+      arrastandoGrupo.ultimoY = mundo.y;
+      aoMudar();
+    }
+  }
+
+  function finalizarArrastoGrupo() {
+    if (!arrastandoGrupo) return;
+    if (arrastandoGrupo.moveu) registrar(estado.circuito, 'mover-grupo', true);
+    arrastandoGrupo = null;
+    el.style.cursor = 'default';
+    window.removeEventListener('mousemove', moverGrupoArrastado);
+    window.removeEventListener('mouseup', finalizarArrastoGrupo);
+  }
+
+  el.addEventListener('mousedown', (e) => {
+    if (e.button !== 0 || e.shiftKey) return;
+
+    const mundo = telaParaMundo(e);
+    const grupo = cabecalhoGrupoEm(estado.circuito, mundo.x, mundo.y)
+      || grupoEm(estado.circuito, mundo.x, mundo.y);
+    if (!grupo) return;
+
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    estado.selecionados = [grupo.id];
+    arrastandoGrupo = {
+      id: grupo.id,
+      inicioX: mundo.x,
+      inicioY: mundo.y,
+      ultimoX: mundo.x,
+      ultimoY: mundo.y,
+      moveu: false,
+    };
+    el.style.cursor = 'grabbing';
+    aoMudar();
+    window.addEventListener('mousemove', moverGrupoArrastado);
+    window.addEventListener('mouseup', finalizarArrastoGrupo);
+  });
 
   // ---- Botão direito: seleção retangular ----
   el.addEventListener('mousedown', (e) => {

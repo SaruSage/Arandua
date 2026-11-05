@@ -13,6 +13,7 @@ import { simular, tensaoEm, correnteEm } from './solver.js';
 import { obterMontagem, desenharMontagem } from './montagens.js';
 import { desenharComponente } from './simbolos.js';
 import { configurarGrupos, juntarSelecionados, desfazerGrupo, atualizarTodosBounds } from './grupos.js';
+import { exportarPNG } from './exportar.js';
 import {
   baixarArquivo,
   abrirArquivo,
@@ -74,6 +75,7 @@ function montarInterface() {
         <button type="button" class="btn-juntar" id="btn-juntar">Juntar</button>
         <button type="button" class="btn-toolbar" id="btn-salvar">Salvar</button>
         <button type="button" class="btn-toolbar" id="btn-abrir">Abrir</button>
+        <button type="button" class="btn-toolbar" id="btn-exportar">PNG</button>
         <button type="button" class="btn-toolbar" id="btn-desfazer" title="Desfazer (Ctrl+Z)">↶</button>
         <button type="button" class="btn-toolbar" id="btn-refazer" title="Refazer (Ctrl+Y)">↷</button>
         <span class="eletronica-dica">
@@ -162,6 +164,10 @@ function montarInterface() {
     renderizarTudo();
   });
 
+  document.getElementById('btn-exportar').addEventListener('click', () => {
+    exportarPNG(estado.circuito, 'circuito.png');
+  });
+
   document.getElementById('btn-desfazer').addEventListener('click', () => {
     const novo = desfazer(CATALOGO);
     if (novo) {
@@ -208,8 +214,25 @@ function montarInterface() {
       e.preventDefault();
       document.getElementById('btn-refazer')?.click();
     }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+      e.preventDefault();
+      exportarPNG(estado.circuito, 'circuito.png');
+    }
   });
 
+  const legenda = document.createElement('div');
+  legenda.className = 'legenda-atalhos';
+  legenda.innerHTML = `
+    <span><kbd>Ctrl</kbd>+<kbd>Z</kbd> desfazer</span>
+    <span><kbd>Ctrl</kbd>+<kbd>Y</kbd> refazer</span>
+    <span><kbd>Ctrl</kbd>+<kbd>S</kbd> salvar</span>
+    <span><kbd>Ctrl</kbd>+<kbd>O</kbd> abrir</span>
+    <span><kbd>Tab</kbd> dobra do fio</span>
+    <span><kbd>Del</kbd> remover</span>
+  `;
+  canvas.elemento.parentElement.appendChild(legenda);
+
+  canvas.redimensionar();
   renderizarTudo();
 }
 

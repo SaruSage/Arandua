@@ -138,12 +138,16 @@ html, body {
 
 .eletronica-canvas {
   position: relative;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   background: #f5f6f7;
 }
 
 .eletronica-canvas canvas {
   display: block;
+  flex: 1 1 0;
+  min-height: 0;
   width: 100%;
   height: 100%;
   cursor: default;
@@ -580,6 +584,36 @@ html, body {
   background: transparent;
 }
 
+.legenda-atalhos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 10px 16px;
+  background: var(--cor-fundo-suave);
+  border-top: 1px solid var(--cor-borda);
+  font-size: 0.7rem;
+  color: var(--cor-texto-sec);
+}
+
+.legenda-atalhos span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.legenda-atalhos kbd {
+  display: inline-block;
+  padding: 2px 6px;
+  background: #fff;
+  border: 1px solid var(--cor-borda-forte);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  font-family: ui-monospace, monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--cor-texto);
+}
+
 @media (max-width: 1024px) {
   .eletronica-layout {
     grid-template-columns: 220px 1fr;
@@ -608,4 +642,8 @@ html, body {
   }
   .paleta-grade { grid-template-columns: repeat(4, 1fr); }
   .eletronica-canvas { min-height: 400px; }
+}
+
+@media (max-width: 640px) {
+  .legenda-atalhos { display: none; }
 }

@@ -241,6 +241,7 @@ export function configurarFios(canvas, estado, aoMudar) {
   let dobraArrastando = null;   // { fio, indice }
   let fioSelecionadoId = null;
   let dobraSelecionada = null;  // { fio, indice }
+  canvas.ultimoMouse = canvas.ultimoMouse || { x: 0, y: 0 };
 
   function telaParaMundo(e) {
     const rect = el.getBoundingClientRect();
@@ -364,21 +365,18 @@ export function configurarFios(canvas, estado, aoMudar) {
 
     // Tab: cria dobra no fio sob o cursor
     if (e.key === 'Tab') {
-      const rect = el.getBoundingClientRect();
-      const mouseX = estado.ultimoMouse?.x ?? 0;
-      const mouseY = estado.ultimoMouse?.y ?? 0;
-      const mundo = canvas.telaParaMundo(mouseX, mouseY);
+      e.preventDefault();
+      const mundo = canvas.telaParaMundo(canvas.ultimoMouse.x, canvas.ultimoMouse.y);
 
       const fio = fioEm(estado.circuito, mundo.x, mundo.y);
       if (fio) {
-        e.preventDefault();
         const idx = inserirDobra(estado.circuito, fio, mundo.x, mundo.y);
         if (idx >= 0) {
           fioSelecionadoId = fio.id;
           dobraSelecionada = { fio, indice: idx };
-          estado.fioSelecionadoId = fio.id;
-          aoMudar();
         }
+        estado.fioSelecionadoId = fio.id;
+        aoMudar();
       }
       return;
     }
@@ -411,10 +409,10 @@ export function configurarFios(canvas, estado, aoMudar) {
     }
   });
 
-  // Rastreia a posição do mouse para o Tab
-  el.addEventListener('mousemove', (e) => {
+  // Rastreia a posição do mouse também fora do canvas para o Tab.
+  window.addEventListener('mousemove', (e) => {
     const rect = el.getBoundingClientRect();
-    estado.ultimoMouse = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    canvas.ultimoMouse = { x: e.clientX - rect.left, y: e.clientY - rect.top };
   });
 
   return {
