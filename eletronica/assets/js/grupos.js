@@ -898,6 +898,7 @@ export function configurarGrupos(canvas, estadoParam, aoMudar) {
       }
       estado.grupoSelecionadoId = grupo.id;
       estado.selecionados = [grupo.id];
+      estado.abrirPopupEntidade?.('area', grupo.id);
       iniciarArrastoGrupo(grupo, mundo);
       aoMudar();
       return;
@@ -912,6 +913,7 @@ export function configurarGrupos(canvas, estadoParam, aoMudar) {
       }
       estado.grupoSelecionadoId = grupo.id;
       estado.selecionados = [grupo.id];
+      estado.abrirPopupEntidade?.('area', grupo.id);
       iniciarArrastoGrupo(grupo, mundo);
       aoMudar();
       return;

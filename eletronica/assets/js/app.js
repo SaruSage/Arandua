@@ -7,8 +7,13 @@ import { CATALOGO, CATEGORIAS, itensDaCategoria } from './catalogo.js';
 import { criarCircuito, adicionarComponente, removerComponente } from './circuito.js';
 import { criarCanvas } from './canvas.js';
 import { configurarInteracao } from './selecao.js';
-import { configurarFios } from './fios.js';
-import { renderizarPainel as renderizarPainelNovo, montarPropriedadesComponente } from './painel.js';
+import { configurarFios, removerFio } from './fios.js';
+import {
+  renderizarPainel as renderizarPainelNovo,
+  montarPropriedadesComponente,
+  montarPropriedadesFio,
+  montarPropriedadesArea,
+} from './painel.js';
 import { simular, tensaoEm, correnteEm } from './solver.js';
 import { obterMontagem, desenharMontagem } from './montagens.js';
 import { desenharComponente } from './simbolos.js';
@@ -45,8 +50,12 @@ const estado = {
   _ultimoDy: 0,
   popups: {},
   popupAtivo: null,
+  zIndexPopup: 100,
   abrirPopupComponente(compId) {
-    abrirPopupComponente(compId);
+    abrirPopupEntidade('comp', compId);
+  },
+  abrirPopupEntidade(tipo, id) {
+    abrirPopupEntidade(tipo, id);
   },
   renderizarPopups(forcar = false) {
     renderizarPopups(forcar);
@@ -56,12 +65,44 @@ const estado = {
       pararSimulacao();
     }
     removerComponente(estado.circuito, compId);
+    const chave = `comp:${compId}`;
+    delete estado.popups[chave];
     delete estado.popups[compId];
-    if (estado.popupAtivo === compId) {
+    if (estado.popupAtivo === chave || estado.popupAtivo === compId) {
       estado.popupAtivo = null;
     }
     estado.selecionados = estado.selecionados.filter((id) => id !== compId);
     registrar(estado.circuito, 'remover', true);
+    renderizarTudo();
+    renderizarPopups(true);
+  },
+  removerFioPorId(fioId) {
+    if (estado.simulando) {
+      pararSimulacao();
+    }
+    removerFio(estado.circuito, fioId);
+    const chave = `fio:${fioId}`;
+    delete estado.popups[chave];
+    if (estado.popupAtivo === chave) {
+      estado.popupAtivo = null;
+    }
+    if (estado.fioSelecionadoId === fioId) {
+      estado.fioSelecionadoId = null;
+    }
+    renderizarTudo();
+    renderizarPopups(true);
+  },
+  removerAreaPorId(areaId) {
+    desfazerGrupo(estado.circuito, areaId);
+    const chave = `area:${areaId}`;
+    delete estado.popups[chave];
+    if (estado.popupAtivo === chave) {
+      estado.popupAtivo = null;
+    }
+    if (estado.grupoSelecionadoId === areaId) {
+      estado.grupoSelecionadoId = null;
+    }
+    estado.selecionados = estado.selecionados.filter((id) => id !== areaId);
     renderizarTudo();
     renderizarPopups(true);
   },
@@ -87,7 +128,7 @@ const estado = {
     registrar(estado.circuito, 'adicionar', true);
     estado.selecionados = [novoComp.id];
     estado.grupoSelecionadoId = null;
-    abrirPopupComponente(novoComp.id);
+    abrirPopupEntidade('comp', novoComp.id);
     renderizarTudo();
   },
   removerSelecionados() {
@@ -96,8 +137,10 @@ const estado = {
     }
     for (const id of estado.selecionados) {
       removerComponente(estado.circuito, id);
+      const chave = `comp:${id}`;
+      delete estado.popups[chave];
       delete estado.popups[id];
-      if (estado.popupAtivo === id) {
+      if (estado.popupAtivo === chave || estado.popupAtivo === id) {
         estado.popupAtivo = null;
       }
     }
@@ -694,6 +737,7 @@ function montarInterface() {
     if (grupo) {
       estado.selecionados = [grupo.id];
       estado.grupoSelecionadoId = grupo.id;
+      abrirPopupEntidade('area', grupo.id);
       renderizarTudo();
     }
   });
@@ -1006,42 +1050,120 @@ function montarPropriedades(corpo, comp) {
   atualizarSecaoSimulacaoNoCorpo(corpo, comp);
 }
 
-function abrirPopupComponente(compId) {
+function obterEntidadePopup(tipo, id) {
+  if (tipo === 'comp') {
+    return estado.circuito.componentes.find((c) => c.id === id) || null;
+  }
+  if (tipo === 'fio') {
+    return estado.circuito.fios.find((f) => f.id === id) || null;
+  }
+  if (tipo === 'area') {
+    const listaAreas = estado.circuito.areas || estado.circuito.grupos || [];
+    return listaAreas.find((a) => a.id === id) || null;
+  }
+  return null;
+}
+
+function obterTituloPopup(tipo, entidade) {
+  if (tipo === 'comp') return entidade.tipo;
+  if (tipo === 'fio') return 'FIO';
+  if (tipo === 'area') return entidade.nome || 'ÁREA';
+  return '';
+}
+
+function montarCorpoPopup(corpo, tipo, id) {
+  if (tipo === 'comp') {
+    const comp = estado.circuito.componentes.find((c) => c.id === id);
+    if (comp) montarPropriedades(corpo, comp);
+  } else if (tipo === 'fio') {
+    const fio = estado.circuito.fios.find((f) => f.id === id);
+    if (fio) montarPropriedadesFio(corpo, fio, estado, renderizarTudo);
+  } else if (tipo === 'area') {
+    const listaAreas = estado.circuito.areas || estado.circuito.grupos || [];
+    const area = listaAreas.find((a) => a.id === id);
+    if (area) montarPropriedadesArea(corpo, area, estado, renderizarTudo);
+  }
+}
+
+function calcularPosicaoPadrao(container) {
+  const largura = container ? container.clientWidth : 800;
+  const altura = container ? container.clientHeight : 600;
+  const LARGURA_POPUP = 260;
+  const MARGEM = 12;
+  const PASSO_CASCATA = 24;
+
+  let x = Math.max(MARGEM, largura - LARGURA_POPUP - MARGEM);
+  let y = MARGEM;
+
+  // Desloca em cascata enquanto houver popup na posição
+  let tentativas = 0;
+  while (tentativas < 10) {
+    const ocupado = Object.values(estado.popups).some(
+      (p) => Math.abs(p.x - x) < 8 && Math.abs(p.y - y) < 8
+    );
+    if (!ocupado) break;
+    x = Math.max(MARGEM, x - PASSO_CASCATA);
+    y = y + PASSO_CASCATA;
+    tentativas++;
+  }
+
+  // Garante que não saia do container
+  x = Math.max(MARGEM, Math.min(x, largura - LARGURA_POPUP - MARGEM));
+  y = Math.max(MARGEM, Math.min(y, altura - 100));
+
+  return { x, y };
+}
+
+function abrirPopupEntidade(tipo, id) {
+  const chave = `${tipo}:${id}`;
+
   // 1. Se o popup anterior não está fixado, remove
-  if (estado.popupAtivo && estado.popupAtivo !== compId) {
+  if (estado.popupAtivo && estado.popupAtivo !== chave) {
     const anterior = estado.popups[estado.popupAtivo];
     if (!anterior || !anterior.fixado) {
       delete estado.popups[estado.popupAtivo];
     }
   }
 
-  // 2. Se o componente já tem popup fixado, não cria outro
-  if (estado.popups[compId]?.fixado) {
-    estado.popupAtivo = compId;
+  // 2. Se a entidade já tem popup fixado, não cria outro
+  if (estado.popups[chave]?.fixado) {
+    estado.zIndexPopup += 1;
+    estado.popups[chave].zIndex = estado.zIndexPopup;
+    estado.popupAtivo = chave;
     renderizarPopups(true);
     return;
   }
 
-  // 3. Cria o popup no canto superior direito por padrão
-  if (!estado.popups[compId]) {
+  // 3. Cria o popup no canto superior direito (ou em cascata se ocupado)
+  if (!estado.popups[chave]) {
     const container = document.getElementById('popups-container');
-    const largura = container ? container.clientWidth : 800;
-    estado.popups[compId] = {
+    const pos = calcularPosicaoPadrao(container);
+    estado.popups[chave] = {
       fixado: false,
-      x: Math.max(12, largura - 272), // 260 + margem
-      y: 12,
+      x: pos.x,
+      y: pos.y,
     };
   }
 
-  estado.popupAtivo = compId;
+  estado.popupAtivo = chave;
   renderizarPopups(true);
 }
 
-function ligarEventosPopup(el, compId) {
-  const cfg = estado.popups[compId];
+function abrirPopupComponente(compId) {
+  abrirPopupEntidade('comp', compId);
+}
+
+function ligarEventosPopup(el, chave) {
+  const cfg = estado.popups[chave];
   if (!cfg) return;
   const btnAlfinete = el.querySelector('.popup-alfinete');
   const cabecalho = el.querySelector('.popup-cabecalho');
+
+  el.addEventListener('mousedown', () => {
+    estado.zIndexPopup += 1;
+    cfg.zIndex = estado.zIndexPopup;
+    el.style.zIndex = estado.zIndexPopup;
+  });
 
   // Alfinete
   btnAlfinete.addEventListener('click', (e) => {
@@ -1095,6 +1217,15 @@ function ligarEventosPopup(el, compId) {
   });
 }
 
+function extrairTipoEId(chave) {
+  const idx = chave.indexOf(':');
+  if (idx === -1) return { tipo: 'comp', id: chave };
+  return {
+    tipo: chave.slice(0, idx),
+    id: chave.slice(idx + 1),
+  };
+}
+
 function renderizarPopups(forcar = false) {
   const container = document.getElementById('popups-container');
   if (!container) return;
@@ -1115,12 +1246,11 @@ function renderizarPopups(forcar = false) {
   limparListenersPopups();
   container.innerHTML = '';
 
-  for (const [compId, cfg] of Object.entries(estado.popups)) {
-    const comp = estado.circuito.componentes.find(
-      (c) => c.id === compId
-    );
-    if (!comp) {
-      delete estado.popups[compId];
+  for (const [chave, cfg] of Object.entries(estado.popups)) {
+    const { tipo, id } = extrairTipoEId(chave);
+    const entidade = obterEntidadePopup(tipo, id);
+    if (!entidade) {
+      delete estado.popups[chave];
       continue;
     }
 
@@ -1128,7 +1258,15 @@ function renderizarPopups(forcar = false) {
     el.className = 'popup-propriedades';
     el.style.left = cfg.x + 'px';
     el.style.top = cfg.y + 'px';
-    el.dataset.compId = compId;
+    if (!cfg.zIndex) {
+      estado.zIndexPopup += 1;
+      cfg.zIndex = estado.zIndexPopup;
+    }
+    el.style.zIndex = cfg.zIndex;
+    el.dataset.popupKey = chave;
+    if (tipo === 'comp') el.dataset.compId = id;
+
+    const tituloPopup = obterTituloPopup(tipo, entidade);
 
     el.innerHTML = `
       <div class="popup-cabecalho">
@@ -1142,17 +1280,16 @@ function renderizarPopups(forcar = false) {
                      l2 3.24H7l2-3.24Z"/>
           </svg>
         </button>
-        <span class="popup-titulo">${comp.tipo}</span>
+        <span class="popup-titulo">${tituloPopup}</span>
       </div>
       <div class="popup-corpo"></div>
     `;
 
-    // Preenche o corpo com as propriedades do componente
     const corpo = el.querySelector('.popup-corpo');
-    montarPropriedades(corpo, comp);
+    montarCorpoPopup(corpo, tipo, id);
 
     container.appendChild(el);
-    ligarEventosPopup(el, compId);
+    ligarEventosPopup(el, chave);
   }
 }
 

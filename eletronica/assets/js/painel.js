@@ -7,7 +7,8 @@
 import { CATALOGO } from './catalogo.js';
 import { rotacionarComponente } from './circuito.js';
 import { registrar } from './historico.js';
-import { CORES_FIO } from './fios.js';
+import { CORES_FIO, removerFio } from './fios.js';
+import { CORES_GRUPO, desfazerGrupo } from './grupos.js';
 
 /** Formata um número com unidade de engenharia. */
 function formatarValor(valor, unidade) {
@@ -337,6 +338,250 @@ export function montarPropriedadesComponente(container, comp, estado, aoMudar, a
     }
   });
   container.appendChild(btnRemover);
+}
+
+/**
+ * Monta as propriedades de um fio dentro do container do popup.
+ */
+export function montarPropriedadesFio(corpo, fio, estado, aoMudar) {
+  corpo.innerHTML = '';
+  if (!fio) return;
+
+  const header = document.createElement('div');
+  header.className = 'painel-header';
+  const titulo = document.createElement('h3');
+  titulo.className = 'painel-titulo';
+  titulo.textContent = 'Fio';
+  header.appendChild(titulo);
+  const badge = document.createElement('span');
+  badge.className = 'painel-categoria';
+  badge.textContent = 'Conexão';
+  header.appendChild(badge);
+  corpo.appendChild(header);
+
+  const secaoProps = document.createElement('div');
+  secaoProps.className = 'painel-secao painel-secao--primeira';
+
+  const tituloProps = document.createElement('h4');
+  tituloProps.textContent = 'Propriedades';
+  secaoProps.appendChild(tituloProps);
+
+  // Seletor de cor do fio (input type=color)
+  const campoCor = document.createElement('div');
+  campoCor.className = 'painel-campo';
+  const labelCor = document.createElement('label');
+  labelCor.textContent = 'Cor do fio';
+  campoCor.appendChild(labelCor);
+
+  const linhaCor = document.createElement('div');
+  linhaCor.className = 'painel-campo-linha';
+  const inputCor = document.createElement('input');
+  inputCor.type = 'color';
+  inputCor.value = fio.cor || CORES_FIO[0];
+  linhaCor.appendChild(inputCor);
+
+  const hintCor = document.createElement('span');
+  hintCor.className = 'painel-campo-hint painel-campo-hint--mono';
+  hintCor.textContent = (fio.cor || CORES_FIO[0]).toUpperCase();
+  linhaCor.appendChild(hintCor);
+
+  inputCor.addEventListener('input', () => {
+    fio.cor = inputCor.value;
+    hintCor.textContent = inputCor.value.toUpperCase();
+    registrar(estado.circuito, 'cor-fio', true);
+    if (aoMudar) aoMudar();
+  });
+
+  campoCor.appendChild(linhaCor);
+
+  // Paleta rápida de cores do fio
+  const paleta = document.createElement('div');
+  paleta.className = 'paleta-cores';
+  for (const cor of CORES_FIO) {
+    const botao = document.createElement('button');
+    botao.type = 'button';
+    botao.className = 'cor-fio';
+    botao.dataset.cor = cor;
+    botao.style.background = cor;
+    botao.title = cor;
+    botao.setAttribute('aria-label', `Cor ${cor}`);
+    botao.setAttribute('aria-pressed', String(fio.cor === cor));
+    botao.addEventListener('click', () => {
+      if (fio.cor === cor) return;
+      fio.cor = cor;
+      inputCor.value = cor;
+      hintCor.textContent = cor.toUpperCase();
+      registrar(estado.circuito, 'cor-fio', true);
+      if (aoMudar) aoMudar();
+    });
+    paleta.appendChild(botao);
+  }
+  campoCor.appendChild(paleta);
+  secaoProps.appendChild(campoCor);
+
+  // Espessura (input number, mínimo 1, máximo 6)
+  const campoEsp = document.createElement('div');
+  campoEsp.className = 'painel-campo';
+  const labelEsp = document.createElement('label');
+  labelEsp.textContent = 'Espessura';
+  campoEsp.appendChild(labelEsp);
+
+  const linhaEsp = document.createElement('div');
+  linhaEsp.className = 'painel-campo-linha';
+  const inputEsp = document.createElement('input');
+  inputEsp.type = 'number';
+  inputEsp.min = 1;
+  inputEsp.max = 6;
+  inputEsp.step = 1;
+  inputEsp.value = fio.espessura || 2;
+  linhaEsp.appendChild(inputEsp);
+
+  const hintEsp = document.createElement('span');
+  hintEsp.className = 'painel-campo-hint';
+  hintEsp.textContent = `${fio.espessura || 2} px`;
+  linhaEsp.appendChild(hintEsp);
+
+  inputEsp.addEventListener('input', () => {
+    const v = Math.max(1, Math.min(6, parseFloat(inputEsp.value) || 2));
+    fio.espessura = v;
+    hintEsp.textContent = `${v} px`;
+    registrar(estado.circuito, 'espessura-fio', true);
+    if (aoMudar) aoMudar();
+  });
+
+  campoEsp.appendChild(linhaEsp);
+  secaoProps.appendChild(campoEsp);
+  corpo.appendChild(secaoProps);
+
+  // Botão "Remover fio"
+  const btnRemover = document.createElement('button');
+  btnRemover.type = 'button';
+  btnRemover.className = 'btn-remover';
+  btnRemover.textContent = 'Remover fio';
+  btnRemover.addEventListener('click', () => {
+    if (typeof estado?.removerFioPorId === 'function') {
+      estado.removerFioPorId(fio.id);
+    } else if (estado?.circuito) {
+      removerFio(estado.circuito, fio.id);
+      if (aoMudar) aoMudar();
+    }
+  });
+  corpo.appendChild(btnRemover);
+}
+
+/**
+ * Monta as propriedades de uma área (grupo) dentro do container do popup.
+ */
+export function montarPropriedadesArea(corpo, area, estado, aoMudar) {
+  corpo.innerHTML = '';
+  if (!area) return;
+
+  const header = document.createElement('div');
+  header.className = 'painel-header';
+  const titulo = document.createElement('h3');
+  titulo.className = 'painel-titulo';
+  titulo.textContent = area.nome || 'Grupo';
+  header.appendChild(titulo);
+  const badge = document.createElement('span');
+  badge.className = 'painel-categoria';
+  badge.textContent = `Área · ${(area.membros || []).length} itens`;
+  header.appendChild(badge);
+  corpo.appendChild(header);
+
+  const secaoProps = document.createElement('div');
+  secaoProps.className = 'painel-secao painel-secao--primeira';
+
+  // Campo de nome (input text)
+  const campoNome = document.createElement('div');
+  campoNome.className = 'painel-campo';
+  const labelNome = document.createElement('label');
+  labelNome.textContent = 'Nome da área';
+  campoNome.appendChild(labelNome);
+
+  const inputNome = document.createElement('input');
+  inputNome.type = 'text';
+  inputNome.value = area.nome || 'Grupo';
+  inputNome.className = 'input-nome-grupo';
+  inputNome.addEventListener('input', () => {
+    area.nome = inputNome.value || 'Grupo';
+    titulo.textContent = area.nome;
+    const popupEl = corpo.closest('.popup-propriedades');
+    const popupTitulo = popupEl?.querySelector('.popup-titulo');
+    if (popupTitulo) popupTitulo.textContent = area.nome;
+    registrar(estado.circuito, 'propriedade');
+    if (aoMudar) aoMudar();
+  });
+  campoNome.appendChild(inputNome);
+  secaoProps.appendChild(campoNome);
+
+  // Seletor de cor da área (input type=color)
+  const campoCor = document.createElement('div');
+  campoCor.className = 'painel-campo';
+  const labelCor = document.createElement('label');
+  labelCor.textContent = 'Cor da área';
+  campoCor.appendChild(labelCor);
+
+  const linhaCor = document.createElement('div');
+  linhaCor.className = 'painel-campo-linha';
+  const inputCor = document.createElement('input');
+  inputCor.type = 'color';
+  inputCor.value = area.cor || CORES_GRUPO[0];
+  linhaCor.appendChild(inputCor);
+
+  const hintCor = document.createElement('span');
+  hintCor.className = 'painel-campo-hint painel-campo-hint--mono';
+  hintCor.textContent = (area.cor || CORES_GRUPO[0]).toUpperCase();
+  linhaCor.appendChild(hintCor);
+
+  inputCor.addEventListener('input', () => {
+    area.cor = inputCor.value;
+    hintCor.textContent = inputCor.value.toUpperCase();
+    registrar(estado.circuito, 'cor-grupo', true);
+    if (aoMudar) aoMudar();
+  });
+
+  campoCor.appendChild(linhaCor);
+
+  // Paleta rápida de cores da área
+  const paletaGrupo = document.createElement('div');
+  paletaGrupo.className = 'paleta-cores';
+  for (const cor of CORES_GRUPO) {
+    const botaoCor = document.createElement('button');
+    botaoCor.type = 'button';
+    botaoCor.className = 'cor-fio';
+    botaoCor.style.background = cor;
+    botaoCor.title = cor;
+    botaoCor.setAttribute('aria-label', `Cor ${cor}`);
+    botaoCor.setAttribute('aria-pressed', String(area.cor === cor));
+    botaoCor.addEventListener('click', () => {
+      if (area.cor === cor) return;
+      area.cor = cor;
+      inputCor.value = cor;
+      hintCor.textContent = cor.toUpperCase();
+      registrar(estado.circuito, 'cor-grupo', true);
+      if (aoMudar) aoMudar();
+    });
+    paletaGrupo.appendChild(botaoCor);
+  }
+  campoCor.appendChild(paletaGrupo);
+  secaoProps.appendChild(campoCor);
+
+  corpo.appendChild(secaoProps);
+
+  // Botão "Remover área"
+  const btnRemover = document.createElement('button');
+  btnRemover.type = 'button';
+  btnRemover.className = 'btn-remover';
+  btnRemover.textContent = 'Remover área';
+  btnRemover.addEventListener('click', () => {
+    if (typeof estado?.removerAreaPorId === 'function') {
+      estado.removerAreaPorId(area.id);
+    } else if (estado?.circuito) {
+      desfazerGrupo(estado.circuito, area.id);
+      if (aoMudar) aoMudar();
+    }
+  });
+  corpo.appendChild(btnRemover);
 }
 
 /**

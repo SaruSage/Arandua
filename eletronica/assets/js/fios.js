@@ -392,7 +392,8 @@ export function desenharFios(ctx, circuito, view, fioSelecionadoId, dobraSelecio
 
     ctx.save();
     ctx.strokeStyle = fio.cor || CORES.traco;
-    ctx.lineWidth = (selecionado ? 3 : 2) * view.zoom;
+    const espessuraBase = fio.espessura || 2;
+    ctx.lineWidth = (selecionado ? Math.max(espessuraBase + 1, 3) : espessuraBase) * view.zoom;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     const pts = ptsMundo.map((p) => tela(p));
@@ -529,6 +530,7 @@ export function configurarFios(canvas, estado, aoMudar) {
       dobraSelecionada = dobra;
       fioSelecionadoId = dobra.fio.id;
       estado.fioSelecionadoId = dobra.fio.id;
+      estado.abrirPopupEntidade?.('fio', dobra.fio.id);
       e.stopPropagation();
       e.preventDefault();
       aoMudar();
@@ -572,6 +574,7 @@ export function configurarFios(canvas, estado, aoMudar) {
         estado.fioSelecionadoId = fio.id;
         estado.selecionados = [];
         estado.grupoSelecionadoId = null;
+        estado.abrirPopupEntidade?.('fio', fio.id);
 
         const ptsAtuais = pontosDoFio(estado.circuito, fio);
         const dobrasBase = (fio.dobras && fio.dobras.length > 0)
@@ -605,6 +608,7 @@ export function configurarFios(canvas, estado, aoMudar) {
       estado.fioSelecionadoId = fio.id;
       estado.selecionados = [];
       estado.grupoSelecionadoId = null;
+      estado.abrirPopupEntidade?.('fio', fio.id);
       e.stopPropagation();
       e.preventDefault();
       aoMudar();

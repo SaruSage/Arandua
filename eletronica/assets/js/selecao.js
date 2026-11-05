@@ -181,7 +181,7 @@ export function configurarInteracao(canvas, estado, aoMudar) {
         movido: false,
       };
       el.style.cursor = 'grabbing';
-      estado.abrirPopupComponente?.(comp.id);
+      estado.abrirPopupEntidade?.('comp', comp.id);
     } else {
       // Recalcula membros das áreas que estavam selecionadas
       for (const id of estado.selecionados) {
