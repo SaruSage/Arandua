@@ -593,17 +593,26 @@ function montarInterface() {
   app.innerHTML = `
     <div class="eletronica-layout">
       <header class="eletronica-toolbar">
-        <h1>Laboratório de Eletrônica</h1>
+        <h1>Arandua</h1>
         <button type="button" class="btn-simular" id="btn-simular">Simular</button>
         <button type="button" class="btn-juntar" id="btn-juntar">Juntar</button>
-        <button type="button" class="btn-toolbar" id="btn-salvar">Salvar</button>
-        <button type="button" class="btn-toolbar" id="btn-abrir">Abrir</button>
-        <button type="button" class="btn-toolbar" id="btn-exportar">PNG</button>
         <button type="button" class="btn-toolbar" id="btn-desfazer" title="Desfazer (Ctrl+Z)">↶</button>
         <button type="button" class="btn-toolbar" id="btn-refazer" title="Refazer (Ctrl+Y)">↷</button>
-        <span class="eletronica-dica">
-          Arraste componentes · Clique em pino para conectar · Tab cria dobra no fio · R gira 90° · Roda = zoom
-        </span>
+        <div class="menu-container">
+          <button type="button" id="btn-menu" class="btn-icone" title="Menu">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <line x1="3" y1="12" x2="21" y2="12"/>
+              <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+          <div id="menu-dropdown" class="menu-dropdown oculto">
+            <button type="button" id="btn-salvar">Salvar</button>
+            <button type="button" id="btn-abrir">Abrir</button>
+            <button type="button" id="btn-exportar">PNG</button>
+          </div>
+        </div>
       </header>
       <aside class="eletronica-paleta" id="paleta"></aside>
       <div class="eletronica-canvas">
@@ -661,11 +670,31 @@ function montarInterface() {
     }
   });
 
+  const btnMenu = document.getElementById('btn-menu');
+  const menuDropdown = document.getElementById('menu-dropdown');
+
+  btnMenu.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menuDropdown.classList.toggle('oculto');
+  });
+
+  // Fecha ao clicar fora
+  document.addEventListener('click', () => {
+    menuDropdown.classList.add('oculto');
+  });
+
+  // Impede que cliques dentro do menu o fechem antes do handler
+  menuDropdown.addEventListener('click', (e) => {
+    e.stopPropagation();
+  });
+
   document.getElementById('btn-salvar').addEventListener('click', () => {
+    menuDropdown.classList.add('oculto');
     baixarArquivo(estado, 'circuito.json');
   });
 
   document.getElementById('btn-abrir').addEventListener('click', async () => {
+    menuDropdown.classList.add('oculto');
     const resultado = await abrirArquivo();
     if (!resultado.ok) {
       alert(resultado.erro);
@@ -688,6 +717,7 @@ function montarInterface() {
   });
 
   document.getElementById('btn-exportar').addEventListener('click', () => {
+    menuDropdown.classList.add('oculto');
     exportarPNG(estado.circuito, 'circuito.png');
   });
 

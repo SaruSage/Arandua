@@ -17,6 +17,8 @@
   --cor-primaria: #53b588;
   --cor-primaria-clara: #d8f5e8;
   --cor-primaria-escura: #3e9670;
+  --verde-principal: #53b588;
+  --verde-claro: #bbf7d0;
   --cor-acento: #ffb340;
   --cor-texto: #191919;
   --cor-texto-sec: #6f6f6f;
@@ -61,12 +63,6 @@ html, body {
   font-size: 1rem;
   font-weight: 800;
   letter-spacing: -0.01em;
-}
-
-.eletronica-dica {
-  margin-left: auto;
-  font-size: 0.75rem;
-  color: var(--cor-texto-sec);
 }
 
 .eletronica-paleta,
@@ -387,6 +383,14 @@ html, body {
   transition: background 0.15s, transform 0.15s;
 }
 
+#btn-simular {
+  min-width: 150px;
+  width: 150px;
+  text-align: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
 .btn-simular:hover {
   background: var(--cor-primaria-escura);
   transform: translateY(-1px);
@@ -584,6 +588,88 @@ html, body {
   background: transparent;
 }
 
+/* Estado desabilitado de Undo/Redo */
+#btn-desfazer:disabled,
+#btn-refazer:disabled,
+#btn-undo:disabled,
+#btn-redo:disabled {
+  color: var(--verde-claro);
+  border-color: var(--verde-claro);
+  opacity: 1;
+  cursor: default;
+}
+
+#btn-desfazer:disabled:hover,
+#btn-refazer:disabled:hover,
+#btn-undo:disabled:hover,
+#btn-redo:disabled:hover {
+  color: var(--verde-claro);
+  border-color: var(--verde-claro);
+  background: transparent;
+}
+
+/* Estado habilitado de Undo/Redo */
+#btn-desfazer:not(:disabled),
+#btn-refazer:not(:disabled),
+#btn-undo:not(:disabled),
+#btn-redo:not(:disabled) {
+  color: var(--verde-principal);
+  border-color: var(--verde-principal);
+}
+
+.menu-container {
+  position: relative;
+}
+
+.btn-icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 10px;
+  background: transparent;
+  color: var(--cor-texto-sec);
+  border: 1px solid var(--cor-borda-forte);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-icone:hover {
+  border-color: var(--cor-primaria);
+  color: var(--cor-primaria-escura);
+  background: var(--cor-primaria-clara);
+}
+
+.menu-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  z-index: 100;
+}
+
+.menu-dropdown.oculto { display: none; }
+
+.menu-dropdown button {
+  text-align: left;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--cor-texto);
+}
+
+.menu-dropdown button:hover { background: #f2f2f2; }
+
 .paleta-cores {
   display: grid;
   grid-template-columns: repeat(10, 1fr);
@@ -692,7 +778,6 @@ html, body {
     gap: 8px;
     padding: 8px 12px;
   }
-  .eletronica-dica { display: none; }
   .eletronica-painel {
     display: block;
     grid-column: 1 / -1;
