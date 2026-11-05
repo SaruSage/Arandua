@@ -14,6 +14,7 @@ import { CORES, posicaoPino } from './simbolos.js';
 import { registrar } from './historico.js';
 import { CATALOGO } from './catalogo.js';
 import { recalcularMembros } from './grupos.js';
+import { snap } from './canvas.js';
 
 export const CORES_FIO = [
   '#2b2b2b', '#e05a5a', '#e88a3a', '#e8c33a', '#8fbf3a',
@@ -38,7 +39,22 @@ export function pontosDoFio(circuito, fio) {
   const pD = posicaoPino(compD, fio.destino.pino);
   if (!pO || !pD) return [];
 
-  return [pO, ...(fio.dobras || []), pD];
+  if (!fio.dobras || fio.dobras.length === 0) {
+    // Sem dobras: cria um L automático
+    // Escolhe o eixo dominante para decidir a ordem
+    const dx = Math.abs(pD.x - pO.x);
+    const dy = Math.abs(pD.y - pO.y);
+
+    if (dx > dy) {
+      // Horizontal primeiro, depois vertical
+      return [pO, { x: pD.x, y: pO.y }, pD];
+    } else {
+      // Vertical primeiro, depois horizontal
+      return [pO, { x: pO.x, y: pD.y }, pD];
+    }
+  }
+
+  return [pO, ...fio.dobras, pD];
 }
 
 /** Distância de um ponto a um segmento de reta. */
@@ -350,10 +366,11 @@ export function configurarFios(canvas, estado, aoMudar) {
     }
 
     if (dobraArrastando) {
-      dobraArrastando.fio.dobras[dobraArrastando.indice] = {
-        x: Math.round(mundo.x / 10) * 10,
-        y: Math.round(mundo.y / 10) * 10,
-      };
+      const dobra = dobraArrastando.fio.dobras[dobraArrastando.indice];
+      if (dobra) {
+        dobra.x = snap(mundo.x);
+        dobra.y = snap(mundo.y);
+      }
       aoMudar();
       return;
     }

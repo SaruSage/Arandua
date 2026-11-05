@@ -6,6 +6,10 @@ import { componenteEm, moverComponente, rotacionarComponente } from './circuito.
 import { CATALOGO } from './catalogo.js';
 import { registrar } from './historico.js';
 import { recalcularMembros, pontoDentroDoGrupo } from './grupos.js';
+import { snap } from './canvas.js';
+import { posicaoPino } from './simbolos.js';
+
+const TOLERANCIA = 8; // px
 
 export function configurarInteracao(canvas, estado, aoMudar) {
   const el = canvas.elemento;
@@ -14,11 +18,61 @@ export function configurarInteracao(canvas, estado, aoMudar) {
   let arrastando = null;
   let panIniciado = null;
 
+  /**
+   * Alinha os pinos do componente arrastado com pinos de outros
+   * componentes que estejam próximos.
+   */
+  function alinharPinos(comp) {
+    const listaPinos = comp.pinos || CATALOGO[comp.tipo]?.pinos || [];
+    const pinos = listaPinos.map((p) => ({
+      pino: p,
+      mundo: posicaoPino(comp, p),
+    })).filter((item) => item.mundo);
+
+    for (const outro of estado.circuito.componentes) {
+      if (outro.id === comp.id) continue;
+
+      const pinosOutro = outro.pinos || CATALOGO[outro.tipo]?.pinos || [];
+      for (const pOutro of pinosOutro) {
+        const mOutro = posicaoPino(outro, pOutro);
+        if (!mOutro) continue;
+
+        for (const { mundo } of pinos) {
+          // Alinhamento horizontal (mesma altura)
+          if (Math.abs(mundo.y - mOutro.y) < TOLERANCIA
+              && Math.abs(mundo.y - mOutro.y) > 0) {
+            const ajuste = mOutro.y - mundo.y;
+            comp.y += ajuste;
+            return; // um ajuste por vez
+          }
+
+          // Alinhamento vertical (mesma coluna)
+          if (Math.abs(mundo.x - mOutro.x) < TOLERANCIA
+              && Math.abs(mundo.x - mOutro.x) > 0) {
+            const ajuste = mOutro.x - mundo.x;
+            comp.x += ajuste;
+            return;
+          }
+        }
+      }
+    }
+  }
+
   function finalizarArrasto() {
     const moveu = arrastando?.movido;
     const idsMovidos = arrastando?.ids ? new Set(arrastando.ids) : null;
     arrastando = null;
     if (moveu) {
+      // Snap na posição absoluta e alinhamento de pinos dos componentes movidos
+      if (idsMovidos) {
+        for (const comp of estado.circuito.componentes) {
+          if (!idsMovidos.has(comp.id)) continue;
+          comp.x = snap(comp.x);
+          comp.y = snap(comp.y);
+          alinharPinos(comp);
+        }
+      }
+
       // Se um componente foi removido manualmente de sua área original (arrastado para fora dela),
       // libera-o da área original
       if (idsMovidos) {
@@ -104,9 +158,16 @@ export function configurarInteracao(canvas, estado, aoMudar) {
       estado._ultimoDx = 0;
       estado._ultimoDy = 0;
       estado.arrastandoId = comp.id;
+      const posicoesIniciais = new Map();
+      for (const c of estado.circuito.componentes) {
+        if (estado.selecionados.includes(c.id)) {
+          posicoesIniciais.set(c.id, { x: c.x, y: c.y });
+        }
+      }
       arrastando = {
         ids: [...estado.selecionados],
         inicio: { x: mundo.x, y: mundo.y },
+        posicoesIniciais,
         movido: false,
       };
       el.style.cursor = 'grabbing';
@@ -177,8 +238,10 @@ export function configurarInteracao(canvas, estado, aoMudar) {
     }
 
     if (arrastando) {
-      const dxTotal = Math.round((mundo.x - arrastando.inicio.x) / 10) * 10;
-      const dyTotal = Math.round((mundo.y - arrastando.inicio.y) / 10) * 10;
+      const dxBruto = mundo.x - arrastando.inicio.x;
+      const dyBruto = mundo.y - arrastando.inicio.y;
+      const dxTotal = snap(dxBruto);
+      const dyTotal = snap(dyBruto);
       const dx = dxTotal - (estado._ultimoDx || 0);
       const dy = dyTotal - (estado._ultimoDy || 0);
       estado._ultimoDx = dxTotal;
@@ -188,11 +251,17 @@ export function configurarInteracao(canvas, estado, aoMudar) {
 
       const idsSelecionados = new Set(estado.selecionados);
 
-      // Move os componentes
+      // Move os componentes aplicando snap na posição absoluta
       for (const comp of estado.circuito.componentes) {
         if (idsSelecionados.has(comp.id)) {
-          comp.x += dx;
-          comp.y += dy;
+          const ini = arrastando.posicoesIniciais?.get(comp.id);
+          if (ini) {
+            comp.x = snap(ini.x + dxBruto);
+            comp.y = snap(ini.y + dyBruto);
+          } else {
+            comp.x = snap(comp.x + dx);
+            comp.y = snap(comp.y + dy);
+          }
         }
       }
 

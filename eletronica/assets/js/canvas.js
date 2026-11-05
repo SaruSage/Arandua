@@ -8,7 +8,14 @@ import { CATALOGO } from './catalogo.js';
 import { desenharFios, desenharFioFantasma } from './fios.js';
 import { desenharGrupos, desenharSelecaoRetangular } from './grupos.js';
 
-const TAMANHO_GRADE = 20;
+export const TAMANHO_GRADE = 10;
+
+/**
+ * Arredonda um valor para o ponto mais próximo da grade.
+ */
+export function snap(valor, tamanho = TAMANHO_GRADE) {
+  return Math.round(valor / tamanho) * tamanho;
+}
 
 export function criarCanvas(elemento, estado) {
   const ctx = elemento.getContext('2d');

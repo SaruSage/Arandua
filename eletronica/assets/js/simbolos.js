@@ -1400,9 +1400,13 @@ export function desenharComponente(ctx, comp, telaX, telaY, escala) {
 
 /**
  * Calcula a posição absoluta de um pino em coordenadas de mundo.
+ * Aceita tanto o id do pino (string) quanto o próprio objeto pino.
  */
-export function posicaoPino(comp, pinoId) {
-  const pino = comp.pinos.find((p) => p.id === pinoId);
+export function posicaoPino(comp, pinoOuId) {
+  const pinos = comp.pinos || CATALOGO[comp.tipo]?.pinos || [];
+  const pino = (typeof pinoOuId === 'object' && pinoOuId !== null)
+    ? pinoOuId
+    : pinos.find((p) => p.id === pinoOuId);
   if (!pino) return null;
 
   const dim = comp.dimensoes || CATALOGO[comp.tipo]?.dimensoes || { w: 80, h: 60 };
