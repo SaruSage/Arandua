@@ -819,9 +819,33 @@ function montarInterface() {
     }
   });
 
+  let timerResize = null;
+
   window.addEventListener('resize', () => {
     canvas.redimensionar();
     renderizarTudo();
+
+    clearTimeout(timerResize);
+    timerResize = setTimeout(() => {
+      const container = document.getElementById('popups-container');
+      if (!container) return;
+
+      const largura = container.clientWidth;
+      const altura = container.clientHeight;
+      let mudou = false;
+
+      for (const cfg of Object.values(estado.popups)) {
+        const maxX = Math.max(0, largura - 260);
+        const maxY = Math.max(0, altura - 100);
+
+        if (cfg.x > maxX) { cfg.x = maxX; mudou = true; }
+        if (cfg.y > maxY) { cfg.y = maxY; mudou = true; }
+        if (cfg.x < 0) { cfg.x = 0; mudou = true; }
+        if (cfg.y < 0) { cfg.y = 0; mudou = true; }
+      }
+
+      if (mudou) renderizarPopups(true);
+    }, 150);
   });
 
   window.addEventListener('keydown', (e) => {
