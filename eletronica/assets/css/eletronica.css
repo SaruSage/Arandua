@@ -682,17 +682,38 @@ html, body {
 
 @media (max-width: 1024px) {
   .eletronica-layout {
-    grid-template-columns: 220px 1fr;
+    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
   }
-  .eletronica-painel { display: none; }
+  .eletronica-toolbar {
+    min-height: 56px;
+    height: auto;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+  .eletronica-dica { display: none; }
+  .eletronica-painel {
+    display: block;
+    grid-column: 1 / -1;
+    grid-row: 3;
+    max-height: 30vh;
+    border-left: none;
+    border-top: 1px solid var(--cor-borda);
+  }
 }
 
 @media (max-width: 768px) {
   .eletronica-layout {
     grid-template-columns: 1fr;
-    grid-template-rows: 56px auto 1fr;
+    grid-template-rows: auto auto minmax(400px, 1fr) auto;
     height: auto;
     min-height: 100vh;
+  }
+  .eletronica-toolbar {
+    min-height: 56px;
+    flex-wrap: wrap;
+    padding: 8px 12px;
   }
   .eletronica-paleta {
     border-right: none;
@@ -708,6 +729,11 @@ html, body {
   }
   .paleta-grade { grid-template-columns: repeat(4, 1fr); }
   .eletronica-canvas { min-height: 400px; }
+  .eletronica-painel {
+    grid-column: auto;
+    grid-row: auto;
+    max-height: 45vh;
+  }
 }
 
 @media (max-width: 640px) {

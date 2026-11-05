@@ -16,6 +16,12 @@ export function criarCircuito() {
 
 /** Adiciona um componente ao circuito. */
 export function adicionarComponente(circuito, tipo, x, y) {
+  if (!Number.isInteger(circuito.proximoId) || circuito.proximoId < 1) {
+    circuito.proximoId = circuito.componentes.reduce((proximo, componente) => {
+      const correspondencia = /^c(\d+)$/.exec(componente.id || '');
+      return correspondencia ? Math.max(proximo, Number(correspondencia[1]) + 1) : proximo;
+    }, 1);
+  }
   const comp = criarInstancia(tipo, x, y);
   comp.id = `c${circuito.proximoId++}`;
   circuito.componentes.push(comp);

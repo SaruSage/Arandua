@@ -177,13 +177,49 @@ function distanciaPontoSegmento(px, py, x1, y1, x2, y2) {
   return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
 }
 
-/** Retorna o índice do canto mais próximo ou -1. */
-export function noCanto(grupo, x, y, tolerancia = 10) {
+/** Identifica a alça de canto ou lateral sob o ponto. */
+export function alcaEm(grupo, x, y, tolerancia = 9) {
   const cantos = cantosDoGrupo(grupo);
   for (let indice = 0; indice < cantos.length; indice++) {
-    if (Math.hypot(x - cantos[indice].x, y - cantos[indice].y) < tolerancia) return indice;
+    if (Math.hypot(x - cantos[indice].x, y - cantos[indice].y) < tolerancia) {
+      return { tipo: 'canto', indice };
+    }
   }
-  return -1;
+
+  const nomes = ['topo', 'direita', 'base', 'esquerda'];
+  for (const ponto of pontosMedios(grupo)) {
+    if (Math.hypot(x - ponto.x, y - ponto.y) < tolerancia) {
+      return { tipo: 'lateral', indice: ponto.aresta, nome: nomes[ponto.aresta] };
+    }
+  }
+  return null;
+}
+
+/** Redimensiona o contorno pela lateral sem mover seus componentes. */
+export function redimensionarLateral(grupo, aresta, x, y) {
+  if (!grupo.vertices) grupo.vertices = cantosDoGrupo(grupo).map((ponto) => ({ ...ponto }));
+
+  const quantidade = grupo.vertices.length;
+  const indice = aresta % quantidade;
+  const proximo = (indice + 1) % quantidade;
+  const a = grupo.vertices[indice];
+  const b = grupo.vertices[proximo];
+  const horizontal = Math.abs(a.y - b.y) < Math.abs(a.x - b.x);
+
+  if (horizontal) {
+    a.y = y;
+    b.y = y;
+  } else {
+    a.x = x;
+    b.x = x;
+  }
+
+  atualizarRetanguloBase(grupo);
+}
+
+/** Atualiza o retângulo base e os bounds após editar vértices. */
+export function atualizarRetanguloBase(grupo) {
+  atualizarGeometriaBase(grupo);
 }
 
 /** Verifica se o ponto está sobre a caixa do nome do grupo. */
@@ -313,6 +349,14 @@ export function moverGrupo(circuito, grupoId, dx, dy) {
   for (const membro of grupo.membros) {
     moverMembro(membro);
   }
+
+  for (const fio of circuito.fios) {
+    const origemNoGrupo = movidos.has(fio.origem.componente);
+    const destinoNoGrupo = movidos.has(fio.destino.componente);
+    if (origemNoGrupo && destinoNoGrupo && fio.dobras?.length) {
+      fio.dobras = fio.dobras.map((dobra) => ({ x: dobra.x + dx, y: dobra.y + dy }));
+    }
+  }
 }
 
 /* ===== SELEÇÃO RETANGULAR ===== */
@@ -393,10 +437,20 @@ export function desenharGrupos(ctx, circuito, view, grupoSelecionadoId = null) {
     ctx.restore();
 
     if (selecionado) {
-      for (const ponto of pontosTela) {
+      const alcas = [
+        ...pontosTela.map((ponto) => ({ ...ponto, tipo: 'canto' })),
+        ...pontosMedios(grupo).map((ponto) => ({ ...tela(ponto), tipo: 'lateral' })),
+      ];
+
+      for (const alca of alcas) {
         ctx.save();
         ctx.beginPath();
-        ctx.arc(ponto.x, ponto.y, 4 * view.zoom, 0, Math.PI * 2);
+        if (alca.tipo === 'canto') {
+          ctx.arc(alca.x, alca.y, 4.5 * view.zoom, 0, Math.PI * 2);
+        } else {
+          const tamanho = 8 * view.zoom;
+          ctx.rect(alca.x - tamanho / 2, alca.y - tamanho / 2, tamanho, tamanho);
+        }
         ctx.fillStyle = '#ffffff';
         ctx.fill();
         ctx.lineWidth = 1.5;
@@ -480,29 +534,45 @@ export function configurarGrupos(canvas, estado, aoMudar) {
 
   function finalizarArrastoGrupo() {
     if (!arrastandoGrupo) return;
-    if (arrastandoGrupo.moveu) registrar(estado.circuito, 'mover-grupo', true);
+    const moveu = arrastandoGrupo.moveu;
     arrastandoGrupo = null;
     el.style.cursor = 'default';
     window.removeEventListener('mousemove', moverGrupoArrastado);
     window.removeEventListener('mouseup', finalizarArrastoGrupo);
+    if (moveu) {
+      registrar(estado.circuito, 'mover-grupo', true);
+      aoMudar();
+    }
   }
 
-  function iniciarRedimensionamento(grupo, indice) {
-    const cantoInicial = cantosDoGrupo(grupo)[indice];
+  function iniciarRedimensionamento(grupo, alca) {
+    if (!grupo.vertices) grupo.vertices = cantosDoGrupo(grupo).map((ponto) => ({ ...ponto }));
+    const pontoInicial = alca.tipo === 'canto'
+      ? grupo.vertices[alca.indice]
+      : pontosMedios(grupo)[alca.indice];
     let moveu = false;
     const aoMover = (e) => {
       const mundo = telaParaMundo(e);
-      if (Math.hypot(mundo.x - cantoInicial.x, mundo.y - cantoInicial.y) > 0.5) moveu = true;
-      moverVertice(grupo, indice, mundo.x, mundo.y);
+      if (Math.hypot(mundo.x - pontoInicial.x, mundo.y - pontoInicial.y) > 0.5) moveu = true;
+      if (!moveu) return;
+      if (alca.tipo === 'canto') {
+        grupo.vertices[alca.indice] = { x: mundo.x, y: mundo.y };
+        atualizarRetanguloBase(grupo);
+      } else {
+        redimensionarLateral(grupo, alca.indice, mundo.x, mundo.y);
+      }
       aoMudar();
     };
     const aoSoltar = () => {
-      if (moveu) registrar(estado.circuito, 'redimensionar-grupo', true);
       window.removeEventListener('mousemove', aoMover);
       window.removeEventListener('mouseup', aoSoltar);
       el.style.cursor = 'default';
+      if (moveu) {
+        registrar(estado.circuito, 'redimensionar-grupo', true);
+        aoMudar();
+      }
     };
-    el.style.cursor = 'nwse-resize';
+    el.style.cursor = alca.tipo === 'lateral' ? 'ew-resize' : 'nwse-resize';
     window.addEventListener('mousemove', aoMover);
     window.addEventListener('mouseup', aoSoltar);
   }
@@ -514,11 +584,11 @@ export function configurarGrupos(canvas, estado, aoMudar) {
 
     for (const grupo of grupos) {
       if (grupo.id !== estado.grupoSelecionadoId) continue;
-      const indice = noCanto(grupo, mundo.x, mundo.y);
-      if (indice >= 0) {
+      const alca = alcaEm(grupo, mundo.x, mundo.y);
+      if (alca) {
         e.preventDefault();
         e.stopImmediatePropagation();
-        iniciarRedimensionamento(grupo, indice);
+        iniciarRedimensionamento(grupo, alca);
         return;
       }
     }

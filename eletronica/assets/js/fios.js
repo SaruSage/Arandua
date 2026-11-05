@@ -197,22 +197,23 @@ export function desenharFios(ctx, circuito, view, fioSelecionadoId, dobraSelecio
     ctx.stroke();
     ctx.restore();
 
-    // Desenha as dobras
-    for (let i = 0; i < fio.dobras.length; i++) {
-      const d = fio.dobras[i];
-      const tx = d.x * view.zoom + view.panX;
-      const ty = d.y * view.zoom + view.panY;
-      const ativa = dobraSelecionada && dobraSelecionada.fio.id === fio.id && dobraSelecionada.indice === i;
+    if (selecionado && fio.dobras?.length) {
+      for (let i = 0; i < fio.dobras.length; i++) {
+        const dobra = fio.dobras[i];
+        const tx = dobra.x * view.zoom + view.panX;
+        const ty = dobra.y * view.zoom + view.panY;
+        const ativa = dobraSelecionada && dobraSelecionada.fio.id === fio.id && dobraSelecionada.indice === i;
 
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(tx, ty, RAIO_DOBRA * view.zoom, 0, Math.PI * 2);
-      ctx.fillStyle = ativa ? '#53b588' : '#ffffff';
-      ctx.fill();
-      ctx.strokeStyle = ativa ? '#3e9670' : '#2b2b2b';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-      ctx.restore();
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(tx, ty, RAIO_DOBRA * view.zoom, 0, Math.PI * 2);
+        ctx.fillStyle = ativa ? '#53b588' : '#ffffff';
+        ctx.fill();
+        ctx.strokeStyle = ativa ? '#3e9670' : '#2b2b2b';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.restore();
+      }
     }
   }
 }
@@ -317,7 +318,6 @@ export function configurarFios(canvas, estado, aoMudar) {
     fioSelecionadoId = null;
     dobraSelecionada = null;
     estado.fioSelecionadoId = null;
-    estado.grupoSelecionadoId = null;
   }, true); // captura antes do handler de seleção de componentes
 
   // ---- mousemove ----

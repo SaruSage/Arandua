@@ -12,8 +12,12 @@ export function configurarInteracao(canvas, estado, aoMudar) {
   let panIniciado = null;
 
   function finalizarArrasto() {
-    if (arrastando?.movido) registrar(estado.circuito, 'mover', true);
+    const moveu = arrastando?.movido;
     arrastando = null;
+    if (moveu) {
+      registrar(estado.circuito, 'mover', true);
+      aoMudar();
+    }
   }
 
   el.addEventListener('mousedown', (e) => {

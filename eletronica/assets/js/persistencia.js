@@ -15,6 +15,7 @@
  */
 
 import { CATALOGO } from './catalogo.js';
+import { calcularBounds } from './grupos.js';
 
 const CHAVE_LOCALSTORAGE = 'eletronica:circuito-autosave';
 const VERSAO_ATUAL = 1;
@@ -159,12 +160,26 @@ export function validar(dados) {
  */
 export function reconstruir(dados) {
   const c = dados.circuito;
+  let proximoId = (c.componentes || []).reduce((proximo, comp) => {
+    const correspondencia = /^c(\d+)$/.exec(comp.id || '');
+    return correspondencia ? Math.max(proximo, Number(correspondencia[1]) + 1) : proximo;
+  }, 1);
+  const idsUsados = new Set();
+  const idsReparados = new Map();
 
-  const componentes = c.componentes.map((comp) => {
+  const componentes = (c.componentes || []).map((comp) => {
     const def = CATALOGO[comp.tipo];
     if (!def) return null;
+    const idOriginal = comp.id;
+    let id = idOriginal;
+    if (!id || id === 'cNaN' || idsUsados.has(id)) {
+      while (idsUsados.has(`c${proximoId}`)) proximoId++;
+      id = `c${proximoId++}`;
+    }
+    idsUsados.add(id);
+    if (idOriginal) idsReparados.set(idOriginal, id);
     return {
-      id: comp.id,
+      id,
       tipo: comp.tipo,
       x: comp.x,
       y: comp.y,
@@ -176,24 +191,37 @@ export function reconstruir(dados) {
     };
   }).filter(Boolean);
 
-  const fios = c.fios.map((f) => ({
-    id: f.id,
-    origem: { ...f.origem },
-    destino: { ...f.destino },
-    dobras: (f.dobras || []).map((d) => ({ x: d.x, y: d.y })),
-    cor: f.cor || '#2b2b2b',
-  }));
+  const idsComponentes = new Set(componentes.map((comp) => comp.id));
 
-  const grupos = (c.grupos || []).map((g) => ({
+  const fios = (c.fios || []).flatMap((f) => {
+    const origemId = idsReparados.get(f.origem?.componente);
+    const destinoId = idsReparados.get(f.destino?.componente);
+    if (!origemId || !destinoId || !idsComponentes.has(origemId) || !idsComponentes.has(destinoId)) return [];
+    return [{
+      id: f.id,
+      origem: { ...f.origem, componente: origemId },
+      destino: { ...f.destino, componente: destinoId },
+      dobras: (f.dobras || []).map((d) => ({ x: d.x, y: d.y })),
+      cor: f.cor || '#2b2b2b',
+    }];
+  });
+
+  const gruposFonte = c.grupos || [];
+  const idsGrupos = new Set(gruposFonte.map((grupo) => grupo.id));
+  const grupos = gruposFonte.map((g) => ({
     id: g.id,
     nome: g.nome || 'Grupo',
-    membros: [...(g.membros || [])],
+    membros: [...(g.membros || [])]
+      .map((id) => idsReparados.get(id) || id)
+      .filter((id) => idsComponentes.has(id) || idsGrupos.has(id)),
     cor: g.cor || '#53b588',
     x: g.x ?? g.bounds?.x ?? 0,
     y: g.y ?? g.bounds?.y ?? 0,
     w: g.w ?? g.bounds?.w ?? 0,
     h: g.h ?? g.bounds?.h ?? 0,
-    vertices: g.vertices?.map((ponto) => ({ ...ponto })) ?? null,
+    vertices: Array.isArray(g.vertices) && g.vertices.length >= 3
+      ? g.vertices.map((ponto) => ({ ...ponto }))
+      : null,
     bounds: {
       x: g.x ?? g.bounds?.x ?? 0,
       y: g.y ?? g.bounds?.y ?? 0,
@@ -203,8 +231,38 @@ export function reconstruir(dados) {
     nomeEditando: false,
   }));
 
+  for (let indice = 0; indice < grupos.length; indice++) {
+    const grupo = grupos[indice];
+    const original = gruposFonte[indice];
+    const boundsOriginais = original.bounds || {};
+    const temGeometria = [
+      original.x ?? boundsOriginais.x,
+      original.y ?? boundsOriginais.y,
+      original.w ?? boundsOriginais.w,
+      original.h ?? boundsOriginais.h,
+    ].every(Number.isFinite);
+    if (temGeometria) continue;
+
+    if (grupo.vertices) {
+      const xs = grupo.vertices.map((ponto) => ponto.x);
+      const ys = grupo.vertices.map((ponto) => ponto.y);
+      grupo.x = Math.min(...xs);
+      grupo.y = Math.min(...ys);
+      grupo.w = Math.max(...xs) - grupo.x;
+      grupo.h = Math.max(...ys) - grupo.y;
+    } else {
+      const bounds = calcularBounds({ componentes, grupos }, grupo.membros);
+      if (!bounds) continue;
+      grupo.x = bounds.x - 16;
+      grupo.y = bounds.y - 40;
+      grupo.w = bounds.w + 32;
+      grupo.h = bounds.h + 56;
+    }
+    grupo.bounds = { x: grupo.x, y: grupo.y, w: grupo.w, h: grupo.h };
+  }
+
   return {
-    circuito: { componentes, fios, grupos },
+    circuito: { componentes, fios, grupos, proximoId },
     view: dados.view || { zoom: 1, panX: 0, panY: 0 },
   };
 }

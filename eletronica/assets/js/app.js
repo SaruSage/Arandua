@@ -60,6 +60,103 @@ const estado = {
 
 let canvas = null;
 let elPainel = null;
+let areaTransferencia = null;
+
+function copiarSelecionados() {
+  if (estado.selecionados.length === 0) return;
+
+  const componentes = estado.circuito.componentes.filter((comp) =>
+    estado.selecionados.includes(comp.id)
+  );
+  if (componentes.length === 0) return;
+
+  const idsSelecionados = new Set(componentes.map((comp) => comp.id));
+  const fios = estado.circuito.fios.filter((fio) =>
+    idsSelecionados.has(fio.origem.componente) && idsSelecionados.has(fio.destino.componente)
+  );
+
+  areaTransferencia = {
+    componentes: componentes.map((comp) => ({
+      tipo: comp.tipo,
+      x: comp.x,
+      y: comp.y,
+      rotacao: comp.rotacao || 0,
+      propriedades: { ...comp.propriedades },
+      idOriginal: comp.id,
+    })),
+    fios: fios.map((fio) => ({
+      origem: { ...fio.origem },
+      destino: { ...fio.destino },
+      dobras: (fio.dobras || []).map((dobra) => ({ x: dobra.x, y: dobra.y })),
+      cor: fio.cor,
+    })),
+  };
+}
+
+function colar() {
+  if (!areaTransferencia || areaTransferencia.componentes.length === 0) return;
+
+  const deslocamento = 24;
+  const mapaIds = new Map();
+  const novosIds = [];
+  const idsExistentes = new Set(estado.circuito.componentes.map((comp) => comp.id));
+
+  for (const comp of areaTransferencia.componentes) {
+    const def = CATALOGO[comp.tipo];
+    if (!def) continue;
+
+    let novoId;
+    do {
+      novoId = `comp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    } while (idsExistentes.has(novoId));
+    idsExistentes.add(novoId);
+    mapaIds.set(comp.idOriginal, novoId);
+    novosIds.push(novoId);
+
+    const propriedadesPadrao = Object.fromEntries(
+      Object.entries(def.propriedades || {}).map(([chave, spec]) => [chave, spec.valor])
+    );
+    estado.circuito.componentes.push({
+      id: novoId,
+      tipo: comp.tipo,
+      x: comp.x + deslocamento,
+      y: comp.y + deslocamento,
+      rotacao: comp.rotacao,
+      propriedades: { ...propriedadesPadrao, ...comp.propriedades },
+      pinos: def.pinos.map((pino) => ({ ...pino })),
+      dimensoes: { ...def.dimensoes },
+      estado: {},
+    });
+  }
+
+  for (const fio of areaTransferencia.fios) {
+    const novaOrigem = mapaIds.get(fio.origem.componente);
+    const novoDestino = mapaIds.get(fio.destino.componente);
+    if (!novaOrigem || !novoDestino) continue;
+
+    let novoId;
+    do {
+      novoId = `fio-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    } while (estado.circuito.fios.some((item) => item.id === novoId));
+    estado.circuito.fios.push({
+      id: novoId,
+      origem: { ...fio.origem, componente: novaOrigem },
+      destino: { ...fio.destino, componente: novoDestino },
+      dobras: fio.dobras.map((dobra) => ({
+        x: dobra.x + deslocamento,
+        y: dobra.y + deslocamento,
+      })),
+      cor: fio.cor,
+    });
+  }
+
+  if (novosIds.length === 0) return;
+  registrar(estado.circuito, 'colar', true);
+  estado.selecionados = novosIds;
+  estado.fioSelecionadoId = null;
+  estado.grupoSelecionadoId = null;
+  renderizarTudo();
+}
 
 function atualizarBotoesHistorico() {
   const btnD = document.getElementById('btn-desfazer');
@@ -232,6 +329,18 @@ function montarInterface() {
   });
 
   window.addEventListener('keydown', (e) => {
+    if (e.target instanceof HTMLElement && (e.target.isContentEditable || ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName))) return;
+
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+      e.preventDefault();
+      copiarSelecionados();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+      e.preventDefault();
+      colar();
+      return;
+    }
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
       e.preventDefault();
       baixarArquivo(estado, 'circuito.json');
