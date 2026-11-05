@@ -13,6 +13,24 @@ import { simular, tensaoEm, correnteEm } from './solver.js';
 import { obterMontagem, desenharMontagem } from './montagens.js';
 import { desenharComponente } from './simbolos.js';
 import { configurarGrupos, juntarSelecionados, desfazerGrupo, atualizarTodosBounds } from './grupos.js';
+import {
+  baixarArquivo,
+  abrirArquivo,
+  reconstruir,
+  agendarAutosave,
+  carregarLocal,
+  temAutosave,
+  limparLocal,
+} from './persistencia.js';
+import {
+  registrar,
+  desfazer,
+  refazer,
+  podeDesfazer,
+  podeRefazer,
+  inicializar,
+  limpar as limparHistorico,
+} from './historico.js';
 
 const estado = {
   circuito: criarCircuito(),
@@ -21,6 +39,7 @@ const estado = {
   selecaoRetangular: null,
   adicionar(tipo, x, y) {
     const comp = adicionarComponente(estado.circuito, tipo, x, y);
+    registrar(estado.circuito, 'adicionar', true);
     estado.selecionados = [comp.id];
     renderizarTudo();
   },
@@ -28,6 +47,7 @@ const estado = {
     for (const id of estado.selecionados) {
       removerComponente(estado.circuito, id);
     }
+    registrar(estado.circuito, 'remover', true);
     estado.selecionados = [];
     renderizarTudo();
   },
@@ -35,6 +55,13 @@ const estado = {
 
 let canvas = null;
 let elPainel = null;
+
+function atualizarBotoesHistorico() {
+  const btnD = document.getElementById('btn-desfazer');
+  const btnR = document.getElementById('btn-refazer');
+  if (btnD) btnD.disabled = !podeDesfazer();
+  if (btnR) btnR.disabled = !podeRefazer();
+}
 
 function montarInterface() {
   const app = document.getElementById('app');
@@ -45,6 +72,10 @@ function montarInterface() {
         <button type="button" class="btn-simular" id="btn-simular">▶ Simular</button>
         <button type="button" class="btn-limpar" id="btn-limpar">Limpar resultados</button>
         <button type="button" class="btn-juntar" id="btn-juntar">Juntar</button>
+        <button type="button" class="btn-toolbar" id="btn-salvar">Salvar</button>
+        <button type="button" class="btn-toolbar" id="btn-abrir">Abrir</button>
+        <button type="button" class="btn-toolbar" id="btn-desfazer" title="Desfazer (Ctrl+Z)">↶</button>
+        <button type="button" class="btn-toolbar" id="btn-refazer" title="Refazer (Ctrl+Y)">↷</button>
         <span class="eletronica-dica">
           Arraste componentes · Clique em pino para conectar · Tab cria dobra no fio · R gira 90° · Roda = zoom
         </span>
@@ -60,7 +91,21 @@ function montarInterface() {
   montarPaleta(document.getElementById('paleta'));
   elPainel = document.getElementById('painel');
   canvas = criarCanvas(document.getElementById('canvas'));
+  estado.view = canvas.view;
   canvas.redimensionar();
+
+  // Recupera autosave, se existir
+  if (temAutosave()) {
+    const dados = carregarLocal();
+    if (dados) {
+      const { circuito, view } = reconstruir(dados);
+      estado.circuito = circuito;
+      canvas.view.zoom = view.zoom;
+      canvas.view.panX = view.panX;
+      canvas.view.panY = view.panY;
+    }
+  }
+  inicializar(estado.circuito);
 
   const fios = configurarFios(canvas, estado, renderizarTudo);
   const grupos = configurarGrupos(canvas, estado, renderizarTudo);
@@ -92,9 +137,77 @@ function montarInterface() {
     }
   });
 
+  document.getElementById('btn-salvar').addEventListener('click', () => {
+    baixarArquivo(estado, 'circuito.json');
+  });
+
+  document.getElementById('btn-abrir').addEventListener('click', async () => {
+    const resultado = await abrirArquivo();
+    if (!resultado.ok) {
+      alert(resultado.erro);
+      return;
+    }
+    const { circuito, view } = reconstruir(resultado.dados);
+    estado.circuito = circuito;
+    estado.selecionados = [];
+    estado.fioSelecionadoId = null;
+    estado.resultado = null;
+    if (canvas.view) {
+      canvas.view.zoom = view.zoom;
+      canvas.view.panX = view.panX;
+      canvas.view.panY = view.panY;
+    }
+    limparHistorico();
+    inicializar(estado.circuito);
+    renderizarTudo();
+  });
+
+  document.getElementById('btn-desfazer').addEventListener('click', () => {
+    const novo = desfazer(CATALOGO);
+    if (novo) {
+      estado.circuito = novo;
+      estado.selecionados = [];
+      estado.fioSelecionadoId = null;
+      estado.resultado = null;
+      renderizarTudo();
+      atualizarBotoesHistorico();
+    }
+  });
+
+  document.getElementById('btn-refazer').addEventListener('click', () => {
+    const novo = refazer(CATALOGO);
+    if (novo) {
+      estado.circuito = novo;
+      estado.selecionados = [];
+      estado.fioSelecionadoId = null;
+      estado.resultado = null;
+      renderizarTudo();
+      atualizarBotoesHistorico();
+    }
+  });
+
   window.addEventListener('resize', () => {
     canvas.redimensionar();
     renderizarTudo();
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      baixarArquivo(estado, 'circuito.json');
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
+      e.preventDefault();
+      document.getElementById('btn-abrir')?.click();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+      e.preventDefault();
+      document.getElementById('btn-desfazer')?.click();
+    }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+      e.preventDefault();
+      document.getElementById('btn-refazer')?.click();
+    }
   });
 
   renderizarTudo();
@@ -200,6 +313,8 @@ function renderizarTudo() {
     estado.selecaoRetangular
   );
   renderizarPainel();
+  agendarAutosave(estado);
+  atualizarBotoesHistorico();
 }
 
 function renderizarPainel() {
@@ -239,6 +354,7 @@ function renderizarPainel() {
       inputNome.className = 'input-nome-grupo';
       inputNome.addEventListener('input', () => {
         grupo.nome = inputNome.value || 'Grupo';
+        registrar(estado.circuito, 'propriedade');
         renderizarTudo();
       });
       secao.appendChild(inputNome);

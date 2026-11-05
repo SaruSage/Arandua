@@ -6,6 +6,7 @@
 
 import { CATALOGO } from './catalogo.js';
 import { rotacionarComponente } from './circuito.js';
+import { registrar } from './historico.js';
 
 /** Formata um número com unidade de engenharia. */
 function formatarValor(valor, unidade) {
@@ -40,7 +41,7 @@ function formatarValor(valor, unidade) {
 }
 
 /** Cria um campo de entrada para uma propriedade. */
-function criarCampo(chave, spec, comp, aoMudar) {
+function criarCampo(chave, spec, comp, aoMudar, circuito) {
   const campo = document.createElement('div');
   campo.className = 'painel-campo';
 
@@ -75,6 +76,7 @@ function criarCampo(chave, spec, comp, aoMudar) {
         const v = parseFloat(input.value);
         if (!isNaN(v)) {
           comp.propriedades[chave] = v;
+          registrar(circuito, 'propriedade');
           hint.textContent = formatarValor(v, spec.unidade);
           aoMudar();
         }
@@ -88,6 +90,7 @@ function criarCampo(chave, spec, comp, aoMudar) {
       const v = parseFloat(input.value);
       if (!isNaN(v)) {
         comp.propriedades[chave] = v;
+        registrar(circuito, 'propriedade');
         aoMudar();
       }
     });
@@ -107,6 +110,7 @@ function criarCampo(chave, spec, comp, aoMudar) {
 
     input.addEventListener('input', () => {
       comp.propriedades[chave] = input.value;
+      registrar(circuito, 'propriedade');
       hint.textContent = input.value.toUpperCase();
       aoMudar();
     });
@@ -128,6 +132,7 @@ function criarCampo(chave, spec, comp, aoMudar) {
 
     input.addEventListener('change', () => {
       comp.propriedades[chave] = input.checked;
+      registrar(circuito, 'propriedade');
       texto.textContent = input.checked ? 'Sim' : 'Não';
       aoMudar();
     });
@@ -145,6 +150,7 @@ function criarCampo(chave, spec, comp, aoMudar) {
     }
     input.addEventListener('change', () => {
       comp.propriedades[chave] = input.value;
+      registrar(circuito, 'propriedade');
       aoMudar();
     });
   }
@@ -155,7 +161,7 @@ function criarCampo(chave, spec, comp, aoMudar) {
 }
 
 /** Cria a seção de rotação. */
-function criarSecaoRotacao(comp, aoMudar) {
+function criarSecaoRotacao(comp, aoMudar, circuito) {
   const secao = document.createElement('div');
   secao.className = 'painel-secao';
 
@@ -173,6 +179,7 @@ function criarSecaoRotacao(comp, aoMudar) {
   btnEsq.title = 'Girar 90° à esquerda';
   btnEsq.addEventListener('click', () => {
     rotacionarComponente({ componentes: [comp] }, comp.id, comp.rotacao - 90);
+    registrar(circuito, 'rotacionar', true);
     aoMudar();
   });
   grupo.appendChild(btnEsq);
@@ -188,6 +195,7 @@ function criarSecaoRotacao(comp, aoMudar) {
   inputAng.addEventListener('input', () => {
     const v = parseInt(inputAng.value, 10) || 0;
     comp.rotacao = ((v % 360) + 360) % 360;
+    registrar(circuito, 'rotacionar', true);
     aoMudar();
   });
   grupo.appendChild(inputAng);
@@ -204,6 +212,7 @@ function criarSecaoRotacao(comp, aoMudar) {
   btnDir.title = 'Girar 90° à direita';
   btnDir.addEventListener('click', () => {
     rotacionarComponente({ componentes: [comp] }, comp.id, comp.rotacao + 90);
+    registrar(circuito, 'rotacionar', true);
     aoMudar();
   });
   grupo.appendChild(btnDir);
@@ -263,6 +272,7 @@ export function renderizarPainel(container, estado, aoMudar, aoVerMontagem) {
         const c = estado.circuito.componentes.find((x) => x.id === id);
         if (c) c.rotacao = ((c.rotacao - 90) % 360 + 360) % 360;
       }
+      registrar(estado.circuito, 'rotacionar', true);
       aoMudar();
     });
     grupo.appendChild(btnEsq);
@@ -276,6 +286,7 @@ export function renderizarPainel(container, estado, aoMudar, aoVerMontagem) {
         const c = estado.circuito.componentes.find((x) => x.id === id);
         if (c) c.rotacao = ((c.rotacao + 90) % 360 + 360) % 360;
       }
+      registrar(estado.circuito, 'rotacionar', true);
       aoMudar();
     });
     grupo.appendChild(btnDir);
@@ -324,14 +335,14 @@ export function renderizarPainel(container, estado, aoMudar, aoVerMontagem) {
     secaoProps.appendChild(tituloProps);
 
     for (const [chave, spec] of props) {
-      secaoProps.appendChild(criarCampo(chave, spec, comp, aoMudar));
+      secaoProps.appendChild(criarCampo(chave, spec, comp, aoMudar, estado.circuito));
     }
 
     container.appendChild(secaoProps);
   }
 
   // Rotação
-  container.appendChild(criarSecaoRotacao(comp, aoMudar));
+  container.appendChild(criarSecaoRotacao(comp, aoMudar, estado.circuito));
 
   // Ver montagem
   if (def.montagem) {

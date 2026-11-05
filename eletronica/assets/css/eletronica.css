@@ -551,6 +551,35 @@ html, body {
   box-shadow: 0 0 0 3px rgba(83, 181, 136, 0.15);
 }
 
+.btn-toolbar {
+  padding: 8px 14px;
+  background: transparent;
+  color: var(--cor-texto-sec);
+  border: 1px solid var(--cor-borda-forte);
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-toolbar:hover {
+  border-color: var(--cor-primaria);
+  color: var(--cor-primaria-escura);
+  background: var(--cor-primaria-clara);
+}
+
+.btn-toolbar:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.btn-toolbar:disabled:hover {
+  border-color: var(--cor-borda-forte);
+  color: var(--cor-texto-sec);
+  background: transparent;
+}
+
 @media (max-width: 1024px) {
   .eletronica-layout {
     grid-template-columns: 220px 1fr;

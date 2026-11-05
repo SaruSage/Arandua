@@ -11,6 +11,7 @@
  */
 
 import { posicaoPino } from './simbolos.js';
+import { registrar } from './historico.js';
 
 const RAIO_PINO = 10;
 const RAIO_DOBRA = 6;
@@ -108,12 +109,15 @@ export function criarFio(circuito, origem, destino) {
     dobras: [],
   };
   circuito.fios.push(fio);
+  registrar(circuito, 'fio', true);
   return fio;
 }
 
 /** Remove um fio. */
 export function removerFio(circuito, fioId) {
+  const quantidade = circuito.fios.length;
   circuito.fios = circuito.fios.filter((f) => f.id !== fioId);
+  if (circuito.fios.length !== quantidade) registrar(circuito, 'remover-fio', true);
 }
 
 /**
@@ -149,12 +153,14 @@ export function inserirDobra(circuito, fio, x, y) {
   // O índice na lista de dobras corresponde ao segmento
   // (segmento 0 = antes da primeira dobra, segmento i = depois da dobra i-1)
   fio.dobras.splice(melhorSeg, 0, novoPonto);
+  registrar(circuito, 'dobra', true);
   return melhorSeg;
 }
 
 /** Remove uma dobra pelo índice. */
-export function removerDobra(fio, indice) {
+export function removerDobra(circuito, fio, indice) {
   fio.dobras.splice(indice, 1);
+  registrar(circuito, 'dobra', true);
 }
 
 /* ===== DESENHO ===== */
@@ -346,6 +352,7 @@ export function configurarFios(canvas, estado, aoMudar) {
     }
 
     if (dobraArrastando) {
+      registrar(estado.circuito, 'dobra', true);
       dobraArrastando = null;
       aoMudar();
     }
@@ -379,7 +386,7 @@ export function configurarFios(canvas, estado, aoMudar) {
     // Delete: remove dobra selecionada ou fio selecionado
     if (e.key === 'Delete' || e.key === 'Backspace') {
       if (dobraSelecionada) {
-        removerDobra(dobraSelecionada.fio, dobraSelecionada.indice);
+        removerDobra(estado.circuito, dobraSelecionada.fio, dobraSelecionada.indice);
         dobraSelecionada = null;
         aoMudar();
         e.preventDefault();

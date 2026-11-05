@@ -11,6 +11,7 @@
  */
 
 import { CATALOGO } from './catalogo.js';
+import { registrar } from './historico.js';
 
 const CORES_GRUPO = [
   '#53b588', // verde
@@ -103,17 +104,23 @@ export function atualizarTodosBounds(circuito) {
 
 /** Remove um grupo, mantendo os componentes. */
 export function desfazerGrupo(circuito, grupoId) {
+  const existe = circuito.grupos.some((g) => g.id === grupoId);
+  if (!existe) return;
   circuito.grupos = circuito.grupos.filter((g) => g.id !== grupoId);
   // Remove referências de grupos pais
   for (const g of circuito.grupos) {
     g.membros = g.membros.filter((m) => m !== grupoId);
   }
+  registrar(circuito, 'desfazer-grupo', true);
 }
 
 /** Renomeia um grupo. */
 export function renomearGrupo(circuito, grupoId, novoNome) {
   const grupo = circuito.grupos.find((g) => g.id === grupoId);
-  if (grupo) grupo.nome = novoNome;
+  if (grupo && grupo.nome !== novoNome) {
+    grupo.nome = novoNome;
+    registrar(circuito, 'propriedade');
+  }
 }
 
 /** Retorna o grupo cujo retângulo contém o ponto. */
@@ -386,5 +393,6 @@ export function juntarSelecionados(circuito, selecionados) {
   }
 
   const grupo = criarGrupo(circuito, membros, 'Novo grupo');
+  if (grupo) registrar(circuito, 'grupo', true);
   return grupo;
 }

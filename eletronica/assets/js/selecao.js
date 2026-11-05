@@ -4,11 +4,17 @@
 
 import { componenteEm, moverComponente, rotacionarComponente } from './circuito.js';
 import { CATALOGO } from './catalogo.js';
+import { registrar } from './historico.js';
 
 export function configurarInteracao(canvas, estado, aoMudar) {
   const el = canvas.elemento;
   let arrastando = null;
   let panIniciado = null;
+
+  function finalizarArrasto() {
+    if (arrastando?.movido) registrar(estado.circuito, 'mover', true);
+    arrastando = null;
+  }
 
   el.addEventListener('mousedown', (e) => {
     if (estado.fioFantasma || estado.fioSelecionadoId) {
@@ -50,6 +56,7 @@ export function configurarInteracao(canvas, estado, aoMudar) {
           const c = estado.circuito.componentes.find((x) => x.id === id);
           return { id, x: c.x, y: c.y };
         }),
+        movido: false,
       };
       el.style.cursor = 'grabbing';
     } else {
@@ -78,6 +85,7 @@ export function configurarInteracao(canvas, estado, aoMudar) {
       for (const pos of arrastando.posicoes) {
         moverComponente(estado.circuito, pos.id, pos.x + dx, pos.y + dy);
       }
+      if (dx !== 0 || dy !== 0) arrastando.movido = true;
       aoMudar();
       return;
     }
@@ -87,13 +95,13 @@ export function configurarInteracao(canvas, estado, aoMudar) {
   });
 
   el.addEventListener('mouseup', () => {
-    arrastando = null;
+    finalizarArrasto();
     panIniciado = null;
     el.style.cursor = 'default';
   });
 
   el.addEventListener('mouseleave', () => {
-    arrastando = null;
+    finalizarArrasto();
     panIniciado = null;
   });
 
@@ -147,6 +155,7 @@ export function configurarInteracao(canvas, estado, aoMudar) {
         const comp = estado.circuito.componentes.find((c) => c.id === estado.selecionados[0]);
         if (comp) {
           rotacionarComponente(estado.circuito, comp.id, comp.rotacao + 90);
+          registrar(estado.circuito, 'rotacionar', true);
           aoMudar();
         }
       }
