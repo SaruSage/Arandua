@@ -10,11 +10,21 @@ import { desenharGrupos, desenharSelecaoRetangular } from './grupos.js';
 
 const TAMANHO_GRADE = 20;
 
-export function criarCanvas(elemento) {
+export function criarCanvas(elemento, estado) {
   const ctx = elemento.getContext('2d');
   const view = { zoom: 1, panX: 0, panY: 0 };
 
   elemento.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  let ultimoMouse = { x: 0, y: 0 };
+  elemento.addEventListener('mousemove', (e) => {
+    const rect = elemento.getBoundingClientRect();
+    ultimoMouse = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const mundo = telaParaMundo(ultimoMouse.x, ultimoMouse.y);
+    if (typeof estado !== 'undefined' && estado) {
+      estado.ultimoMouse = mundo;
+    }
+  });
 
   function redimensionar() {
     const dpr = window.devicePixelRatio || 1;
@@ -129,5 +139,7 @@ export function criarCanvas(elemento) {
     mundoParaTela,
     get ctx() { return ctx; },
     get elemento() { return elemento; },
+    get ultimoMouse() { return ultimoMouse; },
+    set ultimoMouse(valor) { if (valor) ultimoMouse = valor; },
   };
 }

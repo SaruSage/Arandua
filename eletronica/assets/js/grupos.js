@@ -19,6 +19,8 @@ export const CORES_GRUPO = [
   '#e88a3a', '#e8c33a', '#8fbf3a', '#3ab8b8', '#8a5a3a',
 ];
 
+let estado = null;
+
 /* ===== CRIAÇÃO E MANIPULAÇÃO ===== */
 
 /**
@@ -63,7 +65,7 @@ export function calcularBounds(circuito, membros) {
     // Componente?
     const comp = circuito.componentes.find((c) => c.id === id);
     if (comp) {
-      const dim = CATALOGO[comp.tipo].dimensoes;
+      const dim = comp.dimensoes || CATALOGO[comp.tipo]?.dimensoes || { w: 64, h: 30 };
       minX = Math.min(minX, comp.x);
       minY = Math.min(minY, comp.y);
       maxX = Math.max(maxX, comp.x + dim.w);
@@ -81,8 +83,8 @@ export function calcularBounds(circuito, membros) {
       maxX = Math.max(maxX, b.x + b.w);
       maxY = Math.max(maxY, b.y + b.h);
       encontrou = true;
-      }
-      }
+    }
+  }
 
   if (!encontrou) return null;
 
@@ -229,7 +231,7 @@ export function noNome(grupo, x, y) {
   return x >= b.x && x <= b.x + largura && y >= b.y - 22 && y <= b.y;
 }
 
-function pontoDentroDoGrupo(grupo, x, y) {
+function coordenadaDentroDoGrupo(grupo, x, y) {
   const cantos = cantosDoGrupo(grupo);
   let dentro = false;
   for (let i = 0, j = cantos.length - 1; i < cantos.length; j = i++) {
@@ -240,6 +242,177 @@ function pontoDentroDoGrupo(grupo, x, y) {
     if (cruza) dentro = !dentro;
   }
   return dentro;
+}
+
+/**
+ * Verifica se o centro do componente está dentro do grupo.
+ * Se o grupo tiver contorno poligonal (vertices), usa
+ * point-in-polygon. Caso contrário, usa o retângulo.
+ */
+export function pontoDentroDoGrupo(comp, grupo) {
+  const dim = comp.dimensoes || CATALOGO[comp.tipo]?.dimensoes || { w: 64, h: 30 };
+  const cx = comp.x + dim.w / 2;
+  const cy = comp.y + dim.h / 2;
+
+  if (grupo.vertices && grupo.vertices.length >= 3) {
+    return pontoEmPoligono(cx, cy, grupo.vertices);
+  }
+
+  return cx >= grupo.x && cx <= grupo.x + grupo.w
+      && cy >= grupo.y && cy <= grupo.y + grupo.h;
+}
+
+/**
+ * Teste de ponto-em-polígono (ray casting).
+ */
+export function pontoEmPoligono(px, py, vertices) {
+  let dentro = false;
+  for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
+    const xi = vertices[i].x, yi = vertices[i].y;
+    const xj = vertices[j].x, yj = vertices[j].y;
+
+    const intersecta = ((yi > py) !== (yj > py))
+      && (px < ((xj - xi) * (py - yi)) / (yj - yi) + xi);
+
+    if (intersecta) dentro = !dentro;
+  }
+  return dentro;
+}
+
+/**
+ * Verifica se o grupo sub está dentro do grupo pai.
+ * Usa os vértices reais de sub quando existirem; senão, o
+ * retângulo delimitador.
+ */
+export function grupoDentroDeGrupo(sub, pai) {
+  // Pontos de sub: vértices reais ou cantos do retângulo
+  const pontosSub = (sub.vertices && sub.vertices.length >= 3)
+    ? sub.vertices.map((v) => ({ x: v.x, y: v.y }))
+    : [
+        { x: sub.x, y: sub.y },
+        { x: sub.x + sub.w, y: sub.y },
+        { x: sub.x + sub.w, y: sub.y + sub.h },
+        { x: sub.x, y: sub.y + sub.h },
+      ];
+
+  // Se pai não tem polígono, teste retangular simples
+  if (!pai.vertices || pai.vertices.length < 3) {
+    return pontosSub.every((p) =>
+      p.x >= pai.x && p.x <= pai.x + pai.w
+      && p.y >= pai.y && p.y <= pai.y + pai.h
+    );
+  }
+
+  // Todos os pontos de sub devem estar dentro do polígono do pai
+  if (!pontosSub.every((p) => pontoEmPoligono(p.x, p.y, pai.vertices))) {
+    return false;
+  }
+
+  // Nenhuma aresta de sub pode cruzar aresta do pai
+  for (let i = 0; i < pontosSub.length; i++) {
+    const p = pontosSub[i];
+    const q = pontosSub[(i + 1) % pontosSub.length];
+
+    for (let j = 0; j < pai.vertices.length; j++) {
+      const a = pai.vertices[j];
+      const b = pai.vertices[(j + 1) % pai.vertices.length];
+
+      if (segmentosCruzam(p, q, a, b)) return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Verifica se dois segmentos se cruzam (excluindo toque em
+ * extremidades, que é permitido).
+ */
+export function segmentosCruzam(p1, p2, p3, p4) {
+  const d = (a, b, c) =>
+    (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+
+  const d1 = d(p3, p4, p1);
+  const d2 = d(p3, p4, p2);
+  const d3 = d(p1, p2, p3);
+  const d4 = d(p1, p2, p4);
+
+  // Cruzamento real: sinais opostos nos dois lados
+  return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0))
+      && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
+}
+
+/**
+ * Verifica se o grupo g contém o id procurado (recursivo).
+ * Evita ciclos de aninhamento.
+ */
+export function grupoContem(g, idProcurado, visitados = new Set(), circuito = estado?.circuito) {
+  if (g.id === idProcurado) return true;
+  if (visitados.has(g.id)) return false;
+  visitados.add(g.id);
+
+  if (!circuito) return false;
+  for (const m of g.membros) {
+    if (m === idProcurado) return true;
+    const sub = circuito.grupos.find((x) => x.id === m);
+    if (sub && grupoContem(sub, idProcurado, visitados, circuito)) return true;
+  }
+  return false;
+}
+
+/**
+ * Retorna o id do grupo que já contém este componente, ou null.
+ */
+export function encontrarDono(componenteId, grupoIgnorar, circuito = estado?.circuito) {
+  if (!circuito) return null;
+  for (const g of circuito.grupos) {
+    if (g.id === grupoIgnorar) continue;
+    if (g.membros.includes(componenteId)) return g.id;
+  }
+  return null;
+}
+
+/**
+ * Recalcula os membros de um grupo com base na posição atual.
+ * Só adquire componentes que NÃO pertencem a nenhum outro grupo.
+ */
+export function recalcularMembros(grupo, circuito = estado?.circuito) {
+  if (!grupo || !circuito) return;
+  const novosMembros = [];
+
+  // Componentes: só adquire se não tem dono
+  for (const comp of circuito.componentes) {
+    if (!pontoDentroDoGrupo(comp, grupo)) continue;
+
+    const dono = encontrarDono(comp.id, grupo.id, circuito);
+    if (dono) continue; // já pertence a outra área: não rouba
+
+    novosMembros.push(comp.id);
+  }
+
+  // Subgrupos: aninha (mantém identidade e membros)
+  for (const sub of circuito.grupos) {
+    if (sub.id === grupo.id) continue;
+    if (!grupoDentroDeGrupo(sub, grupo)) continue;
+
+    // Não pode haver ciclo: sub não pode já conter grupo
+    if (grupoContem(sub, grupo.id, new Set(), circuito)) continue;
+
+    novosMembros.push(sub.id);
+  }
+
+  grupo.membros = novosMembros;
+}
+
+/**
+ * Recalcula os membros de todos os grupos atualmente selecionados antes de limpar a seleção.
+ */
+export function recalcularGruposSelecionados(estadoAtual = estado) {
+  if (!estadoAtual?.circuito || !Array.isArray(estadoAtual.selecionados)) return;
+  for (const id of estadoAtual.selecionados) {
+    const g = estadoAtual.circuito.grupos.find((x) => x.id === id);
+    if (g) recalcularMembros(g, estadoAtual.circuito);
+  }
 }
 
 /** Insere um novo vértice no ponto médio de uma aresta. */
@@ -300,7 +473,7 @@ export function renomearGrupo(circuito, grupoId, novoNome) {
 export function grupoEm(circuito, x, y) {
   for (let i = circuito.grupos.length - 1; i >= 0; i--) {
     const grupo = circuito.grupos[i];
-    if (pontoDentroDoGrupo(grupo, x, y)) return grupo;
+    if (coordenadaDentroDoGrupo(grupo, x, y)) return grupo;
   }
   return null;
 }
@@ -314,47 +487,71 @@ export function cabecalhoGrupoEm(circuito, x, y) {
   return null;
 }
 
+const tiposAgrupaveis = (comp) => {
+  // Qualquer componente que não seja grupo entra
+  return comp && comp.tipo !== 'GRUPO';
+};
+
+function moverMembro(id, dx, dy, movidos, circuito = estado?.circuito) {
+  if (!circuito || movidos.has(id)) return;
+  movidos.add(id);
+
+  const comp = circuito.componentes.find((c) => c.id === id);
+  if (comp) {
+    comp.x += dx;
+    comp.y += dy;
+    return;
+  }
+
+  const sub = circuito.grupos.find((g) => g.id === id);
+  if (sub) {
+    sub.x += dx;
+    sub.y += dy;
+    if (sub.vertices) {
+      sub.vertices = sub.vertices.map((v) => ({ x: v.x + dx, y: v.y + dy }));
+    }
+    sincronizarBounds(sub);
+    for (const m of sub.membros) moverMembro(m, dx, dy, movidos, circuito);
+  }
+}
+
 /**
- * Move um grupo inteiro: desloca todos os componentes e grupos
- * membros pelo delta informado.
+ * Move um grupo inteiro: desloca APENAS os membros já registrados no grupo.
+ * Nenhuma aquisição ocorre durante o arrasto.
  */
-export function moverGrupo(circuito, grupoId, dx, dy) {
-  const grupo = circuito.grupos.find((g) => g.id === grupoId);
-  if (!grupo) return;
+export function moverGrupo(grupoOuCircuito, dxOuGrupoId, dyOuDx, dyOpcional) {
+  let circuito = estado?.circuito;
+  let grupo = grupoOuCircuito;
+  let dx = dxOuGrupoId;
+  let dy = dyOuDx;
 
+  if (grupoOuCircuito && Array.isArray(grupoOuCircuito.grupos)) {
+    circuito = grupoOuCircuito;
+    grupo = circuito.grupos.find((g) => g.id === dxOuGrupoId);
+    dx = dyOuDx;
+    dy = dyOpcional;
+  }
+  if (!grupo || !circuito) return;
+
+  // Move o contorno
+  grupo.x += dx;
+  grupo.y += dy;
+  if (grupo.vertices) {
+    grupo.vertices = grupo.vertices.map((v) => ({ x: v.x + dx, y: v.y + dy }));
+  }
+  sincronizarBounds(grupo);
+
+  // Move APENAS os membros já registrados. Nenhuma aquisição.
   const movidos = new Set();
+  for (const id of grupo.membros) moverMembro(id, dx, dy, movidos, circuito);
 
-  function moverMembro(id) {
-    if (movidos.has(id)) return;
-    movidos.add(id);
-
-    const comp = circuito.componentes.find((c) => c.id === id);
-    if (comp) {
-      comp.x += dx;
-      comp.y += dy;
-      return;
-    }
-
-    const subgrupo = circuito.grupos.find((g) => g.id === id);
-    if (subgrupo) {
-      moverGeometria(subgrupo, dx, dy);
-      for (const membro of subgrupo.membros) {
-        moverMembro(membro);
-      }
-    }
-  }
-
-  moverGeometria(grupo, dx, dy);
-  movidos.add(grupo.id);
-  for (const membro of grupo.membros) {
-    moverMembro(membro);
-  }
-
+  // Move as dobras dos fios internos (ambos extremos membros)
+  const membros = new Set([...grupo.membros, ...movidos]);
   for (const fio of circuito.fios) {
-    const origemNoGrupo = movidos.has(fio.origem.componente);
-    const destinoNoGrupo = movidos.has(fio.destino.componente);
-    if (origemNoGrupo && destinoNoGrupo && fio.dobras?.length) {
-      fio.dobras = fio.dobras.map((dobra) => ({ x: dobra.x + dx, y: dobra.y + dy }));
+    if (membros.has(fio.origem.componente) && membros.has(fio.destino.componente)) {
+      if (fio.dobras?.length) {
+        fio.dobras = fio.dobras.map((d) => ({ x: d.x + dx, y: d.y + dy }));
+      }
     }
   }
 }
@@ -372,7 +569,8 @@ export function itensNoRetangulo(circuito, x1, y1, x2, y2) {
 
   const componentes = [];
   for (const comp of circuito.componentes) {
-    const dim = CATALOGO[comp.tipo].dimensoes;
+    if (!tiposAgrupaveis(comp)) continue;
+    const dim = comp.dimensoes || CATALOGO[comp.tipo]?.dimensoes || { w: 64, h: 30 };
     const cx = comp.x + dim.w / 2;
     const cy = comp.y + dim.h / 2;
     if (cx >= minX && cx <= maxX && cy >= minY && cy <= maxY) {
@@ -382,7 +580,7 @@ export function itensNoRetangulo(circuito, x1, y1, x2, y2) {
 
   const grupos = [];
   for (const g of circuito.grupos) {
-    const b = g.bounds;
+    const b = g.bounds || g;
     const cx = b.x + b.w / 2;
     const cy = b.y + b.h / 2;
     if (cx >= minX && cx <= maxX && cy >= minY && cy <= maxY) {
@@ -395,32 +593,125 @@ export function itensNoRetangulo(circuito, x1, y1, x2, y2) {
 
 /* ===== DESENHO ===== */
 
+/**
+ * Retorna a profundidade de aninhamento do grupo.
+ * Grupo raiz = 0; dentro de um grupo = 1; etc.
+ */
+function profundidadeGrupo(grupo, visitados = new Set(), circuito = estado?.circuito) {
+  if (!circuito || visitados.has(grupo.id)) return 0;
+  visitados.add(grupo.id);
+
+  const pai = circuito.grupos.find(
+    (g) => g.id !== grupo.id && g.membros.includes(grupo.id)
+  );
+
+  if (!pai) return 0;
+  return 1 + profundidadeGrupo(pai, visitados, circuito);
+}
+
+/**
+ * Verifica se dois grupos se sobrepõem pelos retângulos delimitadores.
+ */
+function retangulosSeSobrepoem(a, b) {
+  return !(
+    a.x + a.w < b.x ||
+    a.x > b.x + b.w ||
+    a.y + a.h < b.y ||
+    a.y > b.y + b.h
+  );
+}
+
 /** Desenha todos os grupos. */
 export function desenharGrupos(ctx, circuito, view, grupoSelecionadoId = null) {
-  for (const grupo of circuito.grupos) {
+  const gruposOrdenados = [...circuito.grupos].sort((a, b) => {
+    const profA = profundidadeGrupo(a, new Set(), circuito);
+    const profB = profundidadeGrupo(b, new Set(), circuito);
+    return profA - profB; // raiz primeiro
+  });
+
+  const tela = (ponto) => ({
+    x: ponto.x * view.zoom + view.panX,
+    y: ponto.y * view.zoom + view.panY,
+  });
+
+  /**
+   * Adiciona o contorno de um grupo ao path atual do contexto.
+   */
+  function adicionarContornoAoPath(ctx, g) {
+    if (g.vertices && g.vertices.length >= 3) {
+      const p0 = tela(g.vertices[0]);
+      ctx.moveTo(p0.x, p0.y);
+      for (let i = 1; i < g.vertices.length; i++) {
+        const p = tela(g.vertices[i]);
+        ctx.lineTo(p.x, p.y);
+      }
+      ctx.closePath();
+    } else {
+      const a = tela({ x: g.x, y: g.y });
+      const b = tela({ x: g.x + g.w, y: g.y + g.h });
+      ctx.rect(a.x, a.y, b.x - a.x, b.y - a.y);
+    }
+  }
+
+  const jaDesenhados = [];
+
+  for (const grupo of gruposOrdenados) {
     const cantos = cantosDoGrupo(grupo);
     const selecionado = grupo.id === grupoSelecionadoId;
-    const tela = (ponto) => ({
-      x: ponto.x * view.zoom + view.panX,
-      y: ponto.y * view.zoom + view.panY,
-    });
     const pontosTela = cantos.map(tela);
     const pos = geometria(grupo);
     const nomeTela = tela({ x: pos.x, y: pos.y });
     const larguraNome = Math.max(70, grupo.nome.length * 7 + 16) * view.zoom;
 
+    // 1) Desenha o preenchimento da área atual com o vazado das
+    //    subáreas diretas
     ctx.save();
     ctx.beginPath();
-    ctx.moveTo(pontosTela[0].x, pontosTela[0].y);
-    for (let i = 1; i < pontosTela.length; i++) {
-      ctx.lineTo(pontosTela[i].x, pontosTela[i].y);
+    adicionarContornoAoPath(ctx, grupo);
+    ctx.clip();
+
+    for (const idMembro of grupo.membros) {
+      const sub = circuito.grupos.find((g) => g.id === idMembro);
+      if (!sub) continue;
+      ctx.beginPath();
+      adicionarContornoAoPath(ctx, grupo);
+      adicionarContornoAoPath(ctx, sub);
+      ctx.clip('evenodd');
     }
-    ctx.closePath();
+
+    // 2) Aplica um clip adicional para cada área anterior que
+    //    se sobrepõe (exceto ancestrais)
+    for (const anterior of jaDesenhados) {
+      if (grupo.membros.includes(anterior.id)) continue;
+      if (grupoContem(anterior, grupo.id, new Set(), circuito)) continue; // ancestral
+      if (!retangulosSeSobrepoem(grupo, anterior)) continue;
+
+      ctx.beginPath();
+      adicionarContornoAoPath(ctx, grupo);
+      adicionarContornoAoPath(ctx, anterior);
+      ctx.clip('evenodd'); // subtrai a região desta área
+    }
+
+    // 3) Pinta o retângulo da área atual
+    const a = tela({ x: grupo.x, y: grupo.y });
+    const b = tela({ x: grupo.x + grupo.w, y: grupo.y + grupo.h });
     ctx.fillStyle = grupo.cor + '14';
-    ctx.fill();
+    ctx.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
+
+    ctx.restore();
+
+    // 4) Desenha o contorno tracejado (fora do clip)
+    ctx.save();
+    ctx.beginPath();
+    adicionarContornoAoPath(ctx, grupo);
     ctx.strokeStyle = selecionado ? CORES.primaria : grupo.cor;
-    ctx.lineWidth = (selecionado ? 2 : 1.5) * view.zoom;
-    ctx.setLineDash([6 * view.zoom, 4 * view.zoom]);
+
+    // Se este grupo pertence a outro, desenha com traço mais fino
+    const pai = circuito.grupos.find(
+      (g) => g.id !== grupo.id && g.membros.includes(grupo.id)
+    );
+    ctx.setLineDash(pai ? [4, 4] : [8, 4]);
+    ctx.lineWidth = pai ? 1 : 2;
     ctx.stroke();
     ctx.restore();
 
@@ -459,6 +750,8 @@ export function desenharGrupos(ctx, circuito, view, grupoSelecionadoId = null) {
         ctx.restore();
       }
     }
+
+    jaDesenhados.push(grupo);
   }
 }
 
@@ -485,7 +778,8 @@ export function desenharSelecaoRetangular(ctx, x1, y1, x2, y2) {
  * Configura a interação de seleção retangular e grupos.
  * Deve ser chamado ANTES de selecao.js para ter prioridade no botão direito.
  */
-export function configurarGrupos(canvas, estado, aoMudar) {
+export function configurarGrupos(canvas, estadoParam, aoMudar) {
+  estado = estadoParam;
   const el = canvas.elemento;
 
   let selecaoIniciada = null; // { x1, y1, x2, y2 }
@@ -521,12 +815,14 @@ export function configurarGrupos(canvas, estado, aoMudar) {
     }
     if (!arrastandoGrupo.moveu) return;
 
-    moverGrupo(
-      estado.circuito,
-      arrastandoGrupo.id,
-      mundo.x - arrastandoGrupo.ultimoX,
-      mundo.y - arrastandoGrupo.ultimoY
-    );
+    const grupo = estado.circuito.grupos.find((g) => g.id === arrastandoGrupo.id);
+    if (grupo) {
+      moverGrupo(
+        grupo,
+        mundo.x - arrastandoGrupo.ultimoX,
+        mundo.y - arrastandoGrupo.ultimoY
+      );
+    }
     arrastandoGrupo.ultimoX = mundo.x;
     arrastandoGrupo.ultimoY = mundo.y;
     aoMudar();
@@ -597,6 +893,9 @@ export function configurarGrupos(canvas, estado, aoMudar) {
       if (!noContorno(grupo, mundo.x, mundo.y)) continue;
       e.preventDefault();
       e.stopImmediatePropagation();
+      if (!estado.selecionados.includes(grupo.id)) {
+        recalcularGruposSelecionados(estado);
+      }
       estado.grupoSelecionadoId = grupo.id;
       estado.selecionados = [grupo.id];
       iniciarArrastoGrupo(grupo, mundo);
@@ -608,6 +907,9 @@ export function configurarGrupos(canvas, estado, aoMudar) {
       if (!noNome(grupo, mundo.x, mundo.y)) continue;
       e.preventDefault();
       e.stopImmediatePropagation();
+      if (!estado.selecionados.includes(grupo.id)) {
+        recalcularGruposSelecionados(estado);
+      }
       estado.grupoSelecionadoId = grupo.id;
       estado.selecionados = [grupo.id];
       iniciarArrastoGrupo(grupo, mundo);
@@ -648,6 +950,7 @@ export function configurarGrupos(canvas, estado, aoMudar) {
       estado.circuito, m1.x, m1.y, m2.x, m2.y
     );
 
+    recalcularGruposSelecionados(estado);
     estado.selecionados = [...componentes, ...grupos];
     estado.grupoSelecionadoId = grupos.length === 1 && componentes.length === 0 ? grupos[0] : null;
     estado.selecaoRetangular = null;
@@ -674,7 +977,7 @@ export function configurarGrupos(canvas, estado, aoMudar) {
     if (nomeEditando) nomeEditando.remove();
 
     const rect = el.getBoundingClientRect();
-    const b = grupo.bounds;
+    const b = grupo.bounds || grupo;
     const x = b.x * canvas.view.zoom + canvas.view.panX;
     const y = b.y * canvas.view.zoom + canvas.view.panY;
 
@@ -754,31 +1057,52 @@ export function configurarGrupos(canvas, estado, aoMudar) {
 
 /**
  * Junta os itens selecionados em um grupo.
+ * Subgrupos selecionados são aninhados (mantêm sua identidade e membros),
+ * e componentes que já têm dono não são roubados de outros grupos.
  * Retorna o grupo criado ou null.
  */
 export function juntarSelecionados(circuito, selecionados) {
   if (selecionados.length < 2) return null;
 
-  // Filtra apenas ids válidos (componentes ou grupos)
-  const membros = selecionados.filter((id) => {
-    return circuito.componentes.some((c) => c.id === id) ||
-           circuito.grupos.some((g) => g.id === id);
+  // Filtra apenas ids válidos (componentes agrupáveis ou grupos)
+  const membrosDiretos = selecionados.filter((id) => {
+    const comp = circuito.componentes.find((c) => c.id === id);
+    if (comp) return tiposAgrupaveis(comp);
+    return circuito.grupos.some((g) => g.id === id);
   });
 
-  if (membros.length < 2) return null;
+  if (membrosDiretos.length < 2) return null;
 
-  // Remove grupos que estão sendo absorvidos
-  const gruposAbsorvidos = membros.filter((id) =>
-    circuito.grupos.some((g) => g.id === id)
+  const gruposSelecionados = circuito.grupos.filter((g) =>
+    membrosDiretos.includes(g.id)
   );
-  circuito.grupos = circuito.grupos.filter((g) => !gruposAbsorvidos.includes(g.id));
+  const idsGruposSelecionados = new Set(gruposSelecionados.map((g) => g.id));
 
-  // Remove os membros absorvidos de outros grupos pais
-  for (const g of circuito.grupos) {
-    g.membros = g.membros.filter((m) => !membros.includes(m));
+  // Componentes sem dono + subgrupos selecionados (aninhamento, sem fusão)
+  const membrosFinais = [];
+  for (const id of membrosDiretos) {
+    if (idsGruposSelecionados.has(id)) {
+      // Só adiciona o subgrupo se ele não pertencer já a outro subgrupo selecionado
+      const jaAninhadoEmSelecionado = gruposSelecionados.some(
+        (outro) => outro.id !== id && grupoContem(outro, id, new Set(), circuito)
+      );
+      if (!jaAninhadoEmSelecionado && !membrosFinais.includes(id)) {
+        membrosFinais.push(id);
+      }
+    } else {
+      // Componente: só entra diretamente se não tiver dono
+      const dono = encontrarDono(id, null, circuito);
+      if (!dono && !membrosFinais.includes(id)) {
+        membrosFinais.push(id);
+      }
+    }
   }
 
-  const grupo = criarGrupo(circuito, membros, 'Novo grupo');
-  if (grupo) registrar(circuito, 'grupo', true);
+  if (membrosFinais.length < 2) return null;
+
+  const grupo = criarGrupo(circuito, membrosFinais, 'Novo grupo');
+  if (!grupo) return null;
+
+  registrar(circuito, 'grupo', true);
   return grupo;
 }

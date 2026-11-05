@@ -12,7 +12,7 @@ import { renderizarPainel as renderizarPainelNovo } from './painel.js';
 import { simular, tensaoEm, correnteEm } from './solver.js';
 import { obterMontagem, desenharMontagem } from './montagens.js';
 import { desenharComponente } from './simbolos.js';
-import { configurarGrupos, juntarSelecionados, desfazerGrupo, atualizarTodosBounds, CORES_GRUPO } from './grupos.js';
+import { configurarGrupos, juntarSelecionados, desfazerGrupo, atualizarTodosBounds, recalcularMembros, pontoDentroDoGrupo, grupoDentroDeGrupo, CORES_GRUPO } from './grupos.js';
 import { exportarPNG } from './exportar.js';
 import {
   baixarArquivo,
@@ -40,13 +40,30 @@ const estado = {
   resultado: null,
   simulando: false,
   selecaoRetangular: null,
+  ultimoMouse: { x: 0, y: 0 },
+  _ultimoDx: 0,
+  _ultimoDy: 0,
   adicionar(tipo, x, y) {
     if (estado.simulando) {
       pararSimulacao();
     }
-    const comp = adicionarComponente(estado.circuito, tipo, x, y);
+    for (const id of estado.selecionados) {
+      const g = estado.circuito.grupos.find((x) => x.id === id);
+      if (g) recalcularMembros(g);
+    }
+    const novoComp = adicionarComponente(estado.circuito, tipo, x, y);
+
+    // Adquire área se o componente caiu dentro de uma
+    const areas = estado.circuito.grupos
+      .filter((g) => pontoDentroDoGrupo(novoComp, g))
+      .sort((a, b) => (a.w * a.h) - (b.w * b.h)); // menor primeiro
+
+    if (areas.length > 0) {
+      areas[0].membros.push(novoComp.id);
+    }
+
     registrar(estado.circuito, 'adicionar', true);
-    estado.selecionados = [comp.id];
+    estado.selecionados = [novoComp.id];
     estado.grupoSelecionadoId = null;
     renderizarTudo();
   },
@@ -190,102 +207,378 @@ function recalcular() {
 }
 
 function copiarSelecionados() {
+  // Prioridade 1: grupo selecionado
+  const grupoSel = estado.circuito.grupos.find(
+    (g) => estado.selecionados.includes(g.id)
+  );
+
+  if (grupoSel) {
+    copiarGrupo(grupoSel);
+    return;
+  }
+
+  // Prioridade 2: componentes avulsos
   if (estado.selecionados.length === 0) return;
 
-  const componentes = estado.circuito.componentes.filter((comp) =>
-    estado.selecionados.includes(comp.id)
+  const componentes = estado.circuito.componentes.filter((c) =>
+    estado.selecionados.includes(c.id)
   );
-  if (componentes.length === 0) return;
 
-  const idsSelecionados = new Set(componentes.map((comp) => comp.id));
-  const fios = estado.circuito.fios.filter((fio) =>
-    idsSelecionados.has(fio.origem.componente) && idsSelecionados.has(fio.destino.componente)
+  const fios = estado.circuito.fios.filter(
+    (f) =>
+      estado.selecionados.includes(f.origem.componente) &&
+      estado.selecionados.includes(f.destino.componente)
   );
 
   areaTransferencia = {
-    componentes: componentes.map((comp) => ({
-      tipo: comp.tipo,
-      x: comp.x,
-      y: comp.y,
-      rotacao: comp.rotacao || 0,
-      propriedades: { ...comp.propriedades },
-      idOriginal: comp.id,
+    tipo: 'componentes',
+    componentes: componentes.map((c) => ({
+      tipo: c.tipo,
+      x: c.x,
+      y: c.y,
+      rotacao: c.rotacao || 0,
+      propriedades: { ...c.propriedades },
+      idOriginal: c.id,
     })),
-    fios: fios.map((fio) => ({
-      origem: { ...fio.origem },
-      destino: { ...fio.destino },
-      dobras: (fio.dobras || []).map((dobra) => ({ x: dobra.x, y: dobra.y })),
-      cor: fio.cor,
+    fios: fios.map((f) => ({
+      origem: { ...f.origem },
+      destino: { ...f.destino },
+      dobras: (f.dobras || []).map((d) => ({ x: d.x, y: d.y })),
+      cor: f.cor,
     })),
   };
 }
 
-function colar() {
-  if (estado.simulando) {
-    pararSimulacao();
-  }
-  if (!areaTransferencia || areaTransferencia.componentes.length === 0) return;
+function copiarGrupo(grupo) {
+  // Coleta recursivamente todos os ids de membros
+  const idsMembros = new Set();
+  const idsGrupos = new Set();
 
-  const deslocamento = 24;
+  function coletar(id) {
+    if (idsMembros.has(id)) return;
+    idsMembros.add(id);
+
+    const sub = estado.circuito.grupos.find((g) => g.id === id);
+    if (sub) {
+      idsGrupos.add(sub.id);
+      for (const m of sub.membros) coletar(m);
+    }
+  }
+
+  idsGrupos.add(grupo.id);
+  for (const m of grupo.membros) coletar(m);
+
+  const componentes = estado.circuito.componentes.filter((c) =>
+    idsMembros.has(c.id)
+  );
+
+  const fios = estado.circuito.fios.filter(
+    (f) =>
+      idsMembros.has(f.origem.componente) &&
+      idsMembros.has(f.destino.componente)
+  );
+
+  // Coleta os subgrupos (todos, menos o raiz, que vai separado)
+  const subgrupos = estado.circuito.grupos
+    .filter((g) => idsGrupos.has(g.id) && g.id !== grupo.id)
+    .map((g) => ({
+      idOriginal: g.id,
+      nome: g.nome,
+      cor: g.cor,
+      x: g.x,
+      y: g.y,
+      w: g.w,
+      h: g.h,
+      vertices: g.vertices
+        ? g.vertices.map((v) => ({ x: v.x, y: v.y }))
+        : null,
+      membros: [...g.membros],
+    }));
+
+  areaTransferencia = {
+    tipo: 'grupo',
+    nome: grupo.nome,
+    cor: grupo.cor,
+    x: grupo.x,
+    y: grupo.y,
+    w: grupo.w,
+    h: grupo.h,
+    vertices: grupo.vertices
+      ? grupo.vertices.map((v) => ({ x: v.x, y: v.y }))
+      : null,
+    membros: [...grupo.membros],
+    subgrupos,
+    componentes: componentes.map((c) => ({
+      tipo: c.tipo,
+      x: c.x,
+      y: c.y,
+      rotacao: c.rotacao || 0,
+      propriedades: { ...c.propriedades },
+      idOriginal: c.id,
+    })),
+    fios: fios.map((f) => ({
+      origem: { ...f.origem },
+      destino: { ...f.destino },
+      dobras: (f.dobras || []).map((d) => ({ x: d.x, y: d.y })),
+      cor: f.cor,
+    })),
+  };
+}
+
+/**
+ * Encontra uma posição livre para colar, próxima ao mouse, sem
+ * sobrepor nenhuma área existente.
+ * Testa direita, acima, abaixo e esquerda, nessa ordem.
+ */
+function posicaoLivre(w, h, mouse) {
+  const MARGEM = 24;
+  const grupos = estado.circuito.grupos;
+
+  const candidatos = [
+    { x: mouse.x + MARGEM, y: mouse.y - h / 2 },              // direita
+    { x: mouse.x - w / 2, y: mouse.y - h - MARGEM },          // acima
+    { x: mouse.x - w / 2, y: mouse.y + MARGEM },              // abaixo
+    { x: mouse.x - w - MARGEM, y: mouse.y - h / 2 },          // esquerda
+  ];
+
+  for (const c of candidatos) {
+    const sobrepoe = grupos.some((g) => {
+      return !(
+        c.x + w < g.x ||
+        c.x > g.x + g.w ||
+        c.y + h < g.y ||
+        c.y > g.y + g.h
+      );
+    });
+    if (!sobrepoe) return c;
+  }
+
+  // Se todos sobrepõem, afasta mais para a direita
+  return { x: mouse.x + w + MARGEM * 2, y: mouse.y - h / 2 };
+}
+
+function colarGrupo(mouse) {
+  const t = areaTransferencia;
+  const pos = posicaoLivre(t.w, t.h, mouse);
+
+  const dx = pos.x - t.x;
+  const dy = pos.y - t.y;
+
   const mapaIds = new Map();
   const novosIds = [];
-  const idsExistentes = new Set(estado.circuito.componentes.map((comp) => comp.id));
 
-  for (const comp of areaTransferencia.componentes) {
-    const def = CATALOGO[comp.tipo];
-    if (!def) continue;
-
-    let novoId;
-    do {
-      novoId = `comp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    } while (idsExistentes.has(novoId));
-    idsExistentes.add(novoId);
-    mapaIds.set(comp.idOriginal, novoId);
+  // Cria os componentes
+  for (const c of t.componentes) {
+    const def = CATALOGO[c.tipo];
+    const novoId = `comp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    mapaIds.set(c.idOriginal, novoId);
     novosIds.push(novoId);
 
-    const propriedadesPadrao = Object.fromEntries(
-      Object.entries(def.propriedades || {}).map(([chave, spec]) => [chave, spec.valor])
-    );
     estado.circuito.componentes.push({
       id: novoId,
-      tipo: comp.tipo,
-      x: comp.x + deslocamento,
-      y: comp.y + deslocamento,
-      rotacao: comp.rotacao,
-      propriedades: { ...propriedadesPadrao, ...comp.propriedades },
-      pinos: def.pinos.map((pino) => ({ ...pino })),
+      tipo: c.tipo,
+      x: c.x + dx,
+      y: c.y + dy,
+      rotacao: c.rotacao,
+      propriedades: { ...c.propriedades },
+      pinos: def.pinos.map((p) => ({ ...p })),
       dimensoes: { ...def.dimensoes },
       estado: {},
     });
   }
 
-  for (const fio of areaTransferencia.fios) {
-    const novaOrigem = mapaIds.get(fio.origem.componente);
-    const novoDestino = mapaIds.get(fio.destino.componente);
+  // Cria os fios internos
+  for (const f of t.fios) {
+    const novaOrigem = mapaIds.get(f.origem.componente);
+    const novoDestino = mapaIds.get(f.destino.componente);
     if (!novaOrigem || !novoDestino) continue;
 
-    let novoId;
-    do {
-      novoId = `fio-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    } while (estado.circuito.fios.some((item) => item.id === novoId));
     estado.circuito.fios.push({
-      id: novoId,
-      origem: { ...fio.origem, componente: novaOrigem },
-      destino: { ...fio.destino, componente: novoDestino },
-      dobras: fio.dobras.map((dobra) => ({
-        x: dobra.x + deslocamento,
-        y: dobra.y + deslocamento,
-      })),
-      cor: fio.cor,
+      id: `fio-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      origem: { componente: novaOrigem, pino: f.origem.pino },
+      destino: { componente: novoDestino, pino: f.destino.pino },
+      dobras: (f.dobras || []).map((d) => ({ x: d.x + dx, y: d.y + dy })),
+      cor: f.cor,
     });
   }
 
-  if (novosIds.length === 0) return;
-  registrar(estado.circuito, 'colar', true);
-  estado.selecionados = novosIds;
+  // Recria os subgrupos
+  const mapaGrupos = new Map();
+  for (const sg of (t.subgrupos || [])) {
+    const novoSubId = `grupo-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    mapaGrupos.set(sg.idOriginal, novoSubId);
+  }
+
+  for (const sg of (t.subgrupos || [])) {
+    const novoSubId = mapaGrupos.get(sg.idOriginal);
+
+    estado.circuito.grupos.push({
+      id: novoSubId,
+      nome: sg.nome,
+      cor: sg.cor,
+      x: sg.x + dx,
+      y: sg.y + dy,
+      w: sg.w,
+      h: sg.h,
+      bounds: {
+        x: sg.x + dx,
+        y: sg.y + dy,
+        w: sg.w,
+        h: sg.h,
+      },
+      vertices: sg.vertices
+        ? sg.vertices.map((v) => ({ x: v.x + dx, y: v.y + dy }))
+        : null,
+      membros: sg.membros
+        .map((m) => mapaIds.get(m) || mapaGrupos.get(m))
+        .filter(Boolean),
+    });
+  }
+
+  // Cria o grupo com o mesmo nome e cor
+  const novoGrupoId = `grupo-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+  estado.circuito.grupos.push({
+    id: novoGrupoId,
+    nome: t.nome,
+    cor: t.cor,
+    x: t.x + dx,
+    y: t.y + dy,
+    w: t.w,
+    h: t.h,
+    bounds: {
+      x: t.x + dx,
+      y: t.y + dy,
+      w: t.w,
+      h: t.h,
+    },
+    vertices: t.vertices
+      ? t.vertices.map((v) => ({ x: v.x + dx, y: v.y + dy }))
+      : null,
+    membros: (t.membros || [])
+      .map((m) => mapaIds.get(m) || mapaGrupos.get(m))
+      .filter(Boolean),
+  });
+
+  // Aninha imediatamente se o novo grupo caiu dentro de outro
+  const novoGrupo = estado.circuito.grupos.find(
+    (g) => g.id === novoGrupoId
+  );
+
+  if (novoGrupo) {
+    const pais = estado.circuito.grupos
+      .filter((g) =>
+        g.id !== novoGrupoId && grupoDentroDeGrupo(novoGrupo, g)
+      )
+      .sort((a, b) => (a.w * a.h) - (b.w * b.h)); // menor primeiro
+
+    if (pais.length > 0) {
+      const pai = pais[0];
+      if (!pai.membros.includes(novoGrupoId)) {
+        pai.membros.push(novoGrupoId);
+      }
+    }
+  }
+
+  estado.selecionados = [novoGrupoId];
+  estado.grupoSelecionadoId = novoGrupoId;
   estado.fioSelecionadoId = null;
+}
+
+function colarComponentes(mouse) {
+  const t = areaTransferencia;
+  const DESLOCAMENTO = 24;
+
+  const mapaIds = new Map();
+  const novosIds = [];
+
+  for (const c of t.componentes) {
+    const def = CATALOGO[c.tipo];
+    const novoId = `comp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    mapaIds.set(c.idOriginal, novoId);
+    novosIds.push(novoId);
+
+    const novoComp = {
+      id: novoId,
+      tipo: c.tipo,
+      x: c.x + DESLOCAMENTO,
+      y: c.y + DESLOCAMENTO,
+      rotacao: c.rotacao,
+      propriedades: { ...c.propriedades },
+      pinos: def.pinos.map((p) => ({ ...p })),
+      dimensoes: { ...def.dimensoes },
+      estado: {},
+    };
+    estado.circuito.componentes.push(novoComp);
+
+    // Adquire área se o componente caiu dentro de uma
+    const areas = estado.circuito.grupos
+      .filter((g) => pontoDentroDoGrupo(novoComp, g))
+      .sort((a, b) => (a.w * a.h) - (b.w * b.h)); // menor primeiro
+
+    if (areas.length > 0) {
+      areas[0].membros.push(novoComp.id);
+    }
+  }
+
+  for (const f of t.fios) {
+    const novaOrigem = mapaIds.get(f.origem.componente);
+    const novoDestino = mapaIds.get(f.destino.componente);
+    if (!novaOrigem || !novoDestino) continue;
+
+    estado.circuito.fios.push({
+      id: `fio-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      origem: { componente: novaOrigem, pino: f.origem.pino },
+      destino: { componente: novoDestino, pino: f.destino.pino },
+      dobras: (f.dobras || []).map((d) => ({
+        x: d.x + DESLOCAMENTO,
+        y: d.y + DESLOCAMENTO,
+      })),
+      cor: f.cor,
+    });
+  }
+
+  estado.selecionados = novosIds;
   estado.grupoSelecionadoId = null;
+  estado.fioSelecionadoId = null;
+}
+
+function colar() {
+  if (!areaTransferencia) return;
+
+  // Posição do mouse no momento do Ctrl+V
+  const mouse = estado.ultimoMouse || { x: 0, y: 0 };
+
+  if (areaTransferencia.tipo === 'grupo') {
+    colarGrupo(mouse);
+  } else {
+    colarComponentes(mouse);
+  }
+
+  registrar(estado.circuito, 'colar', true);
   renderizarTudo();
+  if (typeof recalcular === 'function') recalcular();
+}
+
+function duplicarSelecionados() {
+  if (estado.selecionados.length === 0) return;
+
+  // Copia e cola imediatamente, com deslocamento fixo
+  copiarSelecionados();
+
+  // Guarda a posição atual do mouse para o posicionamento
+  const mouse = estado.ultimoMouse || { x: 0, y: 0 };
+
+  if (areaTransferencia?.tipo === 'grupo') {
+    colarGrupo(mouse);
+  } else if (areaTransferencia?.tipo === 'componentes') {
+    colarComponentes(mouse);
+  }
+
+  registrar(estado.circuito, 'duplicar', true);
+
+  renderizarTudo();
+  if (typeof recalcular === 'function') recalcular();
 }
 
 function atualizarBotoesHistorico() {
@@ -322,20 +615,24 @@ function montarInterface() {
 
   montarPaleta(document.getElementById('paleta'));
   elPainel = document.getElementById('painel');
-  canvas = criarCanvas(document.getElementById('canvas'));
+  canvas = criarCanvas(document.getElementById('canvas'), estado);
   estado.view = canvas.view;
   canvas.redimensionar();
 
-  // Recupera autosave, se existir
-  if (temAutosave()) {
-    const dados = carregarLocal();
-    if (dados) {
-      const { circuito, view } = reconstruir(dados);
-      estado.circuito = circuito;
-      canvas.view.zoom = view.zoom;
-      canvas.view.panX = view.panX;
-      canvas.view.panY = view.panY;
+  try {
+    // Recupera autosave, se existir
+    if (temAutosave()) {
+      const dados = carregarLocal();
+      if (dados) {
+        const { circuito, view } = reconstruir(dados);
+        estado.circuito = circuito;
+        canvas.view.zoom = view.zoom;
+        canvas.view.panX = view.panX;
+        canvas.view.panY = view.panY;
+      }
     }
+  } catch (erro) {
+    console.error('Erro ao recuperar autosave:', erro);
   }
   inicializar(estado.circuito);
 
@@ -438,6 +735,11 @@ function montarInterface() {
       colar();
       return;
     }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+      e.preventDefault();
+      duplicarSelecionados();
+      return;
+    }
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
       e.preventDefault();
       baixarArquivo(estado, 'circuito.json');
@@ -473,7 +775,15 @@ function montarInterface() {
   canvas.elemento.parentElement.appendChild(legenda);
 
   canvas.redimensionar();
-  renderizarTudo();
+  try {
+    renderizarTudo();
+  } catch (erro) {
+    console.error('Erro na inicialização:', erro);
+    // Mesmo que algo falhe (ex.: autosave corrompido), garante que a grade e o canvas apareçam
+    try {
+      canvas.render(estado.circuito, [], null, null, null, null);
+    } catch (_) {}
+  }
 }
 
 function montarPaleta(container) {

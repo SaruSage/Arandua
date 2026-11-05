@@ -397,43 +397,68 @@ export function desenharTRANSFORMADOR(ctx, comp, x, y, w, h) {
   ctx.stroke();
 
   const n = 4;
-  const alturaEnrol = nucleoH * 0.9;
+  const alturaEnrol = 48; // de cy - 24 até cy + 24 (alinhado exatamente aos pinos)
   const passo = alturaEnrol / n;
   const raio = passo / 2;
-  const topo = cy - alturaEnrol / 2;
+  const yTopoBobina = cy - alturaEnrol / 2;
+  const yBaseBobina = cy + alturaEnrol / 2;
+  const xBobinaPrimario = cx - 16;
+  const xBobinaSecundario = cx + 16;
 
-  // Primário (esquerda)
+  // Primário (esquerda): começa em (xBobinaPrimario, yTopoBobina) e termina em (xBobinaPrimario, yBaseBobina)
   ctx.beginPath();
-  ctx.moveTo(cx - 16, topo);
+  ctx.moveTo(xBobinaPrimario, yTopoBobina);
   for (let i = 0; i < n; i++) {
-    const yy = topo + passo * i + raio;
-    ctx.arc(cx - 16, yy, raio, -Math.PI / 2, Math.PI / 2, true);
+    const yy = yTopoBobina + passo * i + raio;
+    ctx.arc(xBobinaPrimario, yy, raio, -Math.PI / 2, Math.PI / 2, true);
   }
   ctx.stroke();
 
-  // Secundário (direita)
+  // Secundário (direita): começa em (xBobinaSecundario, yTopoBobina) e termina em (xBobinaSecundario, yBaseBobina)
   ctx.beginPath();
-  ctx.moveTo(cx + 16, topo);
+  ctx.moveTo(xBobinaSecundario, yTopoBobina);
   for (let i = 0; i < n; i++) {
-    const yy = topo + passo * i + raio;
-    ctx.arc(cx + 16, yy, raio, -Math.PI / 2, Math.PI / 2, false);
+    const yy = yTopoBobina + passo * i + raio;
+    ctx.arc(xBobinaSecundario, yy, raio, -Math.PI / 2, Math.PI / 2, false);
   }
   ctx.stroke();
 
-  const pinoEsqX = cx - 64;
-  const pinoDirX = cx + 64;
+  // Pinos nas extremidades superior (yTopoBobina) e inferior (yBaseBobina) das bobinas
+  const pinoP1 = { x: cx - w / 2, y: yTopoBobina };
+  const pinoP2 = { x: cx - w / 2, y: yBaseBobina };
+  const pinoS1 = { x: cx + w / 2, y: yTopoBobina };
+  const pinoS2 = { x: cx + w / 2, y: yBaseBobina };
+
+  // Mantém instâncias já existentes sincronizadas com as coordenadas das extremidades
+  if (Array.isArray(comp.pinos)) {
+    for (const p of comp.pinos) {
+      if (p.id === 'p1') { p.x = -w / 2; p.y = -alturaEnrol / 2; }
+      else if (p.id === 'p2') { p.x = -w / 2; p.y = alturaEnrol / 2; }
+      else if (p.id === 's1') { p.x = w / 2; p.y = -alturaEnrol / 2; }
+      else if (p.id === 's2') { p.x = w / 2; p.y = alturaEnrol / 2; }
+    }
+  }
+
+  // Hastes do primário (esquerda): do pino até o ponto exato onde a bobina começa/termina
+  ctx.beginPath();
+  ctx.moveTo(pinoP1.x, pinoP1.y);
+  ctx.lineTo(xBobinaPrimario, pinoP1.y);
+  ctx.stroke();
 
   ctx.beginPath();
-  ctx.moveTo(cx - 16, topo);
-  ctx.lineTo(pinoEsqX, topo);
-  ctx.moveTo(cx - 16, topo + alturaEnrol);
-  ctx.lineTo(pinoEsqX, topo + alturaEnrol);
-  ctx.moveTo(cx + 16, topo);
-  ctx.lineTo(pinoDirX, topo);
-  ctx.moveTo(cx + 16, topo + alturaEnrol);
-  ctx.lineTo(pinoDirX, topo + alturaEnrol);
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = CORES.traco;
+  ctx.moveTo(pinoP2.x, pinoP2.y);
+  ctx.lineTo(xBobinaPrimario, pinoP2.y);
+  ctx.stroke();
+
+  // Hastes do secundário (direita): do pino até o ponto exato onde a bobina começa/termina
+  ctx.beginPath();
+  ctx.moveTo(pinoS1.x, pinoS1.y);
+  ctx.lineTo(xBobinaSecundario, pinoS1.y);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(pinoS2.x, pinoS2.y);
+  ctx.lineTo(xBobinaSecundario, pinoS2.y);
   ctx.stroke();
 }
 
@@ -600,10 +625,25 @@ export function desenharTRANSISTOR_NPN(ctx, comp, x, y, w, h) {
   const cx = x + w / 2;
   const cy = y + h / 2;
   const raio = Math.min(w, h) * 0.40;
+  const R = raio;
+
+  // Ângulos das linhas internas onde encontram a circunferência
+  const anguloBase    = Math.PI;        // 180° (esquerda)
+  const anguloColetor = -Math.PI / 4;   // -45° (superior direita)
+  const anguloEmissor =  Math.PI / 4;   //  45° (inferior direita)
+
+  const pontoNaBorda = (ang) => ({
+    x: cx + R * Math.cos(ang),
+    y: cy + R * Math.sin(ang),
+  });
+
+  const pB = pontoNaBorda(anguloBase);
+  const pC = pontoNaBorda(anguloColetor);
+  const pE = pontoNaBorda(anguloEmissor);
 
   // Círculo do corpo
   ctx.beginPath();
-  ctx.arc(cx, cy, raio, 0, Math.PI * 2);
+  ctx.arc(cx, cy, R, 0, Math.PI * 2);
   ctx.fillStyle = CORES.preenchimento;
   ctx.fill();
   ctx.lineWidth = 2;
@@ -611,9 +651,9 @@ export function desenharTRANSISTOR_NPN(ctx, comp, x, y, w, h) {
   ctx.stroke();
 
   // Pivô vertical (base interna)
-  const baseX = cx - raio * 0.30;
-  const baseTopo = cy - raio * 0.52;
-  const baseBase = cy + raio * 0.52;
+  const baseX = cx - R * 0.30;
+  const baseTopo = cy - R * 0.52;
+  const baseBase = cy + R * 0.52;
 
   ctx.beginPath();
   ctx.moveTo(baseX, baseTopo);
@@ -623,44 +663,59 @@ export function desenharTRANSISTOR_NPN(ctx, comp, x, y, w, h) {
   ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 
-  // Traço do pivô até a borda esquerda do círculo (ligação ao pino B)
+  // Traço interno do pivô até o ponto exato na borda esquerda (pB)
   ctx.beginPath();
   ctx.moveTo(baseX, cy);
-  ctx.lineTo(cx - raio, cy);
+  ctx.lineTo(pB.x, pB.y);
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Coletor: da base até a BORDA do círculo
-  const colAngulo = -Math.PI / 4; // 45° acima da horizontal
-  const colFimX = cx + raio * Math.cos(colAngulo);
-  const colFimY = cy + raio * Math.sin(colAngulo);
+  // Coletor interno: da base até o ponto exato na borda (pC)
   const colInicioX = baseX;
-  const colInicioY = cy - raio * 0.30;
+  const colInicioY = cy - R * 0.30;
 
   ctx.beginPath();
   ctx.moveTo(colInicioX, colInicioY);
-  ctx.lineTo(colFimX, colFimY);
+  ctx.lineTo(pC.x, pC.y);
   ctx.lineWidth = 2;
   ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 
-  // Emissor: da base até a BORDA do círculo
-  const emiAngulo = Math.PI / 4; // 45° abaixo da horizontal
-  const emiFimX = cx + raio * Math.cos(emiAngulo);
-  const emiFimY = cy + raio * Math.sin(emiAngulo);
+  // Emissor interno: da base até o ponto exato na borda (pE)
   const emiInicioX = baseX;
-  const emiInicioY = cy + raio * 0.30;
+  const emiInicioY = cy + R * 0.30;
 
   ctx.beginPath();
   ctx.moveTo(emiInicioX, emiInicioY);
-  ctx.lineTo(emiFimX, emiFimY);
+  ctx.lineTo(pE.x, pE.y);
   ctx.lineWidth = 2;
   ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 
+  // Traços externos dos pinos: da borda exata (pB, pC, pE) até cada pino
+  const comprimentoPinoB = 40 - R;
+  const comprimentoPinoCE = 32 * Math.SQRT2 - R;
+
+  ctx.beginPath();
+  ctx.moveTo(pB.x, pB.y);
+  ctx.lineTo(pB.x - comprimentoPinoB, pB.y);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(pC.x, pC.y);
+  ctx.lineTo(pC.x + comprimentoPinoCE * Math.cos(anguloColetor),
+             pC.y + comprimentoPinoCE * Math.sin(anguloColetor));
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(pE.x, pE.y);
+  ctx.lineTo(pE.x + comprimentoPinoCE * Math.cos(anguloEmissor),
+             pE.y + comprimentoPinoCE * Math.sin(anguloEmissor));
+  ctx.stroke();
+
   // Seta do emissor (NPN: aponta para fora, na direção da linha)
-  const dirX = emiFimX - emiInicioX;
-  const dirY = emiFimY - emiInicioY;
+  const dirX = pE.x - emiInicioX;
+  const dirY = pE.y - emiInicioY;
   const dist = Math.hypot(dirX, dirY);
   const ux = dirX / dist;
   const uy = dirY / dist;
@@ -680,18 +735,32 @@ export function desenharTRANSISTOR_PNP(ctx, comp, x, y, w, h) {
   const cx = x + w / 2;
   const cy = y + h / 2;
   const raio = Math.min(w, h) * 0.40;
+  const R = raio;
+
+  const anguloBase    = Math.PI;        // 180° (esquerda)
+  const anguloEmissor = -Math.PI / 4;   // -45° (superior direita)
+  const anguloColetor =  Math.PI / 4;   //  45° (inferior direita)
+
+  const pontoNaBorda = (ang) => ({
+    x: cx + R * Math.cos(ang),
+    y: cy + R * Math.sin(ang),
+  });
+
+  const pB = pontoNaBorda(anguloBase);
+  const pE = pontoNaBorda(anguloEmissor);
+  const pC = pontoNaBorda(anguloColetor);
 
   ctx.beginPath();
-  ctx.arc(cx, cy, raio, 0, Math.PI * 2);
+  ctx.arc(cx, cy, R, 0, Math.PI * 2);
   ctx.fillStyle = CORES.preenchimento;
   ctx.fill();
   ctx.lineWidth = 2;
   ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 
-  const baseX = cx - raio * 0.30;
-  const baseTopo = cy - raio * 0.52;
-  const baseBase = cy + raio * 0.52;
+  const baseX = cx - R * 0.30;
+  const baseTopo = cy - R * 0.52;
+  const baseBase = cy + R * 0.52;
 
   ctx.beginPath();
   ctx.moveTo(baseX, baseTopo);
@@ -701,50 +770,65 @@ export function desenharTRANSISTOR_PNP(ctx, comp, x, y, w, h) {
   ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 
-  // Traço do pivô até a borda esquerda
+  // Traço do pivô até o ponto exato na borda esquerda (pB)
   ctx.beginPath();
   ctx.moveTo(baseX, cy);
-  ctx.lineTo(cx - raio, cy);
+  ctx.lineTo(pB.x, pB.y);
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Emissor: para cima-direita, até a borda
-  const emiAngulo = -Math.PI / 4;
-  const emiFimX = cx + raio * Math.cos(emiAngulo);
-  const emiFimY = cy + raio * Math.sin(emiAngulo);
+  // Emissor: para cima-direita, até a borda (pE)
   const emiInicioX = baseX;
-  const emiInicioY = cy - raio * 0.30;
+  const emiInicioY = cy - R * 0.30;
 
   ctx.beginPath();
   ctx.moveTo(emiInicioX, emiInicioY);
-  ctx.lineTo(emiFimX, emiFimY);
+  ctx.lineTo(pE.x, pE.y);
   ctx.lineWidth = 2;
   ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 
-  // Coletor: para baixo-direita, até a borda
-  const colAngulo = Math.PI / 4;
-  const colFimX = cx + raio * Math.cos(colAngulo);
-  const colFimY = cy + raio * Math.sin(colAngulo);
+  // Coletor: para baixo-direita, até a borda (pC)
   const colInicioX = baseX;
-  const colInicioY = cy + raio * 0.30;
+  const colInicioY = cy + R * 0.30;
 
   ctx.beginPath();
   ctx.moveTo(colInicioX, colInicioY);
-  ctx.lineTo(colFimX, colFimY);
+  ctx.lineTo(pC.x, pC.y);
   ctx.lineWidth = 2;
   ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 
+  // Traços externos dos pinos: da borda exata (pB, pC, pE) até cada pino
+  const comprimentoPinoB = 40 - R;
+  const comprimentoPinoCE = 32 * Math.SQRT2 - R;
+
+  ctx.beginPath();
+  ctx.moveTo(pB.x, pB.y);
+  ctx.lineTo(pB.x - comprimentoPinoB, pB.y);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(pC.x, pC.y);
+  ctx.lineTo(pC.x + comprimentoPinoCE * Math.cos(anguloColetor),
+             pC.y + comprimentoPinoCE * Math.sin(anguloColetor));
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(pE.x, pE.y);
+  ctx.lineTo(pE.x + comprimentoPinoCE * Math.cos(anguloEmissor),
+             pE.y + comprimentoPinoCE * Math.sin(anguloEmissor));
+  ctx.stroke();
+
   // Seta do emissor (PNP: aponta para dentro)
-  const dirX = emiInicioX - emiFimX;
-  const dirY = emiInicioY - emiFimY;
+  const dirX = emiInicioX - pE.x;
+  const dirY = emiInicioY - pE.y;
   const dist = Math.hypot(dirX, dirY);
   const ux = dirX / dist;
   const uy = dirY / dist;
 
-  const setaX = emiFimX + ux * dist * 0.38;
-  const setaY = emiFimY + uy * dist * 0.38;
+  const setaX = pE.x + ux * dist * 0.38;
+  const setaY = pE.y + uy * dist * 0.38;
   desenharSeta(ctx, setaX, setaY, ux, uy, 8);
 }
 
@@ -1180,6 +1264,18 @@ export function desenharDISPLAY_7SEG(ctx, comp, x, y, w, h) {
     ctx.fillStyle = segs[i] === 1 ? cor : CORES.displaySegApagado;
     ctx.fill();
   }
+
+  // Posição do pino COM (x = cx + 34, y = cy + 12)
+  const pinoCom = { x: x + w / 2 + 34, y: y + h / 2 + 12 };
+
+  // Desenha o texto "COM" ABAIXO do pino e FORA do retângulo preto do corpo (à direita de x + w)
+  ctx.save();
+  ctx.fillStyle = '#333';
+  ctx.font = '10px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('COM', pinoCom.x - 3, pinoCom.y + 8);
+  ctx.restore();
 }
 
 export function desenharAMP_OP(ctx, comp, x, y, w, h) {
@@ -1264,8 +1360,10 @@ function desenharPinosDoComponente(ctx, comp, dim) {
     const px = centroX + pino.x;
     const py = centroY + pino.y;
 
+    // O rótulo COM do DISPLAY_7SEG já é desenhado fora do corpo em desenharDISPLAY_7SEG
+    const nome = (comp.tipo === 'DISPLAY_7SEG' && pino.id === 'com') ? '' : pino.nome;
     const posicaoRotulo = pino.y > 0 ? 'baixo' : 'cima';
-    desenharPinoComRotulo(ctx, px, py, pino.valor, pino.nome, posicaoRotulo);
+    desenharPinoComRotulo(ctx, px, py, pino.valor, nome, posicaoRotulo);
   }
 }
 

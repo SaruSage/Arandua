@@ -13,6 +13,7 @@
 import { CORES, posicaoPino } from './simbolos.js';
 import { registrar } from './historico.js';
 import { CATALOGO } from './catalogo.js';
+import { recalcularMembros } from './grupos.js';
 
 export const CORES_FIO = [
   '#2b2b2b', '#e05a5a', '#e88a3a', '#e8c33a', '#8fbf3a',
@@ -37,7 +38,7 @@ export function pontosDoFio(circuito, fio) {
   const pD = posicaoPino(compD, fio.destino.pino);
   if (!pO || !pD) return [];
 
-  return [pO, ...fio.dobras, pD];
+  return [pO, ...(fio.dobras || []), pD];
 }
 
 /** Distância de um ponto a um segmento de reta. */
@@ -269,6 +270,10 @@ export function configurarFios(canvas, estado, aoMudar) {
     // 1. Dobra sob o cursor → inicia arrasto
     const dobra = dobraEm(estado.circuito, mundo.x, mundo.y);
     if (dobra) {
+      for (const id of estado.selecionados) {
+        const g = estado.circuito.grupos.find((x) => x.id === id);
+        if (g) recalcularMembros(g);
+      }
       estado.selecionados = [];
       estado.grupoSelecionadoId = null;
       dobraArrastando = dobra;
@@ -283,6 +288,10 @@ export function configurarFios(canvas, estado, aoMudar) {
     // 2. Pino sob o cursor → inicia fio
     const pino = pinoEm(estado.circuito, mundo.x, mundo.y);
     if (pino) {
+      for (const id of estado.selecionados) {
+        const g = estado.circuito.grupos.find((x) => x.id === id);
+        if (g) recalcularMembros(g);
+      }
       estado.selecionados = [];
       estado.grupoSelecionadoId = null;
       estado.fioSelecionadoId = null;
@@ -303,6 +312,10 @@ export function configurarFios(canvas, estado, aoMudar) {
     // 3. Fio sob o cursor → seleciona
     const fio = fioEm(estado.circuito, mundo.x, mundo.y);
     if (fio) {
+      for (const id of estado.selecionados) {
+        const g = estado.circuito.grupos.find((x) => x.id === id);
+        if (g) recalcularMembros(g);
+      }
       fioSelecionadoId = fio.id;
       dobraSelecionada = null;
       estado.fioSelecionadoId = fio.id;
