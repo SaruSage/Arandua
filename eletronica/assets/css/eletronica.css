@@ -43,7 +43,7 @@ html, body {
 
 .eletronica-layout {
   display: grid;
-  grid-template-columns: 260px 1fr;
+  grid-template-columns: auto 1fr;
   grid-template-rows: 56px 1fr;
   height: 100vh;
   background: var(--cor-fundo-suave);
@@ -65,11 +65,64 @@ html, body {
   letter-spacing: -0.01em;
 }
 
+.paleta-wrap {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  height: 100%;
+  min-height: 0;
+  transition: margin-left 0.25s ease;
+  z-index: 30;
+}
+
+/* Recolhido: empurra a paleta para fora da tela */
+.paleta-wrap.recolhida {
+  margin-left: -260px;   /* largura da paleta */
+}
+
 .eletronica-paleta {
+  width: 260px;
+  height: 100%;
   background: var(--cor-fundo);
   overflow-y: auto;
   padding: 12px;
   border-right: 1px solid var(--cor-borda);
+}
+
+.paleta-aba {
+  position: absolute;
+  top: 50%;
+  right: -18px;          /* rente à borda direita do painel */
+  transform: translateY(-50%);
+  width: 18px;
+  height: 56px;
+  border: none;
+  border-radius: 0 6px 6px 0;   /* cantos direitos arredondados */
+  background: rgba(0, 0, 0, 0.18);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.15s ease;
+  z-index: 20;
+}
+
+.paleta-aba:focus {
+  outline: none;
+}
+
+.paleta-aba:hover {
+  background: rgba(0, 0, 0, 0.42);   /* cinza bem mais forte */
+}
+
+.paleta-aba svg {
+  transition: transform 0.25s ease;
+}
+
+.paleta-wrap.recolhida .paleta-aba svg {
+  transform: rotate(180deg);
 }
 
 .paleta-grupo { margin-bottom: 18px; }
@@ -866,7 +919,7 @@ html, body {
 
 @media (max-width: 1024px) {
   .eletronica-layout {
-    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
   }
   .eletronica-toolbar {
@@ -890,7 +943,16 @@ html, body {
     flex-wrap: wrap;
     padding: 8px 12px;
   }
+  .paleta-wrap {
+    width: 100%;
+    height: auto;
+  }
+  .paleta-aba {
+    display: none;
+  }
   .eletronica-paleta {
+    width: 100%;
+    height: auto;
     border-right: none;
     border-bottom: 1px solid var(--cor-borda);
     overflow-x: auto;

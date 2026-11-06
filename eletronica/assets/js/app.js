@@ -689,7 +689,14 @@ function montarInterface() {
           </div>
         </div>
       </header>
-      <aside class="eletronica-paleta" id="paleta"></aside>
+      <div id="paleta-wrap" class="paleta-wrap">
+        <aside id="paleta" class="eletronica-paleta"></aside>
+        <button type="button" id="btn-recolher-paleta" class="paleta-aba" title="Recolher painel">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M15 6l-6 6 6 6z"/>
+          </svg>
+        </button>
+      </div>
       <div id="area-simulacao" class="eletronica-canvas eletronica-canvas-wrap">
         <canvas id="canvas"></canvas>
         <div id="popups-container" class="popups-container"></div>
@@ -698,6 +705,14 @@ function montarInterface() {
   `;
 
   montarPaleta(document.getElementById('paleta'));
+  const btnRecolher = document.getElementById('btn-recolher-paleta');
+  const paletaWrap = document.getElementById('paleta-wrap');
+
+  if (localStorage.getItem('paletaRecolhida') === '1' && paletaWrap) {
+    paletaWrap.classList.add('recolhida');
+    if (btnRecolher) btnRecolher.title = 'Abrir painel';
+  }
+
   elPainel = document.getElementById('popups-container');
   canvas = criarCanvas(document.getElementById('canvas'), estado);
   estado.view = canvas.view;
@@ -763,6 +778,30 @@ function montarInterface() {
   menuDropdown.addEventListener('click', (e) => {
     e.stopPropagation();
   });
+
+  if (btnRecolher && paletaWrap) {
+    btnRecolher.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const agora = paletaWrap.classList.toggle('recolhida');
+      btnRecolher.title = agora ? 'Abrir painel' : 'Recolher painel';
+      localStorage.setItem('paletaRecolhida', agora ? '1' : '0');
+      setTimeout(() => {
+        if (canvas && canvas.redimensionar) {
+          canvas.redimensionar();
+          renderizarTudo();
+        }
+      }, 260);
+    });
+
+    paletaWrap.addEventListener('transitionend', (e) => {
+      if (e.propertyName === 'margin-left') {
+        if (canvas && canvas.redimensionar) {
+          canvas.redimensionar();
+          renderizarTudo();
+        }
+      }
+    });
+  }
 
   document.getElementById('btn-salvar').addEventListener('click', () => {
     menuDropdown.classList.add('oculto');
