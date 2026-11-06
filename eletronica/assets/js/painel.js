@@ -815,3 +815,50 @@ export function renderizarPainel(container, estado, aoMudar, aoVerMontagem) {
   btnRemover.addEventListener('click', () => estado.removerSelecionados());
   container.appendChild(btnRemover);
 }
+
+export function montarListaComandos(corpo) {
+  corpo.innerHTML = '';
+  const COMANDOS = [
+    { teclas: ['Ctrl', 'Z'], acao: 'Desfazer' },
+    { teclas: ['Ctrl', 'Y'], acao: 'Refazer' },
+    { teclas: ['Ctrl', 'S'], acao: 'Salvar' },
+    { teclas: ['Ctrl', 'O'], acao: 'Abrir' },
+    { teclas: ['Ctrl', 'C'], acao: 'Copiar' },
+    { teclas: ['Ctrl', 'V'], acao: 'Colar' },
+    { teclas: ['Ctrl', 'D'], acao: 'Duplicar' },
+    { teclas: ['Tab'], acao: 'Criar dobra no fio' },
+    { teclas: ['Del'], acao: 'Remover seleção' },
+    { teclas: ['R'], acao: 'Girar 90°' },
+    { teclas: ['Esc'], acao: 'Cancelar / desselecionar' },
+  ];
+
+  const lista = document.createElement('div');
+  lista.className = 'lista-comandos';
+  for (const item of COMANDOS) {
+    const linha = document.createElement('div');
+    linha.className = 'linha-comando';
+
+    const kbdWrap = document.createElement('div');
+    kbdWrap.className = 'comando-teclas';
+    item.teclas.forEach((t, i) => {
+      if (i > 0) {
+        const plus = document.createElement('span');
+        plus.className = 'comando-plus';
+        plus.textContent = '+';
+        kbdWrap.appendChild(plus);
+      }
+      const kbd = document.createElement('kbd');
+      kbd.textContent = t;
+      kbdWrap.appendChild(kbd);
+    });
+
+    const desc = document.createElement('span');
+    desc.className = 'comando-acao';
+    desc.textContent = item.acao;
+
+    linha.appendChild(kbdWrap);
+    linha.appendChild(desc);
+    lista.appendChild(linha);
+  }
+  corpo.appendChild(lista);
+}

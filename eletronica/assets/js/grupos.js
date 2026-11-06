@@ -23,9 +23,64 @@ let estado = null;
 
 /* ===== CRIAÇÃO E MANIPULAÇÃO ===== */
 
+export const MARGEM_AREA = 24;
+
+export function boundsDoComponente(comp) {
+  const dim = comp.dimensoes || CATALOGO[comp.tipo]?.dimensoes || { w: 64, h: 30 };
+  const rot = (comp.rotacao || 0) % 360;
+  if (!rot || rot % 180 === 0) {
+    return { x: comp.x, y: comp.y, w: dim.w, h: dim.h };
+  }
+  const cx = comp.x + dim.w / 2;
+  const cy = comp.y + dim.h / 2;
+  const rad = (rot * Math.PI) / 180;
+  const cos = Math.abs(Math.cos(rad));
+  const sin = Math.abs(Math.sin(rad));
+  const w = dim.w * cos + dim.h * sin;
+  const h = dim.w * sin + dim.h * cos;
+  return {
+    x: cx - w / 2,
+    y: cy - h / 2,
+    w,
+    h,
+  };
+}
+
+export function boundsDosFilhos(circuito, membros) {
+  let minX = Infinity, minY = Infinity;
+  let maxX = -Infinity, maxY = -Infinity;
+  let encontrou = false;
+
+  for (const id of membros) {
+    const comp = circuito.componentes.find((c) => c.id === id);
+    if (comp) {
+      const b = boundsDoComponente(comp);
+      minX = Math.min(minX, b.x);
+      minY = Math.min(minY, b.y);
+      maxX = Math.max(maxX, b.x + b.w);
+      maxY = Math.max(maxY, b.y + b.h);
+      encontrou = true;
+      continue;
+    }
+
+    const grupo = circuito.grupos.find((g) => g.id === id);
+    if (grupo) {
+      const b = grupo.bounds || grupo;
+      minX = Math.min(minX, b.x);
+      minY = Math.min(minY, b.y);
+      maxX = Math.max(maxX, b.x + b.w);
+      maxY = Math.max(maxY, b.y + b.h);
+      encontrou = true;
+    }
+  }
+
+  if (!encontrou) return null;
+  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+}
+
 /**
  * Cria um grupo a partir de uma lista de ids de componentes ou grupos.
- * Calcula o retângulo delimitador automaticamente.
+ * Calcula o retângulo delimitador automaticamente com margem uniforme.
  */
 export function criarGrupo(circuito, membros, nome = 'Novo grupo') {
   if (membros.length === 0) return null;
@@ -35,12 +90,7 @@ export function criarGrupo(circuito, membros, nome = 'Novo grupo') {
 
   const cor = CORES_GRUPO[circuito.grupos.length % CORES_GRUPO.length];
 
-  const geometria = {
-    x: bounds.x - 16,
-    y: bounds.y - 40,
-    w: bounds.w + 32,
-    h: bounds.h + 56,
-  };
+  const geometria = { ...bounds };
   const grupo = {
     id: `grupo-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     nome,
@@ -56,44 +106,16 @@ export function criarGrupo(circuito, membros, nome = 'Novo grupo') {
   return grupo;
 }
 
-/** Calcula o retângulo delimitador de um conjunto de membros. */
+/** Calcula o retângulo delimitador de um conjunto de membros com margem uniforme. */
 export function calcularBounds(circuito, membros) {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  let encontrou = false;
+  const b = boundsDosFilhos(circuito, membros);
+  if (!b) return null;
 
-  for (const id of membros) {
-    // Componente?
-    const comp = circuito.componentes.find((c) => c.id === id);
-    if (comp) {
-      const dim = comp.dimensoes || CATALOGO[comp.tipo]?.dimensoes || { w: 64, h: 30 };
-      minX = Math.min(minX, comp.x);
-      minY = Math.min(minY, comp.y);
-      maxX = Math.max(maxX, comp.x + dim.w);
-      maxY = Math.max(maxY, comp.y + dim.h);
-      encontrou = true;
-      continue;
-    }
-
-    // Grupo?
-    const grupo = circuito.grupos.find((g) => g.id === id);
-    if (grupo) {
-      const b = grupo.bounds || grupo;
-      minX = Math.min(minX, b.x);
-      minY = Math.min(minY, b.y);
-      maxX = Math.max(maxX, b.x + b.w);
-      maxY = Math.max(maxY, b.y + b.h);
-      encontrou = true;
-    }
-  }
-
-  if (!encontrou) return null;
-
-  const margem = 16;
   return {
-    x: minX - margem,
-    y: minY - margem - 20,
-    w: maxX - minX + margem * 2,
-    h: maxY - minY + margem * 2 + 20,
+    x: b.x - MARGEM_AREA,
+    y: b.y - MARGEM_AREA,
+    w: b.w + MARGEM_AREA * 2,
+    h: b.h + MARGEM_AREA * 2,
   };
 }
 

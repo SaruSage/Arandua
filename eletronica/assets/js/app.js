@@ -13,6 +13,7 @@ import {
   montarPropriedadesComponente,
   montarPropriedadesFio,
   montarPropriedadesArea,
+  montarListaComandos,
 } from './painel.js';
 import { simular, tensaoEm, correnteEm } from './solver.js';
 import { obterMontagem, desenharMontagem } from './montagens.js';
@@ -683,6 +684,7 @@ function montarInterface() {
             </svg>
           </button>
           <div id="menu-dropdown" class="menu-dropdown oculto">
+            <button type="button" id="btn-comandos" class="menu-item">Comandos</button>
             <button type="button" id="btn-salvar">Salvar</button>
             <button type="button" id="btn-abrir">Abrir</button>
             <button type="button" id="btn-exportar">PNG</button>
@@ -804,6 +806,11 @@ function montarInterface() {
       renderizarTudo();
     });
   }
+
+  document.getElementById('btn-comandos').addEventListener('click', () => {
+    menuDropdown.classList.add('oculto');
+    abrirPopupEntidade('comandos', 'lista');
+  });
 
   document.getElementById('btn-salvar').addEventListener('click', () => {
     menuDropdown.classList.add('oculto');
@@ -932,18 +939,6 @@ function montarInterface() {
       exportarPNG(estado.circuito, 'circuito.png');
     }
   });
-
-  const legenda = document.createElement('div');
-  legenda.className = 'legenda-atalhos';
-  legenda.innerHTML = `
-    <span><kbd>Ctrl</kbd>+<kbd>Z</kbd> desfazer</span>
-    <span><kbd>Ctrl</kbd>+<kbd>Y</kbd> refazer</span>
-    <span><kbd>Ctrl</kbd>+<kbd>S</kbd> salvar</span>
-    <span><kbd>Ctrl</kbd>+<kbd>O</kbd> abrir</span>
-    <span><kbd>Tab</kbd> dobra do fio</span>
-    <span><kbd>Del</kbd> remover</span>
-  `;
-  canvas.elemento.parentElement.appendChild(legenda);
 
   canvas.redimensionar();
   try {
@@ -1120,6 +1115,9 @@ function montarPropriedades(corpo, comp) {
 }
 
 function obterEntidadePopup(tipo, id) {
+  if (tipo === 'comandos') {
+    return { id: 'comandos', nome: 'Lista de comandos' };
+  }
   if (tipo === 'comp') {
     return estado.circuito.componentes.find((c) => c.id === id) || null;
   }
@@ -1134,6 +1132,7 @@ function obterEntidadePopup(tipo, id) {
 }
 
 function obterTituloPopup(tipo, entidade) {
+  if (tipo === 'comandos') return 'Lista de comandos';
   if (tipo === 'comp') return entidade.tipo;
   if (tipo === 'fio') return 'FIO';
   if (tipo === 'area') return entidade.nome || 'ÁREA';
@@ -1141,7 +1140,9 @@ function obterTituloPopup(tipo, entidade) {
 }
 
 function montarCorpoPopup(corpo, tipo, id) {
-  if (tipo === 'comp') {
+  if (tipo === 'comandos') {
+    montarListaComandos(corpo);
+  } else if (tipo === 'comp') {
     const comp = estado.circuito.componentes.find((c) => c.id === id);
     if (comp) montarPropriedades(corpo, comp);
   } else if (tipo === 'fio') {
@@ -1205,7 +1206,29 @@ function calcularPosicaoPadrao(container) {
 }
 
 function abrirPopupEntidade(tipo, id) {
-  const chave = `${tipo}:${id}`;
+  const chave = tipo === 'comandos' ? 'comandos' : `${tipo}:${id}`;
+
+  if (tipo === 'comandos') {
+    if (estado.popups['comandos']) {
+      estado.zIndexPopup += 1;
+      estado.popups['comandos'].zIndex = estado.zIndexPopup;
+      estado.popupAtivo = 'comandos';
+      renderizarPopups(true);
+      return;
+    }
+    const container = document.getElementById('popups-container');
+    const pos = calcularPosicaoPadrao(container);
+    estado.popups['comandos'] = {
+      fixado: true,
+      minimizado: false,
+      semAlfinete: true,
+      x: pos.x,
+      y: pos.y,
+    };
+    estado.popupAtivo = 'comandos';
+    renderizarPopups(true);
+    return;
+  }
 
   // 1. Se o popup anterior não está fixado, remove
   if (estado.popupAtivo && estado.popupAtivo !== chave) {
@@ -1259,11 +1282,13 @@ function ligarEventosPopup(el, chave) {
   });
 
   // Alfinete
-  btnAlfinete.addEventListener('click', (e) => {
-    e.stopPropagation();
-    cfg.fixado = !cfg.fixado;
-    renderizarPopups(true);
-  });
+  if (btnAlfinete) {
+    btnAlfinete.addEventListener('click', (e) => {
+      e.stopPropagation();
+      cfg.fixado = !cfg.fixado;
+      renderizarPopups(true);
+    });
+  }
 
   // Minimizar / expandir (atualiza classe e ícone preservando o estado do DOM interno)
   btnMinimizar.addEventListener('click', (e) => {
@@ -1330,6 +1355,7 @@ function ligarEventosPopup(el, chave) {
 }
 
 function extrairTipoEId(chave) {
+  if (chave === 'comandos') return { tipo: 'comandos', id: 'lista' };
   const idx = chave.indexOf(':');
   if (idx === -1) return { tipo: 'comp', id: chave };
   return {
@@ -1380,8 +1406,9 @@ function renderizarPopups(forcar = false) {
 
     const tituloPopup = obterTituloPopup(tipo, entidade);
 
-    el.innerHTML = `
-      <div class="popup-cabecalho">
+    const botaoAlfinete = cfg.semAlfinete
+      ? ''
+      : `
         <button type="button" class="popup-alfinete ${cfg.fixado ? 'ativo' : ''}"
                 title="${cfg.fixado ? 'Desafixar' : 'Fixar'}">
           <svg width="21" height="21" viewBox="0 0 24 24"
@@ -1392,6 +1419,11 @@ function renderizarPopups(forcar = false) {
                      l2 3.24H7l2-3.24Z"/>
           </svg>
         </button>
+      `;
+
+    el.innerHTML = `
+      <div class="popup-cabecalho">
+        ${botaoAlfinete}
         <span class="popup-titulo">${tituloPopup}</span>
         <button type="button" class="popup-minimizar" title="${cfg.minimizado ? 'Expandir' : 'Minimizar'}">
           ${cfg.minimizado
