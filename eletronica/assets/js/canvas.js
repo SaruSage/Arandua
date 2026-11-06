@@ -19,7 +19,17 @@ export function snap(valor, tamanho = TAMANHO_GRADE) {
 
 export function criarCanvas(elemento, estado) {
   const ctx = elemento.getContext('2d');
-  const view = { zoom: 1, panX: 0, panY: 0 };
+  if (estado && typeof estado.offsetOrigemX === 'undefined') {
+    estado.offsetOrigemX = 260;
+  }
+  const view = {
+    zoom: 1,
+    panX: 0,
+    panY: 0,
+    get offsetOrigemX() {
+      return estado?.offsetOrigemX || 0;
+    },
+  };
 
   elemento.addEventListener('contextmenu', (e) => e.preventDefault());
 
@@ -42,11 +52,13 @@ export function criarCanvas(elemento, estado) {
   }
 
   function telaParaMundo(x, y) {
-    return { x: (x - view.panX) / view.zoom, y: (y - view.panY) / view.zoom };
+    const offX = estado?.offsetOrigemX || 0;
+    return { x: (x - offX - view.panX) / view.zoom, y: (y - view.panY) / view.zoom };
   }
 
   function mundoParaTela(x, y) {
-    return { x: x * view.zoom + view.panX, y: y * view.zoom + view.panY };
+    const offX = estado?.offsetOrigemX || 0;
+    return { x: x * view.zoom + view.panX + offX, y: y * view.zoom + view.panY };
   }
 
   function tela(pt) {
@@ -98,8 +110,9 @@ export function criarCanvas(elemento, estado) {
     ctx.strokeStyle = '#e4e6e8';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    const ix = view.panX % passo;
-    const iy = view.panY % passo;
+    const offX = estado?.offsetOrigemX || 0;
+    const ix = (((view.panX + offX) % passo) + passo) % passo;
+    const iy = ((view.panY % passo) + passo) % passo;
     for (let x = ix; x < rect.width; x += passo) {
       ctx.moveTo(x, 0); ctx.lineTo(x, rect.height);
     }
@@ -112,8 +125,8 @@ export function criarCanvas(elemento, estado) {
     if (passoForte > 20) {
       ctx.strokeStyle = '#d8dcdf';
       ctx.beginPath();
-      const ixf = view.panX % passoForte;
-      const iyf = view.panY % passoForte;
+      const ixf = (((view.panX + offX) % passoForte) + passoForte) % passoForte;
+      const iyf = ((view.panY % passoForte) + passoForte) % passoForte;
       for (let x = ixf; x < rect.width; x += passoForte) {
         ctx.moveTo(x, 0); ctx.lineTo(x, rect.height);
       }

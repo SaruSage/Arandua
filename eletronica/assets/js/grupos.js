@@ -629,8 +629,9 @@ export function desenharGrupos(ctx, circuito, view, grupoSelecionadoId = null) {
     return profA - profB; // raiz primeiro
   });
 
+  const offX = view.offsetOrigemX || 0;
   const tela = (ponto) => ({
-    x: ponto.x * view.zoom + view.panX,
+    x: ponto.x * view.zoom + view.panX + offX,
     y: ponto.y * view.zoom + view.panY,
   });
 
@@ -993,7 +994,8 @@ export function configurarGrupos(canvas, estadoParam, aoMudar) {
 
     const rect = el.getBoundingClientRect();
     const b = grupo.bounds || grupo;
-    const x = b.x * canvas.view.zoom + canvas.view.panX;
+    const offX = canvas.view.offsetOrigemX || 0;
+    const x = b.x * canvas.view.zoom + canvas.view.panX + offX;
     const y = b.y * canvas.view.zoom + canvas.view.panY;
 
     const input = document.createElement('input');

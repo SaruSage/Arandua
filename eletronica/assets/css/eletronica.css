@@ -42,11 +42,13 @@ html, body {
 #app { height: 100vh; }
 
 .eletronica-layout {
+  position: relative;
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: 1fr;
   grid-template-rows: 56px 1fr;
   height: 100vh;
   background: var(--cor-fundo-suave);
+  overflow: visible;
 }
 
 .eletronica-toolbar {
@@ -66,18 +68,24 @@ html, body {
 }
 
 .paleta-wrap {
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
+  grid-column: 1;
+  grid-row: 2;
+  height: 100%;
+  width: 260px;
+  z-index: 30;
   display: flex;
   flex-shrink: 0;
-  height: 100%;
   min-height: 0;
-  transition: margin-left 0.25s ease;
-  z-index: 30;
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
 }
 
-/* Recolhido: empurra a paleta para fora da tela */
+/* Recolhido: sai da tela com transform */
 .paleta-wrap.recolhida {
-  margin-left: -260px;   /* largura da paleta */
+  transform: translateX(-260px);
 }
 
 .eletronica-paleta {
@@ -178,6 +186,9 @@ html, body {
 }
 
 .eletronica-canvas {
+  grid-column: 1;
+  grid-row: 2;
+  width: 100%;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -918,16 +929,18 @@ html, body {
 }
 
 @media (max-width: 1024px) {
-  .eletronica-layout {
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
-  }
   .eletronica-toolbar {
     min-height: 56px;
     height: auto;
     flex-wrap: wrap;
     gap: 8px;
     padding: 8px 12px;
+  }
+  .paleta-wrap {
+    width: 220px;
+  }
+  .paleta-wrap.recolhida {
+    transform: translateX(-220px);
   }
 }
 
@@ -944,7 +957,9 @@ html, body {
     padding: 8px 12px;
   }
   .paleta-wrap {
-    width: 100%;
+    position: static;
+    width: auto;
+    transform: none !important;
     height: auto;
   }
   .paleta-aba {

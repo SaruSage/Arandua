@@ -708,10 +708,14 @@ function montarInterface() {
   const btnRecolher = document.getElementById('btn-recolher-paleta');
   const paletaWrap = document.getElementById('paleta-wrap');
 
-  if (localStorage.getItem('paletaRecolhida') === '1' && paletaWrap) {
+  const recolhida = localStorage.getItem('paletaRecolhida') === '1';
+  if (recolhida && paletaWrap) {
     paletaWrap.classList.add('recolhida');
     if (btnRecolher) btnRecolher.title = 'Abrir painel';
   }
+  estado.offsetOrigemX = paletaWrap?.classList.contains('recolhida')
+    ? 0
+    : (paletaWrap?.offsetWidth || 260);
 
   elPainel = document.getElementById('popups-container');
   canvas = criarCanvas(document.getElementById('canvas'), estado);
@@ -784,22 +788,9 @@ function montarInterface() {
       e.stopPropagation();
       const agora = paletaWrap.classList.toggle('recolhida');
       btnRecolher.title = agora ? 'Abrir painel' : 'Recolher painel';
+      estado.offsetOrigemX = agora ? 0 : (paletaWrap.offsetWidth || 260);
       localStorage.setItem('paletaRecolhida', agora ? '1' : '0');
-      setTimeout(() => {
-        if (canvas && canvas.redimensionar) {
-          canvas.redimensionar();
-          renderizarTudo();
-        }
-      }, 260);
-    });
-
-    paletaWrap.addEventListener('transitionend', (e) => {
-      if (e.propertyName === 'margin-left') {
-        if (canvas && canvas.redimensionar) {
-          canvas.redimensionar();
-          renderizarTudo();
-        }
-      }
+      renderizarTudo();
     });
   }
 

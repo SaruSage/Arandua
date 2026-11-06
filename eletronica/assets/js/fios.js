@@ -379,8 +379,9 @@ function desenharCaminhoArredondado(ctx, pontos, raio) {
 /** Desenha todos os fios do circuito. */
 export function desenharFios(ctx, circuito, view, fioSelecionadoId, dobraSelecionada) {
   _circuitoAtual = circuito;
+  const offX = view.offsetOrigemX || 0;
   const tela = (p) => ({
-    x: p.x * view.zoom + view.panX,
+    x: p.x * view.zoom + view.panX + offX,
     y: p.y * view.zoom + view.panY,
   });
 
@@ -403,7 +404,7 @@ export function desenharFios(ctx, circuito, view, fioSelecionadoId, dobraSelecio
     if (selecionado && fio.dobras?.length) {
       for (let i = 0; i < fio.dobras.length; i++) {
         const dobra = fio.dobras[i];
-        const tx = dobra.x * view.zoom + view.panX;
+        const tx = dobra.x * view.zoom + view.panX + offX;
         const ty = dobra.y * view.zoom + view.panY;
         const ativa = dobraSelecionada && dobraSelecionada.fio.id === fio.id && dobraSelecionada.indice === i;
 
@@ -423,9 +424,10 @@ export function desenharFios(ctx, circuito, view, fioSelecionadoId, dobraSelecio
 
 /** Desenha o fio fantasma durante o arrasto. */
 export function desenharFioFantasma(ctx, view, origem, cursor, cor) {
+  const offX = view.offsetOrigemX || 0;
   ctx.save();
   ctx.beginPath();
-  ctx.moveTo(origem.x * view.zoom + view.panX, origem.y * view.zoom + view.panY);
+  ctx.moveTo(origem.x * view.zoom + view.panX + offX, origem.y * view.zoom + view.panY);
   ctx.lineTo(cursor.x, cursor.y);
   ctx.setLineDash([6, 5]);
   ctx.strokeStyle = cor || CORES.primaria;
