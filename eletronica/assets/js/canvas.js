@@ -148,7 +148,7 @@ export function criarCanvas(elemento, estado) {
 
     for (const nivel of niveisOrdenados) {
       // Quanto mais fino o nível, mais claro o traço
-      const alpha = nivel.nivel === 0 ? 0.12 : 0.06;
+      const alpha = nivel.nivel === 0 ? 0.09 : 0.045;
       const espessura = nivel.nivel === 0 ? 1 : 0.5;
 
       c.strokeStyle = `rgba(0, 0, 0, ${alpha})`;
