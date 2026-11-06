@@ -232,7 +232,93 @@ export function criarCanvas(elemento, estado) {
     ctx.restore();
   }
 
+  let construirAnimacao = null;
+  let animacaoRafId = null;
+  let ultimoRenderArgs = null;
+
+  function calcularBoundingBoxComponentes(componentes) {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const comp of componentes) {
+      const b = boundsDoComponente(comp);
+      minX = Math.min(minX, b.x);
+      minY = Math.min(minY, b.y);
+      maxX = Math.max(maxX, b.x + b.w);
+      maxY = Math.max(maxY, b.y + b.h);
+    }
+    if (!Number.isFinite(minX)) {
+      return { x: 0, y: 0, w: 0, h: 0 };
+    }
+    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+  }
+
+  function desenharContornoConstruir(ctx, view) {
+    if (!construirAnimacao) return;
+    const { componentes, inicio, duracao } = construirAnimacao;
+    if (!componentes || componentes.length === 0) return;
+
+    const caixa = calcularBoundingBoxComponentes(componentes);
+    const margem = 10;
+    const tela = mundoParaTela(caixa.x, caixa.y);
+    const w = caixa.w * view.zoom;
+    const h = caixa.h * view.zoom;
+    const x = tela.x - margem;
+    const y = tela.y - margem;
+    const sw = w + margem * 2;
+    const sh = h + margem * 2;
+
+    const t = Math.min(1, (performance.now() - inicio) / duracao);
+    const fase = ((performance.now() - inicio) / 900) % 1;
+
+    ctx.save();
+    ctx.strokeStyle = '#009C3B';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 6]);
+    ctx.lineDashOffset = -fase * 14;
+    ctx.globalAlpha = 0.55 + 0.45 * Math.sin(t * Math.PI);
+    ctx.strokeRect(x, y, sw, sh);
+    ctx.restore();
+  }
+
+  function loopAnimacaoConstruir() {
+    if (!construirAnimacao) {
+      animacaoRafId = null;
+      return;
+    }
+    if (ultimoRenderArgs) {
+      render(...ultimoRenderArgs);
+    }
+    animacaoRafId = requestAnimationFrame(loopAnimacaoConstruir);
+  }
+
+  function iniciarContornoConstruir(componentes) {
+    construirAnimacao = {
+      componentes,
+      inicio: performance.now(),
+      duracao: 1200,
+    };
+    if (animacaoRafId) {
+      cancelAnimationFrame(animacaoRafId);
+      animacaoRafId = null;
+    }
+    animacaoRafId = requestAnimationFrame(loopAnimacaoConstruir);
+    if (ultimoRenderArgs) {
+      render(...ultimoRenderArgs);
+    }
+  }
+
+  function pararContornoConstruir() {
+    construirAnimacao = null;
+    if (animacaoRafId) {
+      cancelAnimationFrame(animacaoRafId);
+      animacaoRafId = null;
+    }
+    if (ultimoRenderArgs) {
+      render(...ultimoRenderArgs);
+    }
+  }
+
   function render(circuito, selecionados = [], fioSelecionadoId = null, dobraSelecionada = null, fioFantasma = null, selecaoRetangular = null, grupoSelecionadoId = null) {
+    ultimoRenderArgs = [circuito, selecionados, fioSelecionadoId, dobraSelecionada, fioFantasma, selecaoRetangular, grupoSelecionadoId];
     desenharGrade();
 
     // Grupos primeiro (atrás de tudo)
@@ -270,12 +356,17 @@ export function criarCanvas(elemento, estado) {
         selecaoRetangular.x2, selecaoRetangular.y2
       );
     }
+
+    // Contorno animado da função Construir
+    desenharContornoConstruir(ctx, view);
   }
 
   return {
     view,
     redimensionar,
     render,
+    iniciarContornoConstruir,
+    pararContornoConstruir,
     telaParaMundo,
     mundoParaTela,
     get ctx() { return ctx; },

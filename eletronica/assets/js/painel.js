@@ -9,6 +9,21 @@ import { rotacionarComponente } from './circuito.js';
 import { registrar } from './historico.js';
 import { CORES_FIO, removerFio } from './fios.js';
 import { CORES_GRUPO, desfazerGrupo } from './grupos.js';
+import { desenharComponente } from './simbolos.js';
+import { executarSubstituicaoConstruir } from './construir.js';
+
+export const CORES_LED = [
+  '#FF3B30', // vermelho
+  '#FF9500', // laranja
+  '#FFCC00', // amarelo
+  '#34C759', // verde
+  '#00C7BE', // ciano
+  '#007AFF', // azul
+  '#5856D6', // índigo
+  '#AF52DE', // roxo
+  '#FF2D55', // rosa
+  '#8E8E93', // cinza
+];
 
 /** Formata um número com unidade de engenharia. */
 function formatarValor(valor, unidade) {
@@ -98,24 +113,26 @@ function criarCampo(chave, spec, comp, aoMudar, circuito) {
     });
   } else if (spec.tipo === 'cor') {
     const wrapper = document.createElement('div');
-    wrapper.className = 'painel-campo-linha';
+    wrapper.className = 'popup-cores';
+    const corAtual = (comp.propriedades?.[chave] || comp.cor || CORES_LED[0]).toUpperCase();
 
-    input = document.createElement('input');
-    input.type = 'color';
-    input.value = comp.propriedades[chave];
-    wrapper.appendChild(input);
-
-    const hint = document.createElement('span');
-    hint.className = 'painel-campo-hint painel-campo-hint--mono';
-    hint.textContent = comp.propriedades[chave].toUpperCase();
-    wrapper.appendChild(hint);
-
-    input.addEventListener('input', () => {
-      comp.propriedades[chave] = input.value;
-      registrar(circuito, 'propriedade');
-      hint.textContent = input.value.toUpperCase();
-      aoMudar();
-    });
+    for (const cor of CORES_LED) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'popup-cor-bolinha' + (cor.toUpperCase() === corAtual ? ' selecionada' : '');
+      btn.dataset.cor = cor;
+      btn.style.background = cor;
+      btn.title = cor;
+      btn.addEventListener('click', () => {
+        comp.cor = cor;
+        if (comp.propriedades) comp.propriedades[chave] = cor;
+        wrapper.querySelectorAll('.popup-cor-bolinha').forEach((b) => b.classList.remove('selecionada'));
+        btn.classList.add('selecionada');
+        registrar(circuito, 'propriedade', true);
+        if (aoMudar) aoMudar();
+      });
+      wrapper.appendChild(btn);
+    }
 
     campo.appendChild(wrapper);
     return campo;
@@ -247,11 +264,52 @@ export function montarPropriedadesComponente(container, comp, estado, aoMudar, a
   categoria.textContent = def.categoria;
   container.appendChild(categoria);
 
+  const secoes = [];
+
+  // Cor do LED com 10 opções pré-definidas
+  if (comp.tipo === 'LED') {
+    const secaoCor = document.createElement('div');
+    secaoCor.className = 'popup-secao';
+
+    const tituloCor = document.createElement('div');
+    tituloCor.className = 'popup-secao-titulo';
+    tituloCor.textContent = 'Cor';
+    secaoCor.appendChild(tituloCor);
+
+    const corAtual = (comp.propriedades?.cor || comp.cor || CORES_LED[0]).toUpperCase();
+    const paleta = document.createElement('div');
+    paleta.className = 'popup-cores';
+
+    for (const cor of CORES_LED) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'popup-cor-bolinha' + (cor.toUpperCase() === corAtual ? ' selecionada' : '');
+      btn.dataset.cor = cor;
+      btn.style.background = cor;
+      btn.title = cor;
+      btn.addEventListener('click', () => {
+        comp.cor = cor;
+        if (comp.propriedades) comp.propriedades.cor = cor;
+        paleta.querySelectorAll('.popup-cor-bolinha').forEach((b) => b.classList.remove('selecionada'));
+        btn.classList.add('selecionada');
+        registrar(estado.circuito, 'propriedade', true);
+        if (aoMudar) aoMudar();
+      });
+      paleta.appendChild(btn);
+    }
+
+    secaoCor.appendChild(paleta);
+    secoes.push(secaoCor);
+  }
+
   // Propriedades
-  const props = Object.entries(def.propriedades || {});
+  let props = Object.entries(def.propriedades || {});
+  if (comp.tipo === 'LED') {
+    props = props.filter(([chave]) => chave !== 'cor');
+  }
   if (props.length > 0) {
     const secaoProps = document.createElement('div');
-    secaoProps.className = 'painel-secao painel-secao--primeira';
+    secaoProps.className = 'painel-secao popup-secao painel-secao--primeira';
 
     const tituloProps = document.createElement('h4');
     tituloProps.textContent = 'Propriedades';
@@ -261,41 +319,41 @@ export function montarPropriedadesComponente(container, comp, estado, aoMudar, a
       secaoProps.appendChild(criarCampo(chave, spec, comp, aoMudar, estado.circuito));
     }
 
-    container.appendChild(secaoProps);
-  }
+    if (comp.tipo === 'FUSIVEL') {
+      const status = document.createElement('div');
+      status.className = 'prop-status';
+      status.innerHTML = comp.propriedades?.queimado
+        ? '<span style="color:#c0392b; font-weight:700;">● QUEIMADO</span>'
+        : '<span style="color:#53b588; font-weight:600;">● Íntegro</span>';
+      secaoProps.appendChild(status);
 
-  if (comp.tipo === 'FUSIVEL') {
-    const status = document.createElement('div');
-    status.className = 'prop-status';
-    status.innerHTML = comp.propriedades?.queimado
-      ? '<span style="color:#c0392b; font-weight:700;">● QUEIMADO</span>'
-      : '<span style="color:#53b588; font-weight:600;">● Íntegro</span>';
-    container.appendChild(status);
-
-    if (comp.propriedades?.queimado) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn-toolbar';
-      btn.textContent = 'Trocar fusível';
-      btn.style.marginTop = '8px';
-      btn.style.width = '100%';
-      btn.addEventListener('click', () => {
-        comp.propriedades.queimado = false;
-        registrar(estado.circuito, 'trocar-fusivel', true);
-        aoMudar();
-        if (typeof estado.recalcular === 'function') estado.recalcular();
-      });
-      container.appendChild(btn);
+      if (comp.propriedades?.queimado) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-toolbar';
+        btn.textContent = 'Trocar fusível';
+        btn.style.marginTop = '8px';
+        btn.style.width = '100%';
+        btn.addEventListener('click', () => {
+          comp.propriedades.queimado = false;
+          registrar(estado.circuito, 'trocar-fusivel', true);
+          aoMudar();
+          if (typeof estado.recalcular === 'function') estado.recalcular();
+        });
+        secaoProps.appendChild(btn);
+      }
     }
+
+    secoes.push(secaoProps);
   }
 
   // Rotação
-  container.appendChild(criarSecaoRotacao(comp, aoMudar, estado.circuito));
+  secoes.push(criarSecaoRotacao(comp, aoMudar, estado.circuito));
 
   // Ver montagem
   if (def.montagem) {
     const secaoMontagem = document.createElement('div');
-    secaoMontagem.className = 'painel-secao';
+    secaoMontagem.className = 'painel-secao popup-secao';
 
     const btnMontagem = document.createElement('button');
     btnMontagem.type = 'button';
@@ -315,8 +373,18 @@ export function montarPropriedadesComponente(container, comp, estado, aoMudar, a
     nota.textContent = 'Veja como este componente é construído internamente.';
     secaoMontagem.appendChild(nota);
 
-    container.appendChild(secaoMontagem);
+    secoes.push(secaoMontagem);
   }
+
+  // Insere as seções com o divisor popup-divisor (85% de largura) entre elas
+  secoes.forEach((secao, i) => {
+    if (i > 0) {
+      const divisor = document.createElement('div');
+      divisor.className = 'popup-divisor';
+      container.appendChild(divisor);
+    }
+    container.appendChild(secao);
+  });
 
   // Remover
   const btnRemover = document.createElement('button');
@@ -353,7 +421,7 @@ export function montarPropriedadesFio(corpo, fio, estado, aoMudar) {
   corpo.appendChild(header);
 
   const secaoProps = document.createElement('div');
-  secaoProps.className = 'painel-secao painel-secao--primeira';
+  secaoProps.className = 'painel-secao popup-secao painel-secao--primeira';
 
   const tituloProps = document.createElement('h4');
   tituloProps.textContent = 'Propriedades';
@@ -463,53 +531,81 @@ export function montarPropriedadesFio(corpo, fio, estado, aoMudar) {
 }
 
 /**
+ * Conta as ligações (fios) reais cujas duas pontas pertencem a componentes do grupo.
+ * Com zero fios no circuito ou sem fios entre membros, retorna obrigatoriamente 0.
+ */
+export function contarLigacoesDoGrupo(grupo, circuito) {
+  const membros = grupo?.membros || [];
+  const grupos = (circuito && Array.isArray(circuito.grupos)) ? circuito.grupos : [];
+  const fios = (circuito && Array.isArray(circuito.fios)) ? circuito.fios : [];
+
+  const idsMembros = new Set(
+    membros
+      .filter((m) => {
+        if (!m) return false;
+        if (typeof m === 'object') return m.tipo !== 'fio' && m.tipo !== 'grupo';
+        const ehGrupo = grupos.some((g) => g.id === m);
+        const ehFio = fios.some((f) => f.id === m);
+        return !ehGrupo && !ehFio;
+      })
+      .map((m) => (typeof m === 'string' ? m : m.id))
+  );
+
+  if (idsMembros.size === 0) return 0;
+  if (fios.length === 0) return 0;
+
+  let total = 0;
+  for (const fio of fios) {
+    if (!fio) continue;
+    const pontaA = fio.origem || fio.a || fio.inicio;
+    const pontaB = fio.destino || fio.b || fio.fim;
+    if (!pontaA || !pontaB) continue;
+    const idA = pontaA.componente ?? pontaA.componenteId ?? pontaA.compId ?? pontaA.idComponente;
+    const idB = pontaB.componente ?? pontaB.componenteId ?? pontaB.compId ?? pontaB.idComponente;
+    if (idA == null || idB == null) continue;
+    if (idsMembros.has(idA) && idsMembros.has(idB)) total++;
+  }
+  return total;
+}
+
+/**
  * Monta as propriedades de uma área (grupo) dentro do container do popup.
  */
 export function montarPropriedadesArea(corpo, area, estado, aoMudar) {
   corpo.innerHTML = '';
   if (!area) return;
 
-  const header = document.createElement('div');
-  header.className = 'painel-header';
-  const titulo = document.createElement('h3');
-  titulo.className = 'painel-titulo';
-  titulo.textContent = area.nome || 'Grupo';
-  header.appendChild(titulo);
-  const badge = document.createElement('span');
-  badge.className = 'painel-categoria';
-  badge.textContent = `Área · ${(area.membros || []).length} itens`;
-  header.appendChild(badge);
-  corpo.appendChild(header);
+  // Garante a classe de escopo no popup pai
+  if (corpo.parentElement) {
+    corpo.parentElement.classList.add('popup-grupo');
+  }
+
+  // Contagem de itens em barra verde
+  const membros = area.membros || [];
+  const grupos = estado?.circuito?.grupos || [];
+  const fios = estado?.circuito?.fios || [];
+
+  const qtdComponentes = membros.filter((m) => {
+    if (!m) return false;
+    if (typeof m === 'object') return m.tipo !== 'fio' && m.tipo !== 'grupo';
+    const ehGrupo = grupos.some((g) => g.id === m);
+    const ehFio = fios.some((f) => f.id === m);
+    return !ehGrupo && !ehFio;
+  }).length;
+
+  const qtdLigacoes = contarLigacoesDoGrupo(area, estado?.circuito);
+
+  const badgeContagem = document.createElement('div');
+  badgeContagem.className = 'popup-contagem-grupo';
+  badgeContagem.textContent = `${qtdComponentes} Componentes; ${qtdLigacoes} Ligações`;
+  corpo.appendChild(badgeContagem);
 
   const secaoProps = document.createElement('div');
-  secaoProps.className = 'painel-secao painel-secao--primeira';
-
-  // Campo de nome (input text)
-  const campoNome = document.createElement('div');
-  campoNome.className = 'painel-campo';
-  const labelNome = document.createElement('label');
-  labelNome.textContent = 'Nome da área';
-  campoNome.appendChild(labelNome);
-
-  const inputNome = document.createElement('input');
-  inputNome.type = 'text';
-  inputNome.value = area.nome || 'Grupo';
-  inputNome.className = 'input-nome-grupo';
-  inputNome.addEventListener('input', () => {
-    area.nome = inputNome.value || 'Grupo';
-    titulo.textContent = area.nome;
-    const popupEl = corpo.closest('.popup-propriedades');
-    const popupTitulo = popupEl?.querySelector('.popup-titulo');
-    if (popupTitulo) popupTitulo.textContent = area.nome;
-    registrar(estado.circuito, 'propriedade');
-    if (aoMudar) aoMudar();
-  });
-  campoNome.appendChild(inputNome);
-  secaoProps.appendChild(campoNome);
+  secaoProps.className = 'painel-secao popup-secao painel-secao--primeira';
 
   // Seletor de cor da área (input type=color)
   const campoCor = document.createElement('div');
-  campoCor.className = 'painel-campo';
+  campoCor.className = 'painel-campo popup-campo';
   const labelCor = document.createElement('label');
   labelCor.textContent = 'Cor da área';
   campoCor.appendChild(labelCor);
@@ -526,22 +622,15 @@ export function montarPropriedadesArea(corpo, area, estado, aoMudar) {
   hintCor.textContent = (area.cor || CORES_GRUPO[0]).toUpperCase();
   linhaCor.appendChild(hintCor);
 
-  inputCor.addEventListener('input', () => {
-    area.cor = inputCor.value;
-    hintCor.textContent = inputCor.value.toUpperCase();
-    registrar(estado.circuito, 'cor-grupo', true);
-    if (aoMudar) aoMudar();
-  });
-
   campoCor.appendChild(linhaCor);
 
-  // Paleta rápida de cores da área
+  // Paleta de bolinhas de cor (2 linhas de 5)
   const paletaGrupo = document.createElement('div');
-  paletaGrupo.className = 'paleta-cores';
+  paletaGrupo.className = 'popup-cores';
   for (const cor of CORES_GRUPO) {
     const botaoCor = document.createElement('button');
     botaoCor.type = 'button';
-    botaoCor.className = 'cor-fio';
+    botaoCor.className = 'popup-cor-bolinha' + (area.cor === cor ? ' selecionada' : '');
     botaoCor.style.background = cor;
     botaoCor.title = cor;
     botaoCor.setAttribute('aria-label', `Cor ${cor}`);
@@ -551,11 +640,24 @@ export function montarPropriedadesArea(corpo, area, estado, aoMudar) {
       area.cor = cor;
       inputCor.value = cor;
       hintCor.textContent = cor.toUpperCase();
+      paletaGrupo.querySelectorAll('.popup-cor-bolinha').forEach((b) => b.classList.remove('selecionada'));
+      botaoCor.classList.add('selecionada');
       registrar(estado.circuito, 'cor-grupo', true);
       if (aoMudar) aoMudar();
     });
     paletaGrupo.appendChild(botaoCor);
   }
+
+  inputCor.addEventListener('input', () => {
+    area.cor = inputCor.value;
+    hintCor.textContent = inputCor.value.toUpperCase();
+    paletaGrupo.querySelectorAll('.popup-cor-bolinha').forEach((b) => {
+      b.classList.toggle('selecionada', b.title.toLowerCase() === inputCor.value.toLowerCase());
+    });
+    registrar(estado.circuito, 'cor-grupo', true);
+    if (aoMudar) aoMudar();
+  });
+
   campoCor.appendChild(paletaGrupo);
   secaoProps.appendChild(campoCor);
 
@@ -729,11 +831,52 @@ export function renderizarPainel(container, estado, aoMudar, aoVerMontagem) {
 
   container.appendChild(header);
 
+  const secoes = [];
+
+  // Cor do LED com 10 opções pré-definidas
+  if (comp.tipo === 'LED') {
+    const secaoCor = document.createElement('div');
+    secaoCor.className = 'popup-secao';
+
+    const tituloCor = document.createElement('div');
+    tituloCor.className = 'popup-secao-titulo';
+    tituloCor.textContent = 'Cor';
+    secaoCor.appendChild(tituloCor);
+
+    const corAtual = (comp.propriedades?.cor || comp.cor || CORES_LED[0]).toUpperCase();
+    const paleta = document.createElement('div');
+    paleta.className = 'popup-cores';
+
+    for (const cor of CORES_LED) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'popup-cor-bolinha' + (cor.toUpperCase() === corAtual ? ' selecionada' : '');
+      btn.dataset.cor = cor;
+      btn.style.background = cor;
+      btn.title = cor;
+      btn.addEventListener('click', () => {
+        comp.cor = cor;
+        if (comp.propriedades) comp.propriedades.cor = cor;
+        paleta.querySelectorAll('.popup-cor-bolinha').forEach((b) => b.classList.remove('selecionada'));
+        btn.classList.add('selecionada');
+        registrar(estado.circuito, 'propriedade', true);
+        if (aoMudar) aoMudar();
+      });
+      paleta.appendChild(btn);
+    }
+
+    secaoCor.appendChild(paleta);
+    secoes.push(secaoCor);
+  }
+
   // Propriedades
-  const props = Object.entries(def.propriedades || {});
+  let props = Object.entries(def.propriedades || {});
+  if (comp.tipo === 'LED') {
+    props = props.filter(([chave]) => chave !== 'cor');
+  }
   if (props.length > 0) {
     const secaoProps = document.createElement('div');
-    secaoProps.className = 'painel-secao painel-secao--primeira';
+    secaoProps.className = 'painel-secao popup-secao painel-secao--primeira';
 
     const tituloProps = document.createElement('h4');
     tituloProps.textContent = 'Propriedades';
@@ -743,41 +886,41 @@ export function renderizarPainel(container, estado, aoMudar, aoVerMontagem) {
       secaoProps.appendChild(criarCampo(chave, spec, comp, aoMudar, estado.circuito));
     }
 
-    container.appendChild(secaoProps);
-  }
+    if (comp.tipo === 'FUSIVEL') {
+      const status = document.createElement('div');
+      status.className = 'prop-status';
+      status.innerHTML = comp.propriedades?.queimado
+        ? '<span style="color:#c0392b; font-weight:700;">● QUEIMADO</span>'
+        : '<span style="color:#53b588; font-weight:600;">● Íntegro</span>';
+      secaoProps.appendChild(status);
 
-  if (comp.tipo === 'FUSIVEL') {
-    const status = document.createElement('div');
-    status.className = 'prop-status';
-    status.innerHTML = comp.propriedades?.queimado
-      ? '<span style="color:#c0392b; font-weight:700;">● QUEIMADO</span>'
-      : '<span style="color:#53b588; font-weight:600;">● Íntegro</span>';
-    container.appendChild(status);
-
-    if (comp.propriedades?.queimado) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn-toolbar';
-      btn.textContent = 'Trocar fusível';
-      btn.style.marginTop = '8px';
-      btn.style.width = '100%';
-      btn.addEventListener('click', () => {
-        comp.propriedades.queimado = false;
-        registrar(estado.circuito, 'trocar-fusivel', true);
-        aoMudar();
-        if (typeof estado.recalcular === 'function') estado.recalcular();
-      });
-      container.appendChild(btn);
+      if (comp.propriedades?.queimado) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-toolbar';
+        btn.textContent = 'Trocar fusível';
+        btn.style.marginTop = '8px';
+        btn.style.width = '100%';
+        btn.addEventListener('click', () => {
+          comp.propriedades.queimado = false;
+          registrar(estado.circuito, 'trocar-fusivel', true);
+          aoMudar();
+          if (typeof estado.recalcular === 'function') estado.recalcular();
+        });
+        secaoProps.appendChild(btn);
+      }
     }
+
+    secoes.push(secaoProps);
   }
 
   // Rotação
-  container.appendChild(criarSecaoRotacao(comp, aoMudar, estado.circuito));
+  secoes.push(criarSecaoRotacao(comp, aoMudar, estado.circuito));
 
   // Ver montagem
   if (def.montagem) {
     const secaoMontagem = document.createElement('div');
-    secaoMontagem.className = 'painel-secao';
+    secaoMontagem.className = 'painel-secao popup-secao';
 
     const btnMontagem = document.createElement('button');
     btnMontagem.type = 'button';
@@ -797,8 +940,18 @@ export function renderizarPainel(container, estado, aoMudar, aoVerMontagem) {
     nota.textContent = 'Veja como este componente é construído internamente.';
     secaoMontagem.appendChild(nota);
 
-    container.appendChild(secaoMontagem);
+    secoes.push(secaoMontagem);
   }
+
+  // Insere as seções com o divisor popup-divisor (85% de largura) entre elas
+  secoes.forEach((secao, i) => {
+    if (i > 0) {
+      const divisor = document.createElement('div');
+      divisor.className = 'popup-divisor';
+      container.appendChild(divisor);
+    }
+    container.appendChild(secao);
+  });
 
   // Remover
   const btnRemover = document.createElement('button');
@@ -854,4 +1007,78 @@ export function montarListaComandos(corpo) {
     lista.appendChild(linha);
   }
   corpo.appendChild(lista);
+}
+
+/**
+ * Monta o corpo do popup de equivalência "Construir".
+ */
+export function montarCorpoConstruir(corpo, resultado, estado, aoSubstituir, aoManter) {
+  corpo.innerHTML = '';
+  if (!resultado) return;
+
+  const aviso = document.createElement('div');
+  aviso.className = 'popup-construir-aviso';
+  aviso.textContent = 'Esta configuração é equivalente a:';
+  corpo.appendChild(aviso);
+
+  const alvo = document.createElement('div');
+  alvo.className = 'popup-construir-alvo';
+  alvo.textContent = resultado.nome || resultado.alvo;
+  corpo.appendChild(alvo);
+
+  const desc = document.createElement('div');
+  desc.className = 'popup-construir-descricao';
+  desc.textContent = resultado.descricao || '';
+  corpo.appendChild(desc);
+
+  // Prévia visual do componente alvo
+  const previewContainer = document.createElement('div');
+  previewContainer.className = 'popup-construir-preview';
+  const previewCanvas = document.createElement('canvas');
+  previewCanvas.width = 120;
+  previewCanvas.height = 70;
+  previewCanvas.style.width = '120px';
+  previewCanvas.style.height = '70px';
+  const pctx = previewCanvas.getContext('2d');
+  if (pctx) {
+    const dimAlvo = CATALOGO[resultado.alvo]?.dimensoes || { w: 60, h: 40 };
+    const compFake = {
+      tipo: resultado.alvo,
+      x: 0,
+      y: 0,
+      rotacao: 0,
+      propriedades: {},
+      dimensoes: dimAlvo,
+    };
+    const telaX = Math.round((previewCanvas.width - dimAlvo.w) / 2);
+    const telaY = Math.round((previewCanvas.height - dimAlvo.h) / 2);
+    desenharComponente(pctx, compFake, telaX, telaY, 1);
+  }
+  previewContainer.appendChild(previewCanvas);
+  corpo.appendChild(previewContainer);
+
+  // Ações: Substituir e Manter atual
+  const acoes = document.createElement('div');
+  acoes.className = 'popup-construir-acoes';
+
+  const btnSubstituir = document.createElement('button');
+  btnSubstituir.type = 'button';
+  btnSubstituir.className = 'popup-construir-btn-substituir';
+  btnSubstituir.textContent = 'Substituir';
+  btnSubstituir.addEventListener('click', () => {
+    executarSubstituicaoConstruir(resultado, estado);
+    if (aoSubstituir) aoSubstituir();
+  });
+
+  const btnManter = document.createElement('button');
+  btnManter.type = 'button';
+  btnManter.className = 'popup-construir-btn-manter';
+  btnManter.textContent = 'Manter atual';
+  btnManter.addEventListener('click', () => {
+    if (aoManter) aoManter();
+  });
+
+  acoes.appendChild(btnSubstituir);
+  acoes.appendChild(btnManter);
+  corpo.appendChild(acoes);
 }

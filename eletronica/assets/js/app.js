@@ -14,7 +14,12 @@ import {
   montarPropriedadesFio,
   montarPropriedadesArea,
   montarListaComandos,
+  montarCorpoConstruir,
 } from './painel.js';
+import {
+  analisarSelecaoParaConstruir,
+  executarSubstituicaoConstruir,
+} from './construir.js';
 import { simular, tensaoEm, correnteEm } from './solver.js';
 import { obterMontagem, desenharMontagem } from './montagens.js';
 import { desenharComponente } from './simbolos.js';
@@ -676,7 +681,8 @@ function montarInterface() {
         </div>
         <div class="cabecalho-acoes">
           <button type="button" class="btn-simular" id="btn-simular">Simular</button>
-          <button type="button" class="btn-juntar" id="btn-juntar">Juntar</button>
+          <button type="button" class="btn-juntar" id="btn-juntar">Criar área</button>
+          <button id="btn-construir" class="cabecalho-btn cabecalho-btn-construir" type="button" disabled>Construir</button>
           <button type="button" class="btn-toolbar" id="btn-desfazer" title="Desfazer (Ctrl+Z)">↶</button>
           <button type="button" class="btn-toolbar" id="btn-refazer" title="Refazer (Ctrl+Y)">↷</button>
         </div>
@@ -775,6 +781,22 @@ function montarInterface() {
       renderizarTudo();
     }
   });
+
+  const btnConstruir = document.getElementById('btn-construir');
+  if (btnConstruir) {
+    btnConstruir.addEventListener('click', () => {
+      const resultado = analisarSelecaoParaConstruir(estado);
+      if (!resultado.encontrado) {
+        mostrarToastConstruir('Nenhum circuito correspondente encontrado');
+        return;
+      }
+      estado.resultadoConstruir = resultado;
+      if (canvas && typeof canvas.iniciarContornoConstruir === 'function') {
+        canvas.iniciarContornoConstruir(resultado.componentes);
+      }
+      abrirPopupEntidade('construir', 'modal');
+    });
+  }
 
   const btnMenu = document.getElementById('btn-menu');
   const menuDropdown = document.getElementById('menu-dropdown');
@@ -912,6 +934,11 @@ function montarInterface() {
   window.addEventListener('keydown', (e) => {
     if (e.target instanceof HTMLElement && (e.target.isContentEditable || ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName))) return;
 
+    if (e.key === 'Escape') {
+      if (estado.popups['construir']) {
+        fecharPopupConstruir();
+      }
+    }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
       e.preventDefault();
       copiarSelecionados();
@@ -1110,9 +1137,55 @@ async function desenharMiniatura(canvasMini, tipo) {
   desenharComponente(ctx, compFake, x, y, escala);
 }
 
+let timerToastConstruir = null;
+function mostrarToastConstruir(texto = 'Nenhum circuito correspondente encontrado') {
+  let toast = document.querySelector('.toast-construir');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.className = 'toast-construir';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = texto;
+  toast.classList.add('visivel');
+  if (timerToastConstruir) clearTimeout(timerToastConstruir);
+  timerToastConstruir = setTimeout(() => {
+    toast.classList.remove('visivel');
+    timerToastConstruir = null;
+  }, 2200);
+}
+
+function fecharPopupConstruir() {
+  if (canvas && typeof canvas.pararContornoConstruir === 'function') {
+    canvas.pararContornoConstruir();
+  }
+  delete estado.popups['construir'];
+  if (estado.popupAtivo === 'construir') estado.popupAtivo = null;
+  estado.resultadoConstruir = null;
+  renderizarPopups(true);
+}
+
+function atualizarBotaoConstruir() {
+  const btn = document.getElementById('btn-construir');
+  if (!btn) return;
+  const comps = (estado.selecionados || [])
+    .map((id) => (estado.circuito?.componentes || []).find((c) => c.id === id))
+    .filter((c) => c && c.tipo !== 'fio' && c.tipo !== 'grupo');
+  btn.disabled = comps.length < 2;
+}
+
 function renderizarTudo() {
   if (!canvas) return;
   atualizarTodosBounds(estado.circuito);
+
+  if (estado.resultadoConstruir) {
+    const selIds = new Set(estado.selecionados || []);
+    const compIds = (estado.resultadoConstruir.componentes || []).map((c) => c.id);
+    const mesmaSelecao = compIds.length === selIds.size && compIds.every((id) => selIds.has(id));
+    if (!mesmaSelecao) {
+      fecharPopupConstruir();
+    }
+  }
+
   if (estado.simulando) {
     recalcular();
   } else {
@@ -1129,6 +1202,7 @@ function renderizarTudo() {
   renderizarPainel();
   agendarAutosave(estado);
   atualizarBotoesHistorico();
+  atualizarBotaoConstruir();
 }
 
 let limpezasPopups = [];
@@ -1188,6 +1262,9 @@ function obterEntidadePopup(tipo, id) {
   if (tipo === 'comandos') {
     return { id: 'comandos', nome: 'Lista de comandos' };
   }
+  if (tipo === 'construir') {
+    return estado.resultadoConstruir || { id: 'construir', nome: 'Construir' };
+  }
   if (tipo === 'comp') {
     return estado.circuito.componentes.find((c) => c.id === id) || null;
   }
@@ -1211,6 +1288,7 @@ function escaparHtml(texto) {
 
 function obterTituloPopup(tipo, entidade) {
   if (tipo === 'comandos') return 'Lista de comandos';
+  if (tipo === 'construir') return 'Construir';
   if (tipo === 'comp') {
     return entidade.nomeCustom
       ? `${entidade.nomeCustom} (${entidade.tipo})`
@@ -1224,6 +1302,19 @@ function obterTituloPopup(tipo, entidade) {
 function montarCorpoPopup(corpo, tipo, id) {
   if (tipo === 'comandos') {
     montarListaComandos(corpo);
+  } else if (tipo === 'construir') {
+    montarCorpoConstruir(
+      corpo,
+      estado.resultadoConstruir,
+      estado,
+      () => {
+        fecharPopupConstruir();
+        renderizarTudo();
+      },
+      () => {
+        fecharPopupConstruir();
+      }
+    );
   } else if (tipo === 'comp') {
     const comp = estado.circuito.componentes.find((c) => c.id === id);
     if (comp) montarPropriedades(corpo, comp);
@@ -1288,26 +1379,26 @@ function calcularPosicaoPadrao(container) {
 }
 
 function abrirPopupEntidade(tipo, id) {
-  const chave = tipo === 'comandos' ? 'comandos' : `${tipo}:${id}`;
+  const chave = (tipo === 'comandos' || tipo === 'construir') ? tipo : `${tipo}:${id}`;
 
-  if (tipo === 'comandos') {
-    if (estado.popups['comandos']) {
+  if (tipo === 'comandos' || tipo === 'construir') {
+    if (estado.popups[chave]) {
       estado.zIndexPopup += 1;
-      estado.popups['comandos'].zIndex = estado.zIndexPopup;
-      estado.popupAtivo = 'comandos';
+      estado.popups[chave].zIndex = estado.zIndexPopup;
+      estado.popupAtivo = chave;
       renderizarPopups(true);
       return;
     }
     const container = document.getElementById('popups-container');
     const pos = calcularPosicaoPadrao(container);
-    estado.popups['comandos'] = {
+    estado.popups[chave] = {
       fixado: true,
       minimizado: false,
       semAlfinete: true,
       x: pos.x,
       y: pos.y,
     };
-    estado.popupAtivo = 'comandos';
+    estado.popupAtivo = chave;
     renderizarPopups(true);
     return;
   }
@@ -1353,8 +1444,15 @@ function iniciarEdicaoTitulo(tituloEl) {
   if (tituloEl.dataset.editando === '1') return;
 
   const id = tituloEl.dataset.id;
-  const comp = estado.circuito.componentes.find((c) => c.id === id);
-  if (!comp) return;
+  const tipo = tituloEl.dataset.tipo || 'componente';
+  const ehGrupo = tipo === 'grupo' || tipo === 'area';
+
+  const listaAreas = estado.circuito.areas || estado.circuito.grupos || [];
+  const entidade = ehGrupo
+    ? listaAreas.find((g) => g.id === id)
+    : estado.circuito.componentes.find((c) => c.id === id);
+
+  if (!entidade) return;
 
   tituloEl.dataset.editando = '1';
 
@@ -1362,7 +1460,7 @@ function iniciarEdicaoTitulo(tituloEl) {
   input.type = 'text';
   input.className = 'popup-titulo-input';
   input.maxLength = 15;
-  input.value = comp.nomeCustom || '';
+  input.value = ehGrupo ? (entidade.nome || '') : (entidade.nomeCustom || '');
   input.placeholder = 'Nome (máx. 15)';
 
   tituloEl.replaceWith(input);
@@ -1377,10 +1475,14 @@ function iniciarEdicaoTitulo(tituloEl) {
 
     if (salvar) {
       const nome = input.value.trim().slice(0, 15);
-      if (nome) {
-        comp.nomeCustom = nome;
+      if (ehGrupo) {
+        entidade.nome = nome || 'Novo grupo';
       } else {
-        delete comp.nomeCustom;
+        if (nome) {
+          entidade.nomeCustom = nome;
+        } else {
+          delete entidade.nomeCustom;
+        }
       }
       registrar(estado.circuito, 'propriedade', true);
     }
@@ -1388,8 +1490,15 @@ function iniciarEdicaoTitulo(tituloEl) {
     const novoTitulo = document.createElement('span');
     novoTitulo.className = 'popup-titulo popup-titulo-editavel';
     novoTitulo.dataset.id = id;
+    novoTitulo.dataset.tipo = tipo;
     novoTitulo.title = 'Clique duas vezes para renomear';
-    novoTitulo.textContent = obterTituloPopup('comp', comp);
+    novoTitulo.innerHTML = `
+      ${escaparHtml(obterTituloPopup(ehGrupo ? 'area' : 'comp', entidade))}
+      <svg class="popup-titulo-lapis" viewBox="0 0 24 24"
+           width="11" height="11" aria-hidden="true">
+        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+      </svg>
+    `;
 
     input.replaceWith(novoTitulo);
 
@@ -1461,6 +1570,10 @@ function ligarEventosPopup(el, chave) {
   // Fechar
   btnFechar.addEventListener('click', (e) => {
     e.stopPropagation();
+    if (chave === 'construir') {
+      fecharPopupConstruir();
+      return;
+    }
     delete estado.popups[chave];
     if (estado.popupAtivo === chave) estado.popupAtivo = null;
     renderizarPopups(true);
@@ -1513,6 +1626,7 @@ function ligarEventosPopup(el, chave) {
 
 function extrairTipoEId(chave) {
   if (chave === 'comandos') return { tipo: 'comandos', id: 'lista' };
+  if (chave === 'construir') return { tipo: 'construir', id: 'modal' };
   const idx = chave.indexOf(':');
   if (idx === -1) return { tipo: 'comp', id: chave };
   return {
@@ -1549,8 +1663,9 @@ function renderizarPopups(forcar = false) {
       continue;
     }
 
+    const ehGrupo = tipo === 'area' || tipo === 'grupo';
     const el = document.createElement('div');
-    el.className = 'popup-propriedades' + (cfg.minimizado ? ' minimizado' : '');
+    el.className = 'popup-propriedades' + (ehGrupo ? ' popup-grupo' : '') + (cfg.minimizado ? ' minimizado' : '');
     el.style.left = cfg.x + 'px';
     el.style.top = cfg.y + 'px';
     if (!cfg.zIndex) {
@@ -1560,11 +1675,44 @@ function renderizarPopups(forcar = false) {
     el.style.zIndex = cfg.zIndex;
     el.dataset.popupKey = chave;
     if (tipo === 'comp') el.dataset.compId = id;
+    if (ehGrupo) el.dataset.grupoId = id;
 
     const tituloPopup = obterTituloPopup(tipo, entidade);
-    const tituloHtml = tipo === 'comp'
-      ? `<span class="popup-titulo popup-titulo-editavel" data-id="${id}" title="Clique duas vezes para renomear">${escaparHtml(tituloPopup)}</span>`
-      : `<span class="popup-titulo">${escaparHtml(tituloPopup)}</span>`;
+    let tituloHtml = `<span class="popup-titulo">${escaparHtml(tituloPopup)}</span>`;
+    const lapisSvg = `
+      <svg class="popup-titulo-lapis" viewBox="0 0 24 24"
+           width="11" height="11" aria-hidden="true">
+        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71
+                 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41
+                 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+      </svg>
+    `;
+
+    if (tipo === 'comandos') {
+      tituloHtml = `<span class="popup-titulo">Comandos</span>`;
+    } else if (tipo === 'construir') {
+      tituloHtml = `<span class="popup-titulo">Construir</span>`;
+    } else if (tipo === 'comp') {
+      tituloHtml = `
+        <span class="popup-titulo popup-titulo-editavel"
+              data-id="${id}"
+              data-tipo="componente"
+              title="Clique duas vezes para renomear">
+          ${escaparHtml(tituloPopup)}
+          ${lapisSvg}
+        </span>
+      `;
+    } else if (ehGrupo) {
+      tituloHtml = `
+        <span class="popup-titulo popup-titulo-editavel"
+              data-id="${id}"
+              data-tipo="grupo"
+              title="Clique duas vezes para renomear">
+          ${escaparHtml(tituloPopup)}
+          ${lapisSvg}
+        </span>
+      `;
+    }
 
     const botaoAlfinete = cfg.semAlfinete
       ? ''
