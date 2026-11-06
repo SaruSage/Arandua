@@ -165,7 +165,12 @@ function criarCampo(chave, spec, comp, aoMudar, circuito) {
 /** Cria a seção de rotação (linha única: campo + botões ao lado). */
 function criarSecaoRotacao(comp, aoMudar, circuito) {
   const secao = document.createElement('div');
-  secao.className = 'painel-secao';
+  secao.className = 'painel-secao popup-secao';
+
+  const titulo = document.createElement('h4');
+  titulo.className = 'popup-secao-titulo';
+  titulo.textContent = 'Controle de Rotação';
+  secao.appendChild(titulo);
 
   const grupo = document.createElement('div');
   grupo.className = 'popup-linha-rotacao';
@@ -196,7 +201,7 @@ function criarSecaoRotacao(comp, aoMudar, circuito) {
   btnEsq.className = 'popup-rotacao-btn';
   btnEsq.dataset.delta = '-90';
   btnEsq.title = '-90°';
-  btnEsq.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z"/></svg>';
+  btnEsq.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z"/></svg>';
   btnEsq.addEventListener('click', () => {
     rotacionarComponente({ componentes: [comp] }, comp.id, comp.rotacao - 90);
     registrar(circuito, 'rotacionar', true);
@@ -209,7 +214,7 @@ function criarSecaoRotacao(comp, aoMudar, circuito) {
   btnDir.className = 'popup-rotacao-btn';
   btnDir.dataset.delta = '90';
   btnDir.title = '+90°';
-  btnDir.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 5V2l5 4-5 4V7a5 5 0 1 0 5 5h2a7 7 0 1 1-7-7z"/></svg>';
+  btnDir.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 5V2l5 4-5 4V7a5 5 0 1 0 5 5h2a7 7 0 1 1-7-7z"/></svg>';
   btnDir.addEventListener('click', () => {
     rotacionarComponente({ componentes: [comp] }, comp.id, comp.rotacao + 90);
     registrar(circuito, 'rotacionar', true);

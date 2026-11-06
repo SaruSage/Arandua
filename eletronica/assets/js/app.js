@@ -1349,6 +1349,74 @@ function abrirPopupComponente(compId) {
   abrirPopupEntidade('comp', compId);
 }
 
+function iniciarEdicaoTitulo(tituloEl) {
+  if (tituloEl.dataset.editando === '1') return;
+
+  const id = tituloEl.dataset.id;
+  const comp = estado.circuito.componentes.find((c) => c.id === id);
+  if (!comp) return;
+
+  tituloEl.dataset.editando = '1';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'popup-titulo-input';
+  input.maxLength = 15;
+  input.value = comp.nomeCustom || '';
+  input.placeholder = 'Nome (máx. 15)';
+
+  tituloEl.replaceWith(input);
+  input.focus();
+  input.select();
+
+  let finalizado = false;
+
+  function finalizar(salvar) {
+    if (finalizado) return;
+    finalizado = true;
+
+    if (salvar) {
+      const nome = input.value.trim().slice(0, 15);
+      if (nome) {
+        comp.nomeCustom = nome;
+      } else {
+        delete comp.nomeCustom;
+      }
+      registrar(estado.circuito, 'propriedade', true);
+    }
+
+    const novoTitulo = document.createElement('span');
+    novoTitulo.className = 'popup-titulo popup-titulo-editavel';
+    novoTitulo.dataset.id = id;
+    novoTitulo.title = 'Clique duas vezes para renomear';
+    novoTitulo.textContent = obterTituloPopup('comp', comp);
+
+    input.replaceWith(novoTitulo);
+
+    novoTitulo.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      iniciarEdicaoTitulo(novoTitulo);
+    });
+
+    renderizarTudo();
+  }
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      finalizar(true);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      finalizar(false);
+    }
+    e.stopPropagation();
+  });
+
+  input.addEventListener('blur', () => finalizar(true));
+  input.addEventListener('mousedown', (e) => e.stopPropagation());
+}
+
 function ligarEventosPopup(el, chave) {
   const cfg = estado.popups[chave];
   if (!cfg) return;
@@ -1356,6 +1424,13 @@ function ligarEventosPopup(el, chave) {
   const btnMinimizar = el.querySelector('.popup-minimizar');
   const btnFechar = el.querySelector('.popup-fechar');
   const cabecalho = el.querySelector('.popup-cabecalho');
+
+  const tituloEl = el.querySelector('.popup-titulo-editavel');
+  tituloEl?.addEventListener('dblclick', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    iniciarEdicaoTitulo(tituloEl);
+  });
 
   el.addEventListener('mousedown', () => {
     estado.zIndexPopup += 1;
@@ -1397,7 +1472,7 @@ function ligarEventosPopup(el, chave) {
   let offsetY = 0;
 
   cabecalho.addEventListener('mousedown', (e) => {
-    if (e.target.closest('.popup-alfinete, .popup-minimizar, .popup-fechar')) return;
+    if (e.target.closest('.popup-alfinete, .popup-minimizar, .popup-fechar, .popup-titulo-input')) return;
     arrastando = true;
     const rect = el.getBoundingClientRect();
     offsetX = e.clientX - rect.left;
@@ -1487,6 +1562,9 @@ function renderizarPopups(forcar = false) {
     if (tipo === 'comp') el.dataset.compId = id;
 
     const tituloPopup = obterTituloPopup(tipo, entidade);
+    const tituloHtml = tipo === 'comp'
+      ? `<span class="popup-titulo popup-titulo-editavel" data-id="${id}" title="Clique duas vezes para renomear">${escaparHtml(tituloPopup)}</span>`
+      : `<span class="popup-titulo">${escaparHtml(tituloPopup)}</span>`;
 
     const botaoAlfinete = cfg.semAlfinete
       ? ''
@@ -1506,7 +1584,7 @@ function renderizarPopups(forcar = false) {
     el.innerHTML = `
       <div class="popup-cabecalho">
         ${botaoAlfinete}
-        <span class="popup-titulo">${escaparHtml(tituloPopup)}</span>
+        ${tituloHtml}
         <button type="button" class="popup-minimizar" title="${cfg.minimizado ? 'Expandir' : 'Minimizar'}">
           ${cfg.minimizado
             ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 9l6 6 6-6z"/></svg>'

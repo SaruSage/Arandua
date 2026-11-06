@@ -6,7 +6,7 @@
 import { desenharComponente, CORES } from './simbolos.js';
 import { CATALOGO } from './catalogo.js';
 import { desenharFios, desenharFioFantasma } from './fios.js';
-import { desenharGrupos, desenharSelecaoRetangular } from './grupos.js';
+import { desenharGrupos, desenharSelecaoRetangular, boundsDoComponente } from './grupos.js';
 
 export const GRADE_BASE = 40;        // espaçamento base em unidades de mundo
 export const SUBDIVISOES = 4;        // cada célula tem 4x4 subdivisões
@@ -200,6 +200,38 @@ export function criarCanvas(elemento, estado) {
     ctx.restore();
   }
 
+  function desenharNomeComponente(ctx, comp, view) {
+    if (!comp.nomeCustom) return;
+
+    const bounds = boundsDoComponente(comp);
+    const centroX = bounds.x + bounds.w / 2;
+    const topoY = bounds.y;
+    const centro = mundoParaTela(centroX, topoY);
+
+    // Posiciona acima do componente
+    const y = centro.y - 10 * view.zoom;
+
+    ctx.save();
+    ctx.font = `600 ${Math.max(9, 11 * view.zoom)}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+
+    // Fundo suave para legibilidade sobre a grade
+    const largura = ctx.measureText(comp.nomeCustom).width;
+    const alturaFundo = Math.max(12, 14 * view.zoom);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.fillRect(
+      centro.x - largura / 2 - 3,
+      y - alturaFundo + 2,
+      largura + 6,
+      alturaFundo
+    );
+
+    ctx.fillStyle = '#374151';
+    ctx.fillText(comp.nomeCustom, centro.x, y);
+    ctx.restore();
+  }
+
   function render(circuito, selecionados = [], fioSelecionadoId = null, dobraSelecionada = null, fioFantasma = null, selecaoRetangular = null, grupoSelecionadoId = null) {
     desenharGrade();
 
@@ -216,6 +248,7 @@ export function criarCanvas(elemento, estado) {
     for (const comp of circuito.componentes) {
       const tela = mundoParaTela(comp.x, comp.y);
       desenharComponente(ctx, comp, tela.x, tela.y, view.zoom);
+      desenharNomeComponente(ctx, comp, view);
     }
 
     // Seleção de componentes
