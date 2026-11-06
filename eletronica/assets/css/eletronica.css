@@ -12,7 +12,7 @@
 }
 
 :root {
-  --altura-cabecalho: 56px;
+  --altura-cabecalho: 70px;   /* era 56px, 1,25x maior */
   --largura-gaveta: 260px;
   --cor-fundo: #ffffff;
   --cor-fundo-suave: #f7fbf9;
@@ -76,13 +76,14 @@ html, body {
   align-items: center;
   height: var(--altura-cabecalho);
   box-sizing: border-box;
-  padding: 0 16px;
+  padding: 0 16px 0 30px;   /* 30px de gap à esquerda */
   margin: 0;
 }
 
 .cabecalho-esquerda {
   display: flex;
   align-items: center;
+  height: 100%;             /* ocupa toda a altura do cabeçalho */
   gap: 10px;
   flex-shrink: 0;
 }
@@ -90,15 +91,17 @@ html, body {
 .cabecalho-logo {
   display: flex;
   align-items: center;
-  flex-shrink: 0;
+  height: 100%;
   text-decoration: none;
 }
 
 .cabecalho-logo img {
-  height: 36px;
-  width: auto;
+  height: 90%;              /* 10% menor */
+  width: auto;              /* preserva a proporção */
+  max-width: none;
   display: block;
-  object-fit: contain;
+  object-fit: contain;      /* nunca deforma */
+  object-position: left center;
   mix-blend-mode: multiply;
 }
 
@@ -112,6 +115,13 @@ html, body {
   gap: 8px;
   margin-left: 0;           /* REMOVA o margin-left: auto */
   padding-left: 0;          /* REMOVA o padding-left */
+}
+
+.cabecalho-acoes button {
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .paleta-wrap {
@@ -1030,7 +1040,7 @@ html, body {
 @media (max-width: 1024px) {
   :root { --largura-gaveta: 220px; }
   .eletronica-toolbar {
-    min-height: 56px;
+    min-height: var(--altura-cabecalho);
     height: auto;
     flex-wrap: wrap;
     gap: 8px;
@@ -1052,7 +1062,7 @@ html, body {
     min-height: 100vh;
   }
   .eletronica-toolbar {
-    min-height: 56px;
+    min-height: var(--altura-cabecalho);
     flex-wrap: wrap;
     padding: 8px 12px;
   }

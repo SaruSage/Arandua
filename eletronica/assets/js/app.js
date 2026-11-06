@@ -671,7 +671,7 @@ function montarInterface() {
       <header class="eletronica-toolbar eletronica-cabecalho">
         <div class="cabecalho-esquerda">
           <a href="#" class="cabecalho-logo" title="Arandua">
-            <img src="assets/img/logo-arandua.png" alt="Arandua">
+            <img src="assets/img/logo-arandua.png?v=2" alt="Arandua">
           </a>
         </div>
         <div class="cabecalho-acoes">
