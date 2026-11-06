@@ -12,6 +12,7 @@
 }
 
 :root {
+  --largura-gaveta: 260px;
   --cor-fundo: #ffffff;
   --cor-fundo-suave: #f7fbf9;
   --cor-primaria: #53b588;
@@ -67,13 +68,56 @@ html, body {
   letter-spacing: -0.01em;
 }
 
+/* Cabeçalho em duas zonas: esquerda (logo) e ações (após a faixa da gaveta) */
+.eletronica-cabecalho {
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 12px;
+}
+
+.cabecalho-esquerda {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.cabecalho-logo {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  text-decoration: none;
+}
+
+.cabecalho-logo img {
+  height: 34px;
+  width: auto;
+  display: block;
+  object-fit: contain;
+}
+
+.cabecalho-acoes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;                    /* empurra para a direita */
+  padding-left: var(--largura-gaveta);  /* reserva a faixa da gaveta */
+  box-sizing: content-box;
+}
+
+/* O menu sanduíche permanece na extremidade direita, logo após as ações */
+.cabecalho-acoes + .menu-container {
+  margin-left: 0;
+}
+
 .paleta-wrap {
   position: absolute;
-  top: 0;
+  top: 56px;                    /* abaixo do cabeçalho, para não cobrir o logo */
   left: 0;
   grid-column: 1;
   grid-row: 2;
-  height: 100%;
+  height: calc(100% - 56px);
   width: 260px;
   z-index: 30;
   display: flex;
@@ -134,6 +178,47 @@ html, body {
 }
 
 .paleta-grupo { margin-bottom: 18px; }
+
+.paleta-busca {
+  padding: 10px 12px;
+  margin: -12px -12px 12px;      /* ocupa toda a largura da gaveta */
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 2;
+}
+
+.paleta-busca input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+}
+
+.paleta-busca input:focus {
+  border-color: #009C3B;
+}
+
+.paleta-grupo.oculto,
+.paleta-item.oculto {
+  display: none;
+}
+
+.paleta-vazio {
+  margin: 8px 0;
+  font-size: 0.8rem;
+  color: var(--cor-texto-sec);
+  text-align: center;
+}
+
+.paleta-vazio.oculto {
+  display: none;
+}
 
 .paleta-titulo {
   font-size: 0.7rem;
@@ -942,6 +1027,7 @@ html, body {
 }
 
 @media (max-width: 1024px) {
+  :root { --largura-gaveta: 220px; }
   .eletronica-toolbar {
     min-height: 56px;
     height: auto;
@@ -977,6 +1063,13 @@ html, body {
   }
   .paleta-aba {
     display: none;
+  }
+  .cabecalho-acoes {
+    padding-left: 0;
+  }
+  .paleta-busca {
+    position: static;
+    margin: 0 0 8px;
   }
   .eletronica-paleta {
     width: 100%;

@@ -668,12 +668,18 @@ function montarInterface() {
   const app = document.getElementById('app');
   app.innerHTML = `
     <div class="eletronica-layout">
-      <header class="eletronica-toolbar">
-        <h1>Arandua</h1>
-        <button type="button" class="btn-simular" id="btn-simular">Simular</button>
-        <button type="button" class="btn-juntar" id="btn-juntar">Juntar</button>
-        <button type="button" class="btn-toolbar" id="btn-desfazer" title="Desfazer (Ctrl+Z)">↶</button>
-        <button type="button" class="btn-toolbar" id="btn-refazer" title="Refazer (Ctrl+Y)">↷</button>
+      <header class="eletronica-toolbar eletronica-cabecalho">
+        <div class="cabecalho-esquerda">
+          <a href="#" class="cabecalho-logo" title="Arandua">
+            <img src="assets/img/logo-arandua.png" alt="Arandua">
+          </a>
+        </div>
+        <div class="cabecalho-acoes">
+          <button type="button" class="btn-simular" id="btn-simular">Simular</button>
+          <button type="button" class="btn-juntar" id="btn-juntar">Juntar</button>
+          <button type="button" class="btn-toolbar" id="btn-desfazer" title="Desfazer (Ctrl+Z)">↶</button>
+          <button type="button" class="btn-toolbar" id="btn-refazer" title="Refazer (Ctrl+Y)">↷</button>
+        </div>
         <div class="menu-container">
           <button type="button" id="btn-menu" class="btn-icone" title="Menu">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
@@ -952,8 +958,69 @@ function montarInterface() {
   }
 }
 
+function normalizar(texto) {
+  return texto
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function filtrarPaleta(container, termo) {
+  const busca = normalizar(termo.trim());
+
+  container.querySelectorAll('.paleta-grupo').forEach((cat) => {
+    const nomeCategoria = normalizar(
+      cat.querySelector('.paleta-titulo')?.textContent || ''
+    );
+    const categoriaCorresponde = nomeCategoria.includes(busca);
+
+    let algumVisivel = false;
+
+    cat.querySelectorAll('.paleta-item').forEach((item) => {
+      const nomeItem = normalizar(
+        item.querySelector('.paleta-label')?.textContent || ''
+      );
+
+      const corresponde =
+        busca === '' ||
+        categoriaCorresponde ||
+        nomeItem.includes(busca);
+
+      item.classList.toggle('oculto', !corresponde);
+      if (corresponde) algumVisivel = true;
+    });
+
+    // Esconde a categoria inteira se nada sobrou
+    cat.classList.toggle('oculto', busca !== '' && !algumVisivel);
+  });
+
+  const nadaEncontrado =
+    busca !== '' &&
+    container.querySelectorAll('.paleta-item:not(.oculto)').length === 0;
+  container.querySelector('.paleta-vazio')
+    ?.classList.toggle('oculto', !nadaEncontrado);
+}
+
 function montarPaleta(container) {
   container.innerHTML = '';
+
+  const busca = document.createElement('div');
+  busca.className = 'paleta-busca';
+  busca.innerHTML = `
+    <input type="search" id="busca-componentes"
+           placeholder="Buscar componente..."
+           autocomplete="off">
+  `;
+  container.appendChild(busca);
+
+  const vazio = document.createElement('p');
+  vazio.className = 'paleta-vazio oculto';
+  vazio.textContent = 'Nenhum componente encontrado';
+  container.appendChild(vazio);
+
+  busca.querySelector('input').addEventListener('input', (e) => {
+    filtrarPaleta(container, e.target.value);
+  });
 
   for (const categoria of CATEGORIAS) {
     const itens = itensDaCategoria(categoria);
@@ -1006,7 +1073,7 @@ function montarPaleta(container) {
     }
 
     secao.appendChild(grade);
-    container.appendChild(secao);
+    container.insertBefore(secao, vazio);
   }
 }
 
