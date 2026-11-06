@@ -786,10 +786,21 @@ function montarInterface() {
   if (btnRecolher && paletaWrap) {
     btnRecolher.addEventListener('click', (e) => {
       e.stopPropagation();
-      const agora = paletaWrap.classList.toggle('recolhida');
-      btnRecolher.title = agora ? 'Abrir painel' : 'Recolher painel';
-      estado.offsetOrigemX = agora ? 0 : (paletaWrap.offsetWidth || 260);
-      localStorage.setItem('paletaRecolhida', agora ? '1' : '0');
+      const recolhida = paletaWrap.classList.toggle('recolhida');
+      btnRecolher.title = recolhida ? 'Abrir painel' : 'Recolher painel';
+
+      const offsetAnterior = estado.offsetOrigemX ?? (recolhida ? (paletaWrap.offsetWidth || 260) : 0);
+      const offsetNovo = recolhida ? 0 : (paletaWrap.offsetWidth || 260);
+
+      const delta = offsetNovo - offsetAnterior;
+      if (canvas?.view) {
+        canvas.view.panX -= delta;
+      } else if (estado.view) {
+        estado.view.panX -= delta;
+      }
+
+      estado.offsetOrigemX = offsetNovo;
+      localStorage.setItem('paletaRecolhida', recolhida ? '1' : '0');
       renderizarTudo();
     });
   }
