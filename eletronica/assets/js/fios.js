@@ -530,6 +530,14 @@ export function configurarFios(canvas, estado, aoMudar) {
       dobraSelecionada = dobra;
       fioSelecionadoId = dobra.fio.id;
       estado.fioSelecionadoId = dobra.fio.id;
+      estado.arrastandoDobra = dobra;
+      estado.arrastoInicial = {
+        tipo: 'fio',
+        id: dobra.fio.id,
+        dobras: (dobra.fio.dobras || []).map((d) => ({ ...d })),
+        pontoInicial: { x: mundo.x, y: mundo.y },
+        moveu: false,
+      };
       estado.abrirPopupEntidade?.('fio', dobra.fio.id);
       e.stopPropagation();
       e.preventDefault();
@@ -589,6 +597,13 @@ export function configurarFios(canvas, estado, aoMudar) {
           dobrasOriginais: dobrasBase,
           moveu: false,
         };
+        estado.arrastoInicial = {
+          tipo: 'fio',
+          id: fio.id,
+          dobras: (fio.dobras || []).map((d) => ({ ...d })),
+          pontoInicial: { x: mundo.x, y: mundo.y },
+          moveu: false,
+        };
         e.stopPropagation();
         e.preventDefault();
         aoMudar();
@@ -638,6 +653,11 @@ export function configurarFios(canvas, estado, aoMudar) {
     }
 
     if (dobraArrastando) {
+      const dxDobra = mundo.x - (estado.arrastoInicial?.pontoInicial?.x ?? mundo.x);
+      const dyDobra = mundo.y - (estado.arrastoInicial?.pontoInicial?.y ?? mundo.y);
+      if (Math.abs(dxDobra) > TAMANHO_GRADE / 2 || Math.abs(dyDobra) > TAMANHO_GRADE / 2) {
+        if (estado.arrastoInicial) estado.arrastoInicial.moveu = true;
+      }
       const dobra = dobraArrastando.fio.dobras[dobraArrastando.indice];
       if (dobra) {
         dobra.x = snap(mundo.x);
@@ -669,6 +689,7 @@ export function configurarFios(canvas, estado, aoMudar) {
 
       if (Math.abs(dx) > LIMIAR_ARRASTO || Math.abs(dy) > LIMIAR_ARRASTO) {
         estado.arrastandoSegmento.moveu = true;
+        if (estado.arrastoInicial) estado.arrastoInicial.moveu = true;
       }
 
       if (!estado.arrastandoSegmento.moveu) return;
@@ -770,8 +791,12 @@ export function configurarFios(canvas, estado, aoMudar) {
     }
 
     if (dobraArrastando) {
-      registrar(estado.circuito, 'dobra', true);
+      if (estado.arrastoInicial?.moveu) {
+        registrar(estado.circuito, 'dobra', true);
+      }
       dobraArrastando = null;
+      estado.arrastandoDobra = null;
+      estado.arrastoInicial = null;
       estado.guiaAtiva = null;
       aoMudar();
       return;
@@ -782,6 +807,7 @@ export function configurarFios(canvas, estado, aoMudar) {
         registrar(estado.circuito, 'mover-segmento', true);
       }
       estado.arrastandoSegmento = null;
+      estado.arrastoInicial = null;
       estado.guiaAtiva = null;
       aoMudar();
       return;
@@ -829,17 +855,43 @@ export function configurarFios(canvas, estado, aoMudar) {
       }
     }
 
-    // Escape: cancela fio em construção e limpa guias
+    // Escape: cancela arrasto de fio / construção de fio
     if (e.key === 'Escape') {
-      if (estado.guiaAtiva) {
+      if (estado.arrastoInicial?.tipo === 'fio') {
+        const a = estado.arrastoInicial;
+        const fio = estado.circuito.fios.find((f) => f.id === a.id);
+
+        if (fio && a.moveu) {
+          fio.dobras = a.dobras.map((d) => ({ ...d }));
+        }
+
+        estado.arrastoInicial = null;
+        estado.arrastandoDobra = null;
+        dobraArrastando = null;
+        estado.arrastandoSegmento = null;
         estado.guiaAtiva = null;
+
+        if (!a.moveu) {
+          estado.fioSelecionado = null;
+          estado.fioSelecionadoId = null;
+          fioSelecionadoId = null;
+          dobraSelecionada = null;
+          estado.fecharPopupsNaoFixados?.();
+        }
+
+        e.stopPropagation();
         aoMudar();
+        return;
       }
+
       if (fioEmConstrucao) {
         fioEmConstrucao = null;
         estado.fioFantasma = null;
+        estado.guiaAtiva = null;
         el.style.cursor = 'default';
+        e.stopPropagation();
         aoMudar();
+        return;
       }
     }
   });

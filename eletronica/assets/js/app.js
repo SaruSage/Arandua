@@ -51,6 +51,10 @@ const estado = {
   popups: {},
   popupAtivo: null,
   zIndexPopup: 100,
+  arrastoInicial: null,
+  fecharPopupsNaoFixados() {
+    return fecharPopupsNaoFixados();
+  },
   abrirPopupComponente(compId) {
     abrirPopupEntidade('comp', compId);
   },
@@ -835,7 +839,7 @@ function montarInterface() {
       let mudou = false;
 
       for (const cfg of Object.values(estado.popups)) {
-        const maxX = Math.max(0, largura - 260);
+        const maxX = Math.max(0, largura - 280);
         const maxY = Math.max(0, altura - 100);
 
         if (cfg.x > maxX) { cfg.x = maxX; mudou = true; }
@@ -1109,10 +1113,31 @@ function montarCorpoPopup(corpo, tipo, id) {
   }
 }
 
+function fecharPopupsNaoFixados() {
+  let fechou = false;
+  for (const [chave, cfg] of Object.entries(estado.popups || {})) {
+    if (!cfg.fixado) {
+      delete estado.popups[chave];
+      fechou = true;
+    }
+  }
+  if (estado.popupAtivo) {
+    const cfg = estado.popups[estado.popupAtivo];
+    if (!cfg || !cfg.fixado) {
+      estado.popupAtivo = null;
+      fechou = true;
+    }
+  }
+  if (fechou) {
+    renderizarPopups(true);
+  }
+  return fechou;
+}
+
 function calcularPosicaoPadrao(container) {
   const largura = container ? container.clientWidth : 800;
   const altura = container ? container.clientHeight : 600;
-  const LARGURA_POPUP = 260;
+  const LARGURA_POPUP = 280;
   const MARGEM = 12;
   const PASSO_CASCATA = 24;
 
@@ -1206,8 +1231,8 @@ function ligarEventosPopup(el, chave) {
     el.className = 'popup-propriedades' + (cfg.minimizado ? ' minimizado' : '');
     btnMinimizar.title = cfg.minimizado ? 'Expandir' : 'Minimizar';
     btnMinimizar.innerHTML = cfg.minimizado
-      ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 9l6 6 6-6z"/></svg>'
-      : '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 15l6-6 6 6z"/></svg>';
+      ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 9l6 6 6-6z"/></svg>'
+      : '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 15l6-6 6 6z"/></svg>';
   });
 
   // Fechar
@@ -1318,7 +1343,7 @@ function renderizarPopups(forcar = false) {
       <div class="popup-cabecalho">
         <button type="button" class="popup-alfinete ${cfg.fixado ? 'ativo' : ''}"
                 title="${cfg.fixado ? 'Desafixar' : 'Fixar'}">
-          <svg width="14" height="14" viewBox="0 0 24 24"
+          <svg width="21" height="21" viewBox="0 0 24 24"
                fill="${cfg.fixado ? 'currentColor' : 'none'}"
                stroke="currentColor" stroke-width="2">
             <path d="M12 17v5"/>
@@ -1329,11 +1354,11 @@ function renderizarPopups(forcar = false) {
         <span class="popup-titulo">${tituloPopup}</span>
         <button type="button" class="popup-minimizar" title="${cfg.minimizado ? 'Expandir' : 'Minimizar'}">
           ${cfg.minimizado
-            ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 9l6 6 6-6z"/></svg>'
-            : '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 15l6-6 6 6z"/></svg>'}
+            ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 9l6 6 6-6z"/></svg>'
+            : '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 15l6-6 6 6z"/></svg>'}
         </button>
         <button type="button" class="popup-fechar" title="Fechar">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
                stroke="currentColor" stroke-width="2.5">
             <line x1="6" y1="6" x2="18" y2="18"/>
             <line x1="18" y1="6" x2="6" y2="18"/>

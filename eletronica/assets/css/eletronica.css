@@ -148,7 +148,7 @@ html, body {
 .popup-propriedades {
   position: absolute;
   pointer-events: auto;   /* o popup em si recebe eventos */
-  width: 260px;
+  width: 280px;
   max-height: 70%;
   overflow-y: auto;
   background: #fff;
@@ -171,8 +171,8 @@ html, body {
 .popup-cabecalho:active { cursor: grabbing; }
 
 .popup-alfinete {
-  width: 22px;
-  height: 22px;
+  width: 30px;
+  height: 30px;
   border: none;
   background: transparent;
   border-radius: 4px;
@@ -181,6 +181,11 @@ html, body {
   align-items: center;
   justify-content: center;
   color: #999;
+  flex-shrink: 0;
+}
+
+.popup-alfinete:hover {
+  background: #f0f0f0;
 }
 
 .popup-alfinete.ativo { color: #53b588; }
@@ -196,8 +201,8 @@ html, body {
 
 .popup-minimizar,
 .popup-fechar {
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
   border: none;
   background: transparent;
   border-radius: 4px;

@@ -6,7 +6,7 @@ import { componenteEm, moverComponente, rotacionarComponente } from './circuito.
 import { CATALOGO } from './catalogo.js';
 import { registrar } from './historico.js';
 import { recalcularMembros, pontoDentroDoGrupo } from './grupos.js';
-import { snap } from './canvas.js';
+import { snap, TAMANHO_GRADE } from './canvas.js';
 import { posicaoPino } from './simbolos.js';
 
 const TOLERANCIA = 8; // px
@@ -69,6 +69,7 @@ export function configurarInteracao(canvas, estado, aoMudar) {
     const moveu = arrastando?.movido;
     const idsMovidos = arrastando?.ids ? new Set(arrastando.ids) : null;
     arrastando = null;
+    estado.arrastoInicial = null;
     estado.guiaAtiva = null;
     if (moveu) {
       // Snap na posição absoluta e alinhamento de pinos dos componentes movidos
@@ -180,6 +181,36 @@ export function configurarInteracao(canvas, estado, aoMudar) {
         posicoesIniciais,
         movido: false,
       };
+
+      if (estado.selecionados.length > 1) {
+        estado.arrastoInicial = {
+          tipo: 'selecao',
+          itens: estado.selecionados.map((id) => {
+            const c = estado.circuito.componentes.find((x) => x.id === id);
+            return c ? { id: c.id, x: c.x, y: c.y, rotacao: c.rotacao } : null;
+          }).filter(Boolean),
+          grupos: estado.circuito.grupos
+            .filter((g) => estado.selecionados.includes(g.id))
+            .map((g) => ({
+              id: g.id,
+              x: g.x,
+              y: g.y,
+              bounds: g.bounds ? { ...g.bounds } : null,
+              vertices: g.vertices ? g.vertices.map((v) => ({ ...v })) : null,
+            })),
+          moveu: false,
+        };
+      } else {
+        estado.arrastoInicial = {
+          tipo: 'componente',
+          id: comp.id,
+          x: comp.x,
+          y: comp.y,
+          rotacao: comp.rotacao,
+          moveu: false,
+        };
+      }
+
       el.style.cursor = 'grabbing';
       estado.abrirPopupEntidade?.('comp', comp.id);
     } else {
@@ -260,6 +291,13 @@ export function configurarInteracao(canvas, estado, aoMudar) {
     if (arrastando) {
       const dxBruto = mundo.x - arrastando.inicio.x;
       const dyBruto = mundo.y - arrastando.inicio.y;
+      const LIMIAR = TAMANHO_GRADE / 2;
+      if (Math.abs(dxBruto) > LIMIAR || Math.abs(dyBruto) > LIMIAR) {
+        arrastando.movido = true;
+        if (estado.arrastoInicial) {
+          estado.arrastoInicial.moveu = true;
+        }
+      }
       const dxTotal = snap(dxBruto);
       const dyTotal = snap(dyBruto);
       const dx = dxTotal - (estado._ultimoDx || 0);
@@ -393,12 +431,12 @@ export function configurarInteracao(canvas, estado, aoMudar) {
   });
 
   window.addEventListener('keydown', (e) => {
-    if (estado.fioSelecionadoId) {
+    if ((e.key === 'Delete' || e.key === 'Backspace') && estado.fioSelecionadoId) {
       // Deixa o handler de fios tratar Delete
       return;
     }
 
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
 
     if (e.key === 'Delete' || e.key === 'Backspace') {
       if (estado.selecionados.length > 0) {
@@ -406,26 +444,105 @@ export function configurarInteracao(canvas, estado, aoMudar) {
         e.preventDefault();
       }
     } else if (e.key === 'Escape') {
-      // Recalcula membros das áreas que estavam selecionadas
-      for (const id of estado.selecionados) {
-        const g = estado.circuito.grupos.find((x) => x.id === id);
-        if (g) recalcularMembros(g);
-      }
-
-      // Depois limpa a seleção normalmente
-      estado.selecionados = [];
-      estado.grupoSelecionadoId = null;
-      estado.guiaAtiva = null;
-
-      if (estado.popupAtivo) {
-        const cfg = estado.popups?.[estado.popupAtivo];
-        if (!cfg || !cfg.fixado) {
-          delete estado.popups[estado.popupAtivo];
+      // 1. Se há arrasto em andamento (componente ou seleção múltipla)
+      if (estado.arrastoInicial) {
+        const a = estado.arrastoInicial;
+        if (a.tipo === 'componente') {
+          if (a.moveu) {
+            const comp = estado.circuito.componentes.find((c) => c.id === a.id);
+            if (comp) {
+              comp.x = a.x;
+              comp.y = a.y;
+              if (a.rotacao !== undefined) comp.rotacao = a.rotacao;
+            }
+            arrastando = null;
+            estado.arrastoInicial = null;
+            estado.arrastandoId = null;
+            estado.guiaAtiva = null;
+            el.style.cursor = 'default';
+            renderizarTudo();
+            return;
+          }
+          // Não moveu: apenas desseleciona
+          arrastando = null;
+          estado.arrastoInicial = null;
+          estado.arrastandoId = null;
+          estado.guiaAtiva = null;
+          estado.selecionados = [];
+          el.style.cursor = 'default';
+          estado.fecharPopupsNaoFixados?.();
+          renderizarTudo();
+          return;
         }
-        estado.popupAtivo = null;
-        estado.renderizarPopups?.(true);
+
+        if (a.tipo === 'selecao') {
+          if (a.moveu) {
+            for (const item of a.itens || []) {
+              const c = estado.circuito.componentes.find((x) => x.id === item.id);
+              if (c) {
+                c.x = item.x;
+                c.y = item.y;
+                if (item.rotacao !== undefined) c.rotacao = item.rotacao;
+              }
+            }
+            for (const gInfo of a.grupos || []) {
+              const g = estado.circuito.grupos.find((x) => x.id === gInfo.id);
+              if (g) {
+                g.x = gInfo.x;
+                g.y = gInfo.y;
+                if (gInfo.bounds) g.bounds = { ...gInfo.bounds };
+                if (gInfo.vertices) g.vertices = gInfo.vertices.map((v) => ({ ...v }));
+              }
+            }
+            arrastando = null;
+            estado.arrastoInicial = null;
+            estado.arrastandoId = null;
+            estado.guiaAtiva = null;
+            el.style.cursor = 'default';
+            renderizarTudo();
+            return;
+          }
+          // Não moveu: apenas desseleciona
+          arrastando = null;
+          estado.arrastoInicial = null;
+          estado.arrastandoId = null;
+          estado.guiaAtiva = null;
+          estado.selecionados = [];
+          el.style.cursor = 'default';
+          estado.fecharPopupsNaoFixados?.();
+          renderizarTudo();
+          return;
+        }
+
+        // Se for outro tipo de arrasto (fio ou área), já tratado no seu respectivo módulo
+        return;
       }
-      aoMudar();
+
+      // 2. Se há edição de texto inline (nome de área)
+      if (estado.cancelarEdicaoTexto?.()) {
+        renderizarTudo();
+        return;
+      }
+
+      // 3. Se há popup aberto → fecha popups não fixados e retorna
+      if (estado.fecharPopupsNaoFixados?.()) {
+        renderizarTudo();
+        return;
+      }
+
+      // 4. Se há seleção → desseleciona
+      if (estado.selecionados.length > 0 || estado.grupoSelecionadoId || estado.fioSelecionadoId) {
+        for (const id of estado.selecionados) {
+          const g = estado.circuito.grupos.find((x) => x.id === id);
+          if (g) recalcularMembros(g);
+        }
+        estado.selecionados = [];
+        estado.grupoSelecionadoId = null;
+        estado.fioSelecionadoId = null;
+        estado.guiaAtiva = null;
+        renderizarTudo();
+        return;
+      }
     } else if (e.key === 'r' || e.key === 'R') {
       if (estado.selecionados.length > 0) {
         const comp = estado.circuito.componentes.find((c) => c.id === estado.selecionados[0]);

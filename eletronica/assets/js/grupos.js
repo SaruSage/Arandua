@@ -800,6 +800,17 @@ export function configurarGrupos(canvas, estadoParam, aoMudar) {
       ultimoY: inicio.y,
       moveu: false,
     };
+    estado.arrastoInicial = {
+      tipo: 'area',
+      id: grupo.id,
+      x: grupo.x,
+      y: grupo.y,
+      w: grupo.w,
+      h: grupo.h,
+      bounds: grupo.bounds ? { ...grupo.bounds } : null,
+      vertices: grupo.vertices ? grupo.vertices.map((v) => ({ ...v })) : null,
+      moveu: false,
+    };
     el.style.cursor = 'grabbing';
     window.addEventListener('mousemove', moverGrupoArrastado);
     window.addEventListener('mouseup', finalizarArrastoGrupo);
@@ -812,6 +823,7 @@ export function configurarGrupos(canvas, estadoParam, aoMudar) {
     const dyInicial = mundo.y - arrastandoGrupo.inicioY;
     if (!arrastandoGrupo.moveu && (Math.abs(dxInicial) > 2 || Math.abs(dyInicial) > 2)) {
       arrastandoGrupo.moveu = true;
+      if (estado.arrastoInicial) estado.arrastoInicial.moveu = true;
     }
     if (!arrastandoGrupo.moveu) return;
 
@@ -832,6 +844,7 @@ export function configurarGrupos(canvas, estadoParam, aoMudar) {
     if (!arrastandoGrupo) return;
     const moveu = arrastandoGrupo.moveu;
     arrastandoGrupo = null;
+    estado.arrastoInicial = null;
     el.style.cursor = 'default';
     window.removeEventListener('mousemove', moverGrupoArrastado);
     window.removeEventListener('mouseup', finalizarArrastoGrupo);
@@ -1009,6 +1022,7 @@ export function configurarGrupos(canvas, estadoParam, aoMudar) {
     input.addEventListener('keydown', (ev) => {
       if (ev.key === 'Enter') confirmar();
       if (ev.key === 'Escape') {
+        ev.stopPropagation();
         input.remove();
         nomeEditando = null;
       }
@@ -1017,8 +1031,49 @@ export function configurarGrupos(canvas, estadoParam, aoMudar) {
     nomeEditando = input;
   }
 
+  estado.cancelarEdicaoTexto = () => {
+    if (nomeEditando) {
+      nomeEditando.remove();
+      nomeEditando = null;
+      return true;
+    }
+    return false;
+  };
+
   window.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+
+    if (e.key === 'Escape') {
+      if (estado.arrastoInicial?.tipo === 'area') {
+        const a = estado.arrastoInicial;
+        const grupo = estado.circuito.grupos.find((g) => g.id === a.id);
+        if (grupo && a.moveu) {
+          grupo.x = a.x;
+          grupo.y = a.y;
+          grupo.w = a.w;
+          grupo.h = a.h;
+          if (a.bounds) grupo.bounds = { ...a.bounds };
+          if (a.vertices) grupo.vertices = a.vertices.map((v) => ({ ...v }));
+        }
+        if (arrastandoGrupo) {
+          arrastandoGrupo = null;
+          el.style.cursor = 'default';
+          window.removeEventListener('mousemove', moverGrupoArrastado);
+          window.removeEventListener('mouseup', finalizarArrastoGrupo);
+        }
+        estado.arrastoInicial = null;
+
+        if (!a.moveu) {
+          estado.grupoSelecionadoId = null;
+          estado.selecionados = [];
+          estado.fecharPopupsNaoFixados?.();
+        }
+
+        e.stopPropagation();
+        aoMudar();
+        return;
+      }
+    }
 
     if (e.key === 'Tab' && estado.grupoSelecionadoId) {
       const grupo = estado.circuito.grupos.find((item) => item.id === estado.grupoSelecionadoId);
