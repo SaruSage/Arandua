@@ -308,7 +308,7 @@ html, body {
 .popup-propriedades {
   position: absolute;
   pointer-events: auto;   /* o popup em si recebe eventos */
-  width: 280px;
+  width: 224px;           /* era 280px (-20%) */
   max-height: 70%;
   overflow-y: auto;
   background: #fff;
@@ -395,6 +395,79 @@ html, body {
 }
 
 .popup-corpo { padding: 10px; }
+
+.popup-categoria {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6b7280;
+  padding: 6px 12px 8px;
+  margin: -10px -10px 8px;       /* encosta na barra superior e ocupa a largura toda */
+  border-bottom: 1px solid #f0f1f3;
+}
+
+.popup-linha-rotacao {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.popup-rotacao-input {
+  width: 64px;
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+  text-align: right;
+  box-sizing: border-box;
+}
+
+.popup-rotacao-grau {
+  font-size: 13px;
+  color: #6b7280;
+  margin-right: auto;   /* empurra os botões para a direita */
+}
+
+.popup-rotacao-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  padding: 0;
+  color: #374151;
+  transition: background 0.12s ease;
+}
+
+.popup-rotacao-btn:hover {
+  background: #f3f4f6;
+}
+
+.popup-rotacao-btn svg {
+  fill: currentColor;
+}
+
+.input-renomear {
+  position: absolute;
+  z-index: 200;
+  width: 140px;
+  padding: 5px 8px;
+  border: 1px solid #009C3B;
+  border-radius: 6px;
+  font-size: 12px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  outline: none;
+}
+
+.input-renomear.oculto {
+  display: none;
+}
 
 .eletronica-canvas canvas {
   display: block;
@@ -612,15 +685,17 @@ html, body {
 }
 
 .btn-remover {
-  width: 100%;
-  margin-top: 18px;
-  padding: 10px;
+  display: block;
+  width: 50%;              /* era 100% */
+  margin: 18px auto 0;     /* centralizado, mesma posição vertical */
+  padding: 8px 6px;
   background: var(--cor-erro);
   color: #fff;
   border: none;
   border-radius: var(--raio-sm);
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
   cursor: pointer;
   transition: background 0.15s;
 }

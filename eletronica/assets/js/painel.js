@@ -162,29 +162,13 @@ function criarCampo(chave, spec, comp, aoMudar, circuito) {
   return campo;
 }
 
-/** Cria a seção de rotação. */
+/** Cria a seção de rotação (linha única: campo + botões ao lado). */
 function criarSecaoRotacao(comp, aoMudar, circuito) {
   const secao = document.createElement('div');
   secao.className = 'painel-secao';
 
-  const titulo = document.createElement('h4');
-  titulo.textContent = 'Rotação';
-  secao.appendChild(titulo);
-
   const grupo = document.createElement('div');
-  grupo.className = 'painel-rotacao';
-
-  const btnEsq = document.createElement('button');
-  btnEsq.type = 'button';
-  btnEsq.className = 'btn-rot';
-  btnEsq.textContent = '↺';
-  btnEsq.title = 'Girar 90° à esquerda';
-  btnEsq.addEventListener('click', () => {
-    rotacionarComponente({ componentes: [comp] }, comp.id, comp.rotacao - 90);
-    registrar(circuito, 'rotacionar', true);
-    aoMudar();
-  });
-  grupo.appendChild(btnEsq);
+  grupo.className = 'popup-linha-rotacao';
 
   const inputAng = document.createElement('input');
   inputAng.type = 'number';
@@ -192,7 +176,7 @@ function criarSecaoRotacao(comp, aoMudar, circuito) {
   inputAng.min = 0;
   inputAng.max = 359;
   inputAng.step = 1;
-  inputAng.className = 'input-angulo';
+  inputAng.className = 'popup-rotacao-input';
   inputAng.title = 'Ângulo em graus';
   inputAng.addEventListener('input', () => {
     const v = parseInt(inputAng.value, 10) || 0;
@@ -203,15 +187,29 @@ function criarSecaoRotacao(comp, aoMudar, circuito) {
   grupo.appendChild(inputAng);
 
   const sufixo = document.createElement('span');
-  sufixo.className = 'painel-campo-hint';
+  sufixo.className = 'popup-rotacao-grau';
   sufixo.textContent = '°';
   grupo.appendChild(sufixo);
 
+  const btnEsq = document.createElement('button');
+  btnEsq.type = 'button';
+  btnEsq.className = 'popup-rotacao-btn';
+  btnEsq.dataset.delta = '-90';
+  btnEsq.title = '-90°';
+  btnEsq.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z"/></svg>';
+  btnEsq.addEventListener('click', () => {
+    rotacionarComponente({ componentes: [comp] }, comp.id, comp.rotacao - 90);
+    registrar(circuito, 'rotacionar', true);
+    aoMudar();
+  });
+  grupo.appendChild(btnEsq);
+
   const btnDir = document.createElement('button');
   btnDir.type = 'button';
-  btnDir.className = 'btn-rot';
-  btnDir.textContent = '↻';
-  btnDir.title = 'Girar 90° à direita';
+  btnDir.className = 'popup-rotacao-btn';
+  btnDir.dataset.delta = '90';
+  btnDir.title = '+90°';
+  btnDir.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 5V2l5 4-5 4V7a5 5 0 1 0 5 5h2a7 7 0 1 1-7-7z"/></svg>';
   btnDir.addEventListener('click', () => {
     rotacionarComponente({ componentes: [comp] }, comp.id, comp.rotacao + 90);
     registrar(circuito, 'rotacionar', true);
@@ -238,21 +236,11 @@ export function montarPropriedadesComponente(container, comp, estado, aoMudar, a
     );
   }
 
-  // Cabeçalho interno com rótulo e categoria
-  const header = document.createElement('div');
-  header.className = 'painel-header';
-
-  const titulo = document.createElement('h3');
-  titulo.className = 'painel-titulo';
-  titulo.textContent = def.rotulo;
-  header.appendChild(titulo);
-
-  const categoria = document.createElement('span');
-  categoria.className = 'painel-categoria';
+  // Categoria como subtítulo pequeno (o nome já aparece na barra superior do popup)
+  const categoria = document.createElement('div');
+  categoria.className = 'popup-categoria';
   categoria.textContent = def.categoria;
-  header.appendChild(categoria);
-
-  container.appendChild(header);
+  container.appendChild(categoria);
 
   // Propriedades
   const props = Object.entries(def.propriedades || {});

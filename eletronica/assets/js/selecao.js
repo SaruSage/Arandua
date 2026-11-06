@@ -239,11 +239,85 @@ export function configurarInteracao(canvas, estado, aoMudar) {
 
   el.addEventListener('contextmenu', (e) => e.preventDefault());
 
+  // ---- Renomear componente (clique direito) ----
+  const inputRenomear = document.getElementById('input-renomear');
+
+  function fecharInputRenomear() {
+    if (!inputRenomear) return;
+    // Remove o id ANTES de ocultar: o blur causado pelo ocultamento não salva de novo
+    delete inputRenomear.dataset.compId;
+    inputRenomear.classList.add('oculto');
+    inputRenomear.value = '';
+  }
+
+  function salvarNome() {
+    if (!inputRenomear) return;
+    const id = inputRenomear.dataset.compId;
+    if (!id) return; // já salvo/cancelado (evita salvar duas vezes: Enter + blur)
+
+    const valor = inputRenomear.value.trim().slice(0, 15);
+    fecharInputRenomear();
+
+    const comp = estado.circuito.componentes.find((c) => c.id === id);
+    if (!comp) return;
+    if ((comp.nomeCustom || '') === valor) return;
+
+    if (valor) {
+      comp.nomeCustom = valor;
+    } else {
+      delete comp.nomeCustom;
+    }
+    registrar(estado.circuito, 'propriedade', true);
+    renderizarTudo();
+    estado.renderizarPopups?.(true);
+  }
+
+  function abrirInputRenomear(comp, x, y) {
+    if (!inputRenomear) return;
+    inputRenomear.dataset.compId = comp.id;
+    inputRenomear.value = comp.nomeCustom || '';
+    inputRenomear.classList.remove('oculto');
+
+    // Posiciona acima do componente
+    const altura = 28;
+    const larguraMax = Math.max(4, el.clientWidth - 144);
+    inputRenomear.style.left = `${Math.min(larguraMax, Math.max(4, x - 70))}px`;
+    inputRenomear.style.top = `${Math.max(4, y - altura - 12)}px`;
+
+    inputRenomear.focus();
+    inputRenomear.select();
+  }
+
+  if (inputRenomear) {
+    inputRenomear.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        salvarNome();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        fecharInputRenomear();
+      }
+      e.stopPropagation(); // não dispara atalhos globais
+    });
+    inputRenomear.addEventListener('blur', () => salvarNome());
+    inputRenomear.addEventListener('mousedown', (e) => e.stopPropagation());
+  }
+
   el.addEventListener('contextmenu', (e) => {
     e.preventDefault();
 
     const rect = el.getBoundingClientRect();
     const mundo = canvas.telaParaMundo(e.clientX - rect.left, e.clientY - rect.top);
+
+    // Clique direito em componente: renomear.
+    // Chaves/botões continuam alternando com o clique direito; use Alt+clique direito para renomeá-los.
+    const alvo = componenteEm(estado.circuito, mundo.x, mundo.y);
+    const alternavel = alvo && ['CHAVE', 'CHAVE_SIMPLES', 'BOTAO'].includes(alvo.tipo);
+    if (alvo && (!alternavel || e.altKey)) {
+      abrirInputRenomear(alvo, e.clientX - rect.left, e.clientY - rect.top);
+      return;
+    }
+    if (!alvo) fecharInputRenomear();
 
     // Procura um componente alternável sob o cursor
     const comp = estado.circuito.componentes.find((c) => {

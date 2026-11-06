@@ -708,6 +708,9 @@ function montarInterface() {
       <div id="area-simulacao" class="eletronica-canvas eletronica-canvas-wrap">
         <canvas id="canvas"></canvas>
         <div id="popups-container" class="popups-container"></div>
+        <input id="input-renomear" class="input-renomear oculto"
+               maxlength="15" placeholder="Nome (máx. 15)"
+               autocomplete="off">
       </div>
     </div>
   `;
@@ -893,7 +896,7 @@ function montarInterface() {
       let mudou = false;
 
       for (const cfg of Object.values(estado.popups)) {
-        const maxX = Math.max(0, largura - 280);
+        const maxX = Math.max(0, largura - 224);
         const maxY = Math.max(0, altura - 100);
 
         if (cfg.x > maxX) { cfg.x = maxX; mudou = true; }
@@ -1198,9 +1201,21 @@ function obterEntidadePopup(tipo, id) {
   return null;
 }
 
+function escaparHtml(texto) {
+  return String(texto)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 function obterTituloPopup(tipo, entidade) {
   if (tipo === 'comandos') return 'Lista de comandos';
-  if (tipo === 'comp') return entidade.tipo;
+  if (tipo === 'comp') {
+    return entidade.nomeCustom
+      ? `${entidade.nomeCustom} (${entidade.tipo})`
+      : entidade.tipo;
+  }
   if (tipo === 'fio') return 'FIO';
   if (tipo === 'area') return entidade.nome || 'ÁREA';
   return '';
@@ -1246,7 +1261,7 @@ function fecharPopupsNaoFixados() {
 function calcularPosicaoPadrao(container) {
   const largura = container ? container.clientWidth : 800;
   const altura = container ? container.clientHeight : 600;
-  const LARGURA_POPUP = 280;
+  const LARGURA_POPUP = 224;
   const MARGEM = 12;
   const PASSO_CASCATA = 24;
 
@@ -1491,7 +1506,7 @@ function renderizarPopups(forcar = false) {
     el.innerHTML = `
       <div class="popup-cabecalho">
         ${botaoAlfinete}
-        <span class="popup-titulo">${tituloPopup}</span>
+        <span class="popup-titulo">${escaparHtml(tituloPopup)}</span>
         <button type="button" class="popup-minimizar" title="${cfg.minimizado ? 'Expandir' : 'Minimizar'}">
           ${cfg.minimizado
             ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 9l6 6 6-6z"/></svg>'
