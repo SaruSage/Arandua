@@ -8,7 +8,36 @@ import { CATALOGO } from './catalogo.js';
 import { desenharFios, desenharFioFantasma } from './fios.js';
 import { desenharGrupos, desenharSelecaoRetangular } from './grupos.js';
 
+export const GRADE_BASE = 40;        // espaçamento base em unidades de mundo
+export const SUBDIVISOES = 4;        // cada célula tem 4x4 subdivisões
+export const ESPACO_MINIMO_PX = 8;   // abaixo disso, o nível é desligado
+
 export const TAMANHO_GRADE = 10;
+
+/**
+ * Calcula os níveis de grade visíveis para o zoom atual.
+ */
+export function calcularNiveisGrade(zoom) {
+  let base = GRADE_BASE;
+
+  // Enquanto a grade mais grossa for pequena demais, dobra o passo
+  while (base * zoom < ESPACO_MINIMO_PX) {
+    base *= 2;
+  }
+
+  const niveis = [];
+  let espacoMundo = base;
+
+  for (let n = 0; n <= 3; n++) {
+    const espacoPx = espacoMundo * zoom;
+    if (espacoPx >= ESPACO_MINIMO_PX) {
+      niveis.push({ espacoMundo, espacoPx, nivel: n });
+    }
+    espacoMundo = espacoMundo / SUBDIVISOES;
+  }
+
+  return niveis;
+}
 
 /**
  * Arredonda um valor para o ponto mais próximo da grade.
@@ -98,44 +127,63 @@ export function criarCanvas(elemento, estado) {
     ctx.restore();
   }
 
-  function desenharGrade() {
+  function desenharGrade(c = ctx, v = view) {
     const rect = elemento.getBoundingClientRect();
-    ctx.save();
-    ctx.fillStyle = '#f5f6f7';
-    ctx.fillRect(0, 0, rect.width, rect.height);
+    const larguraCanvas = rect.width;
+    const alturaCanvas = rect.height;
 
-    const passo = TAMANHO_GRADE * view.zoom;
-    if (passo < 6) { ctx.restore(); return; }
+    c.save();
+    c.fillStyle = '#f5f6f7';
+    c.fillRect(0, 0, larguraCanvas, alturaCanvas);
 
-    ctx.strokeStyle = '#e4e6e8';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    const offX = estado?.offsetOrigemX || 0;
-    const ix = (((view.panX + offX) % passo) + passo) % passo;
-    const iy = ((view.panY % passo) + passo) % passo;
-    for (let x = ix; x < rect.width; x += passo) {
-      ctx.moveTo(x, 0); ctx.lineTo(x, rect.height);
-    }
-    for (let y = iy; y < rect.height; y += passo) {
-      ctx.moveTo(0, y); ctx.lineTo(rect.width, y);
-    }
-    ctx.stroke();
+    const zoom = v.zoom;
+    const offX = v.offsetOrigemX || 0;
+    const panX = v.panX;
+    const panY = v.panY;
 
-    const passoForte = passo * 5;
-    if (passoForte > 20) {
-      ctx.strokeStyle = '#d8dcdf';
-      ctx.beginPath();
-      const ixf = (((view.panX + offX) % passoForte) + passoForte) % passoForte;
-      const iyf = ((view.panY % passoForte) + passoForte) % passoForte;
-      for (let x = ixf; x < rect.width; x += passoForte) {
-        ctx.moveTo(x, 0); ctx.lineTo(x, rect.height);
+    const niveis = calcularNiveisGrade(zoom);
+
+    // Desenha do mais fino para o mais grosso para que a grade principal fique por cima
+    const niveisOrdenados = [...niveis].reverse();
+
+    for (const nivel of niveisOrdenados) {
+      // Quanto mais fino o nível, mais claro o traço
+      const alpha = nivel.nivel === 0 ? 0.12 : 0.06;
+      const espessura = nivel.nivel === 0 ? 1 : 0.5;
+
+      c.strokeStyle = `rgba(0, 0, 0, ${alpha})`;
+      c.lineWidth = espessura;
+      c.beginPath();
+
+      // Linhas verticais
+      const passoMundo = nivel.espacoMundo;
+      const x0Mundo = Math.floor(
+        (0 - offX - panX) / zoom / passoMundo
+      ) * passoMundo;
+      const x1Mundo = (larguraCanvas - offX - panX) / zoom;
+
+      for (let x = x0Mundo; x <= x1Mundo + passoMundo * 0.01; x += passoMundo) {
+        const px = Math.round(x * zoom + panX + offX) + 0.5;
+        c.moveTo(px, 0);
+        c.lineTo(px, alturaCanvas);
       }
-      for (let y = iyf; y < rect.height; y += passoForte) {
-        ctx.moveTo(0, y); ctx.lineTo(rect.width, y);
+
+      // Linhas horizontais (mesma lógica com panY)
+      const y0Mundo = Math.floor(
+        (0 - panY) / zoom / passoMundo
+      ) * passoMundo;
+      const y1Mundo = (alturaCanvas - panY) / zoom;
+
+      for (let y = y0Mundo; y <= y1Mundo + passoMundo * 0.01; y += passoMundo) {
+        const py = Math.round(y * zoom + panY) + 0.5;
+        c.moveTo(0, py);
+        c.lineTo(larguraCanvas, py);
       }
-      ctx.stroke();
+
+      c.stroke();
     }
-    ctx.restore();
+
+    c.restore();
   }
 
   function desenharSelecao(comp) {
