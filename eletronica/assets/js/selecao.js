@@ -14,9 +14,31 @@ const TOLERANCIA = 8; // px
 export function configurarInteracao(canvas, estado, aoMudar) {
   const el = canvas.elemento;
   const renderizarTudo = aoMudar;
-  const recalcular = () => estado.recalcular?.();
+  const recalcular = () => {
+    if (!estado.simulando) {
+      estado.iniciarSimulacao?.();
+      return;
+    }
+    estado.recalcular?.();
+  };
   let arrastando = null;
   let panIniciado = null;
+
+  function atualizarPan(e) {
+    if (!panIniciado) return;
+    const rect = el.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    canvas.view.panX = panIniciado.panX + (mx - panIniciado.x);
+    canvas.view.panY = panIniciado.panY + (my - panIniciado.y);
+    aoMudar();
+  }
+
+  function finalizarPan() {
+    if (!panIniciado) return;
+    panIniciado = null;
+    el.style.cursor = 'default';
+  }
 
   /**
    * Alinha os pinos do componente arrastado com pinos de outros
@@ -123,6 +145,19 @@ export function configurarInteracao(canvas, estado, aoMudar) {
       aoMudar();
       recalcular();
     } else {
+      if (idsMovidos && idsMovidos.size === 1) {
+        const idClicado = idsMovidos.values().next().value;
+        const compClicado = estado.circuito.componentes.find((c) => c.id === idClicado);
+        if (compClicado && ['CHAVE', 'CHAVE_SIMPLES', 'BOTAO'].includes(compClicado.tipo)) {
+          if (compClicado.tipo === 'BOTAO') {
+            compClicado.propriedades.pressionado = !compClicado.propriedades.pressionado;
+          } else {
+            compClicado.propriedades.fechada = !compClicado.propriedades.fechada;
+          }
+          registrar(estado.circuito, 'alternar', true);
+          recalcular();
+        }
+      }
       aoMudar();
     }
     estado.arrastandoId = null;
@@ -232,6 +267,10 @@ export function configurarInteracao(canvas, estado, aoMudar) {
         estado.popupAtivo = null;
         estado.renderizarPopups?.(true);
       }
+
+      panIniciado = { x: mx, y: my, panX: canvas.view.panX, panY: canvas.view.panY };
+      el.style.cursor = 'grabbing';
+      e.preventDefault();
     }
 
     aoMudar();
@@ -356,9 +395,7 @@ export function configurarInteracao(canvas, estado, aoMudar) {
     }
 
     if (panIniciado) {
-      canvas.view.panX = panIniciado.panX + (mx - panIniciado.x);
-      canvas.view.panY = panIniciado.panY + (my - panIniciado.y);
-      aoMudar();
+      atualizarPan(e);
       return;
     }
 
@@ -464,15 +501,23 @@ export function configurarInteracao(canvas, estado, aoMudar) {
     el.style.cursor = comp ? 'grab' : 'default';
   });
 
+  window.addEventListener('mousemove', (e) => {
+    if (panIniciado && e.target !== el) atualizarPan(e);
+  });
+
   el.addEventListener('mouseup', () => {
     finalizarArrasto();
-    panIniciado = null;
+    finalizarPan();
     el.style.cursor = 'default';
   });
 
   el.addEventListener('mouseleave', () => {
+    if (panIniciado) return;
     finalizarArrasto();
-    panIniciado = null;
+  });
+
+  window.addEventListener('mouseup', (e) => {
+    if (e.button === 0) finalizarPan();
   });
 
   el.addEventListener('wheel', (e) => {

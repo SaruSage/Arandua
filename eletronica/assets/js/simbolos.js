@@ -917,6 +917,51 @@ export function desenharFONTE_AC(ctx, comp, x, y, w, h) {
   ctx.stroke();
 }
 
+export function desenharFONTE_POSITIVA(ctx, comp, x, y, w, h) {
+  preparar(ctx);
+  const cy = y + h / 2;
+  const cx = x + w * 0.39;
+  const raio = Math.min(h * 0.38, w * 0.27);
+
+  ctx.beginPath();
+  ctx.moveTo(cx + raio, cy);
+  ctx.lineTo(x + w, cy);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, raio, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(cx + raio * 0.28, cy - raio * 0.68);
+  ctx.lineTo(cx - raio * 0.36, cy + raio * 0.06);
+  ctx.lineTo(cx + raio * 0.08, cy + raio * 0.06);
+  ctx.lineTo(cx - raio * 0.28, cy + raio * 0.68);
+  ctx.lineTo(cx + raio * 0.4, cy - raio * 0.12);
+  ctx.lineTo(cx - raio * 0.04, cy - raio * 0.12);
+  ctx.closePath();
+  ctx.fillStyle = CORES.traco;
+  ctx.fill();
+}
+
+export function desenharGND(ctx, comp, x, y, w, h) {
+  preparar(ctx);
+  const cx = x + w / 2;
+  const yTopo = y + 6;
+
+  ctx.beginPath();
+  ctx.moveTo(cx, yTopo);
+  ctx.lineTo(cx, y + h * 0.64);
+  ctx.moveTo(x + w * 0.14, y + h * 0.64);
+  ctx.lineTo(x + w * 0.86, y + h * 0.64);
+  ctx.moveTo(x + w * 0.27, y + h * 0.78);
+  ctx.lineTo(x + w * 0.73, y + h * 0.78);
+  ctx.moveTo(x + w * 0.39, y + h * 0.92);
+  ctx.lineTo(x + w * 0.61, y + h * 0.92);
+  ctx.stroke();
+}
+
 /**
  * Chave SPST (normalmente aberta).
  *
@@ -988,6 +1033,25 @@ export function desenharCHAVE(ctx, comp, x, y, w, h) {
   ctx.lineCap = 'round';
   ctx.strokeStyle = fechada ? CORES.primaria : CORES.traco;
   ctx.stroke();
+}
+
+export function desenharCHAVE_CONTROLADA(ctx, comp, x, y, w, h) {
+  desenharCHAVE(ctx, {
+    ...comp,
+    propriedades: {
+      ...comp.propriedades,
+      fechada: comp.estado?.condutora === true,
+    },
+  }, x, y, w, h);
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(x + w / 2, y + 4);
+  ctx.lineTo(x + w / 2, y + h / 2 - 5);
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = CORES.traco;
+  ctx.stroke();
+  ctx.restore();
 }
 
 /**
@@ -1101,23 +1165,56 @@ export function desenharOR(ctx, comp, x, y, w, h) {
 
 export function desenharNOT(ctx, comp, x, y, w, h) {
   preparar(ctx);
-  const raioBolinha = 4;
-  const larguraTriangulo = w - raioBolinha * 2 - 2;
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+
+  // Base 1/3 menor que a original (de 32 para 22)
+  const baseTam = 22;
+  // A altura do triângulo (distância da base ao vértice) é igual ao comprimento da sua base (22)
+  const alturaTri = baseTam;
+  const raioBolinha = 3.5;
+  const corpoLargura = alturaTri + raioBolinha * 2;
+
+  const xBase = cx - corpoLargura / 2;
+  const xApex = xBase + alturaTri;
+  const xBolinha = xApex + raioBolinha;
+  const yTopo = cy - baseTam / 2;
+  const yFim = cy + baseTam / 2;
+
+  // Haste de entrada conectando ao pino A (à esquerda)
   ctx.beginPath();
-  ctx.moveTo(x, y);
-  ctx.lineTo(x + larguraTriangulo, y + h / 2);
-  ctx.lineTo(x, y + h);
+  ctx.moveTo(x + 4, cy);
+  ctx.lineTo(xBase, cy);
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = CORES.traco;
+  ctx.stroke();
+
+  // Triângulo com proporção quadrada: altura horizontal = base vertical
+  ctx.beginPath();
+  ctx.moveTo(xBase, yTopo);
+  ctx.lineTo(xApex, cy);
+  ctx.lineTo(xBase, yFim);
   ctx.closePath();
   ctx.fillStyle = CORES.preenchimento;
   ctx.fill();
   ctx.lineWidth = 2;
   ctx.strokeStyle = CORES.traco;
   ctx.stroke();
+
+  // Bolinha de inversão
   ctx.beginPath();
-  ctx.arc(x + larguraTriangulo + raioBolinha, y + h / 2, raioBolinha, 0, Math.PI * 2);
+  ctx.arc(xBolinha, cy, raioBolinha, 0, Math.PI * 2);
   ctx.fillStyle = CORES.preenchimento;
   ctx.fill();
   ctx.lineWidth = 2;
+  ctx.strokeStyle = CORES.traco;
+  ctx.stroke();
+
+  // Haste de saída conectando da bolinha ao pino Y (à direita)
+  ctx.beginPath();
+  ctx.moveTo(xBolinha + raioBolinha, cy);
+  ctx.lineTo(x + w - 4, cy);
+  ctx.lineWidth = 1.5;
   ctx.strokeStyle = CORES.traco;
   ctx.stroke();
 }
@@ -1315,9 +1412,31 @@ export function desenharCI_GENERICO(ctx, comp, x, y, w, h) {
   desenharRotulo(ctx, funcao.toUpperCase(), x + w / 2, y + h / 2, 9);
 }
 
+/**
+ * Nó de junção: ponto preenchido com a cor escolhida, no mesmo estilo dos pinos.
+ * O próprio corpo é o pino (não há haste nem rótulo de pino).
+ */
+export function desenharNO(ctx, comp, x, y, w, h) {
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  const cor = comp.propriedades?.cor || comp.cor || '#2b2b2b';
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+  ctx.fillStyle = cor;
+  ctx.fill();
+  ctx.lineWidth = 1.2;
+  ctx.strokeStyle = CORES.traco;
+  ctx.stroke();
+  ctx.restore();
+}
+
 /* ===== MAPA ===== */
 
 export const DESENHADORES = {
+  NO: desenharNO,
+  GND: desenharGND,
   RESISTOR: desenharRESISTOR,
   FUSIVEL: desenharFUSIVEL,
   POTENCIOMETRO: desenharPOTENCIOMETRO,
@@ -1333,7 +1452,9 @@ export const DESENHADORES = {
   TRANSISTOR_PNP: desenharTRANSISTOR_PNP,
   BATERIA: desenharBATERIA,
   FONTE_AC: desenharFONTE_AC,
+  FONTE_POSITIVA: desenharFONTE_POSITIVA,
   CHAVE: desenharCHAVE,
+  CHAVE_CONTROLADA: desenharCHAVE_CONTROLADA,
   BOTAO: desenharBOTAO,
   AND: desenharAND,
   OR: desenharOR,
@@ -1356,7 +1477,9 @@ function desenharPinosDoComponente(ctx, comp, dim) {
   const centroX = dim.w / 2;
   const centroY = dim.h / 2;
 
-  for (const pino of comp.pinos) {
+  const pinos = comp.pinos || CATALOGO[comp.tipo]?.pinos || [];
+
+  for (const pino of pinos) {
     const px = centroX + pino.x;
     const py = centroY + pino.y;
 
@@ -1393,7 +1516,10 @@ export function desenharComponente(ctx, comp, telaX, telaY, escala) {
     desenharRotulo(ctx, comp.tipo, cx, cy, 9);
   }
 
-  desenharPinosDoComponente(ctx, comp, dim);
+  // O nó já desenha o próprio ponto (ele é o pino)
+  if (comp.tipo !== 'NO') {
+    desenharPinosDoComponente(ctx, comp, dim);
+  }
 
   ctx.restore();
 }

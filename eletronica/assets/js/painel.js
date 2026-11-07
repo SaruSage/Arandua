@@ -11,6 +11,7 @@ import { CORES_FIO, removerFio } from './fios.js';
 import { CORES_GRUPO, desfazerGrupo } from './grupos.js';
 import { desenharComponente } from './simbolos.js';
 import { executarSubstituicaoConstruir } from './construir.js';
+import { desenharPreviaOpcao, executarTrazerAoProjeto } from './montagem.js';
 
 export const CORES_LED = [
   '#FF3B30', // vermelho
@@ -302,9 +303,55 @@ export function montarPropriedadesComponente(container, comp, estado, aoMudar, a
     secoes.push(secaoCor);
   }
 
+  // Cor do nó: mesma paleta dos fios
+  if (comp.tipo === 'NO') {
+    const secaoCor = document.createElement('div');
+    secaoCor.className = 'popup-secao';
+
+    const tituloCor = document.createElement('div');
+    tituloCor.className = 'popup-secao-titulo';
+    tituloCor.textContent = 'Cor';
+    secaoCor.appendChild(tituloCor);
+
+    const corAtual = (comp.propriedades?.cor || '#2b2b2b').toUpperCase();
+    const paleta = document.createElement('div');
+    paleta.className = 'popup-cores';
+
+    for (const cor of CORES_FIO) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'popup-cor-bolinha' + (cor.toUpperCase() === corAtual ? ' selecionada' : '');
+      btn.dataset.cor = cor;
+      btn.style.background = cor;
+      btn.title = cor;
+      btn.addEventListener('click', () => {
+        comp.propriedades.cor = cor;
+        paleta.querySelectorAll('.popup-cor-bolinha').forEach((b) => b.classList.remove('selecionada'));
+        btn.classList.add('selecionada');
+        registrar(estado.circuito, 'propriedade', true);
+        if (aoMudar) aoMudar();
+      });
+      paleta.appendChild(btn);
+    }
+
+    secaoCor.appendChild(paleta);
+
+    const btnPuxarFio = document.createElement('button');
+    btnPuxarFio.type = 'button';
+    btnPuxarFio.className = 'btn-puxar-fio';
+    btnPuxarFio.textContent = '+ Puxar fio';
+    btnPuxarFio.title = 'Inicia uma nova ligação a partir deste nó (atalho: Alt + clique no nó)';
+    btnPuxarFio.addEventListener('click', () => {
+      estado.iniciarFioDePino?.(comp.id, 'p');
+    });
+    secaoCor.appendChild(btnPuxarFio);
+
+    secoes.push(secaoCor);
+  }
+
   // Propriedades
   let props = Object.entries(def.propriedades || {});
-  if (comp.tipo === 'LED') {
+  if (comp.tipo === 'LED' || comp.tipo === 'NO') {
     props = props.filter(([chave]) => chave !== 'cor');
   }
   if (props.length > 0) {
@@ -347,11 +394,13 @@ export function montarPropriedadesComponente(container, comp, estado, aoMudar, a
     secoes.push(secaoProps);
   }
 
-  // Rotação
-  secoes.push(criarSecaoRotacao(comp, aoMudar, estado.circuito));
+  // Rotação (o nó é um ponto: girar não muda nada)
+  if (comp.tipo !== 'NO') {
+    secoes.push(criarSecaoRotacao(comp, aoMudar, estado.circuito));
+  }
 
-  // Ver montagem
-  if (def.montagem) {
+  // Mostrar montagem (o nó não possui montagem)
+  if (!def.semMontagem) {
     const secaoMontagem = document.createElement('div');
     secaoMontagem.className = 'painel-secao popup-secao';
 
@@ -359,20 +408,14 @@ export function montarPropriedadesComponente(container, comp, estado, aoMudar, a
     btnMontagem.type = 'button';
     btnMontagem.className = 'btn-montagem';
     btnMontagem.innerHTML = `
-      <span class="btn-montagem__icone">◈</span>
-      <span>Ver montagem</span>
-    `;
+    <span class="btn-montagem__icone">◈</span>
+    <span>Mostrar montagem</span>
+  `;
     btnMontagem.addEventListener('click', () => {
       if (aoVerMontagem) aoVerMontagem(comp);
     });
 
     secaoMontagem.appendChild(btnMontagem);
-
-    const nota = document.createElement('p');
-    nota.className = 'painel-nota';
-    nota.textContent = 'Veja como este componente é construído internamente.';
-    secaoMontagem.appendChild(nota);
-
     secoes.push(secaoMontagem);
   }
 
@@ -869,9 +912,55 @@ export function renderizarPainel(container, estado, aoMudar, aoVerMontagem) {
     secoes.push(secaoCor);
   }
 
+  // Cor do nó: mesma paleta dos fios
+  if (comp.tipo === 'NO') {
+    const secaoCor = document.createElement('div');
+    secaoCor.className = 'popup-secao';
+
+    const tituloCor = document.createElement('div');
+    tituloCor.className = 'popup-secao-titulo';
+    tituloCor.textContent = 'Cor';
+    secaoCor.appendChild(tituloCor);
+
+    const corAtual = (comp.propriedades?.cor || '#2b2b2b').toUpperCase();
+    const paleta = document.createElement('div');
+    paleta.className = 'popup-cores';
+
+    for (const cor of CORES_FIO) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'popup-cor-bolinha' + (cor.toUpperCase() === corAtual ? ' selecionada' : '');
+      btn.dataset.cor = cor;
+      btn.style.background = cor;
+      btn.title = cor;
+      btn.addEventListener('click', () => {
+        comp.propriedades.cor = cor;
+        paleta.querySelectorAll('.popup-cor-bolinha').forEach((b) => b.classList.remove('selecionada'));
+        btn.classList.add('selecionada');
+        registrar(estado.circuito, 'propriedade', true);
+        if (aoMudar) aoMudar();
+      });
+      paleta.appendChild(btn);
+    }
+
+    secaoCor.appendChild(paleta);
+
+    const btnPuxarFio = document.createElement('button');
+    btnPuxarFio.type = 'button';
+    btnPuxarFio.className = 'btn-puxar-fio';
+    btnPuxarFio.textContent = '+ Puxar fio';
+    btnPuxarFio.title = 'Inicia uma nova ligação a partir deste nó (atalho: Alt + clique no nó)';
+    btnPuxarFio.addEventListener('click', () => {
+      estado.iniciarFioDePino?.(comp.id, 'p');
+    });
+    secaoCor.appendChild(btnPuxarFio);
+
+    secoes.push(secaoCor);
+  }
+
   // Propriedades
   let props = Object.entries(def.propriedades || {});
-  if (comp.tipo === 'LED') {
+  if (comp.tipo === 'LED' || comp.tipo === 'NO') {
     props = props.filter(([chave]) => chave !== 'cor');
   }
   if (props.length > 0) {
@@ -914,11 +1003,13 @@ export function renderizarPainel(container, estado, aoMudar, aoVerMontagem) {
     secoes.push(secaoProps);
   }
 
-  // Rotação
-  secoes.push(criarSecaoRotacao(comp, aoMudar, estado.circuito));
+  // Rotação (o nó é um ponto: girar não muda nada)
+  if (comp.tipo !== 'NO') {
+    secoes.push(criarSecaoRotacao(comp, aoMudar, estado.circuito));
+  }
 
-  // Ver montagem
-  if (def.montagem) {
+  // Mostrar montagem (o nó não possui montagem)
+  if (!def.semMontagem) {
     const secaoMontagem = document.createElement('div');
     secaoMontagem.className = 'painel-secao popup-secao';
 
@@ -926,20 +1017,14 @@ export function renderizarPainel(container, estado, aoMudar, aoVerMontagem) {
     btnMontagem.type = 'button';
     btnMontagem.className = 'btn-montagem';
     btnMontagem.innerHTML = `
-      <span class="btn-montagem__icone">◈</span>
-      <span>Ver montagem</span>
-    `;
+    <span class="btn-montagem__icone">◈</span>
+    <span>Mostrar montagem</span>
+  `;
     btnMontagem.addEventListener('click', () => {
       if (aoVerMontagem) aoVerMontagem(comp);
     });
 
     secaoMontagem.appendChild(btnMontagem);
-
-    const nota = document.createElement('p');
-    nota.className = 'painel-nota';
-    nota.textContent = 'Veja como este componente é construído internamente.';
-    secaoMontagem.appendChild(nota);
-
     secoes.push(secaoMontagem);
   }
 
@@ -1016,6 +1101,59 @@ export function montarCorpoConstruir(corpo, resultado, estado, aoSubstituir, aoM
   corpo.innerHTML = '';
   if (!resultado) return;
 
+  if (!resultado.encontrado && resultado.sugestoes?.length) {
+    const aviso = document.createElement('div');
+    aviso.className = 'popup-construir-aviso';
+    aviso.textContent = 'A seleção se parece com estes circuitos, mas as ligações não correspondem completamente:';
+    corpo.appendChild(aviso);
+
+    for (const sugestao of resultado.sugestoes) {
+      const card = document.createElement('section');
+      card.className = 'popup-construir-sugestao';
+
+      const titulo = document.createElement('div');
+      titulo.className = 'popup-construir-alvo';
+      titulo.textContent = sugestao.nome;
+      card.appendChild(titulo);
+
+      const progresso = document.createElement('div');
+      progresso.className = 'popup-construir-descricao';
+      progresso.textContent = `${sugestao.correspondencias} de ${sugestao.totalConexoes} conexões esperadas encontradas.`;
+      card.appendChild(progresso);
+
+      if (sugestao.faltantes.length) {
+        const listaTitulo = document.createElement('div');
+        listaTitulo.className = 'popup-construir-ligacoes-titulo';
+        listaTitulo.textContent = 'Conexões que faltam:';
+        card.appendChild(listaTitulo);
+
+        const lista = document.createElement('ul');
+        lista.className = 'popup-construir-ligacoes';
+        for (const ligacao of sugestao.faltantes) {
+          const item = document.createElement('li');
+          item.textContent = ligacao;
+          lista.appendChild(item);
+        }
+        card.appendChild(lista);
+      }
+
+      corpo.appendChild(card);
+    }
+
+    const acoes = document.createElement('div');
+    acoes.className = 'popup-construir-acoes';
+    const btnManter = document.createElement('button');
+    btnManter.type = 'button';
+    btnManter.className = 'popup-construir-btn-manter';
+    btnManter.textContent = 'Manter atual';
+    btnManter.addEventListener('click', () => {
+      if (aoManter) aoManter();
+    });
+    acoes.appendChild(btnManter);
+    corpo.appendChild(acoes);
+    return;
+  }
+
   const aviso = document.createElement('div');
   aviso.className = 'popup-construir-aviso';
   aviso.textContent = 'Esta configuração é equivalente a:';
@@ -1049,6 +1187,7 @@ export function montarCorpoConstruir(corpo, resultado, estado, aoSubstituir, aoM
       rotacao: 0,
       propriedades: {},
       dimensoes: dimAlvo,
+      pinos: CATALOGO[resultado.alvo]?.pinos || [],
     };
     const telaX = Math.round((previewCanvas.width - dimAlvo.w) / 2);
     const telaY = Math.round((previewCanvas.height - dimAlvo.h) / 2);
@@ -1081,4 +1220,157 @@ export function montarCorpoConstruir(corpo, resultado, estado, aoSubstituir, aoM
   acoes.appendChild(btnSubstituir);
   acoes.appendChild(btnManter);
   corpo.appendChild(acoes);
+}
+
+/**
+ * Monta o corpo do popup de Montagem paramétrica com suporte a duas opções:
+ * 1. Construção Industrial (com transistores e componentes convencionais com lógica real)
+ * 2. Demonstração Didática (com circuitos discretos / chaves funcionais)
+ * Cada opção possui seu próprio botão "Trazer ao projeto" logo abaixo de sua representação.
+ */
+export function montarCorpoMontagem(corpo, montagem, estado, aoTrazer, aoFechar) {
+  corpo.innerHTML = '';
+  if (!montagem) return;
+
+  // Garante a classe de popup largo no elemento pai se existir
+  if (corpo.parentElement) {
+    corpo.parentElement.classList.add('popup-montagem-largo');
+  }
+
+  // Cabeçalho de identificação
+  const headerEl = document.createElement('div');
+  headerEl.className = 'popup-montagem-header';
+  const nomeDisplay = montagem.nome
+    ? `${montagem.nome} (${montagem.tipo})`
+    : montagem.titulo || montagem.tipo;
+  headerEl.textContent = nomeDisplay;
+  corpo.appendChild(headerEl);
+
+  if (montagem.disponivel && (montagem.industrial || montagem.didatica)) {
+    const opcoesContainer = document.createElement('div');
+    opcoesContainer.className = 'popup-montagem-opcoes';
+
+    const renderizarCardOpcao = (opcao, modo) => {
+      if (!opcao) return;
+
+      const card = document.createElement('div');
+      card.className = 'popup-montagem-card';
+
+      // Cabeçalho do Card
+      const cardHeader = document.createElement('div');
+      cardHeader.className = 'popup-montagem-card-header';
+
+      const cardTitulo = document.createElement('h4');
+      cardTitulo.className = 'popup-montagem-card-titulo';
+      cardTitulo.textContent = opcao.titulo;
+      cardHeader.appendChild(cardTitulo);
+
+      if (opcao.subtitulo) {
+        const cardSub = document.createElement('span');
+        cardSub.className = 'popup-montagem-card-subtitulo';
+        cardSub.textContent = opcao.subtitulo;
+        cardHeader.appendChild(cardSub);
+      }
+      card.appendChild(cardHeader);
+
+      // Canvas com a prévia esquemática da opção
+      const canvasEl = document.createElement('canvas');
+      canvasEl.className = 'popup-montagem-preview';
+      card.appendChild(canvasEl);
+
+      requestAnimationFrame(() => {
+        desenharPreviaOpcao(canvasEl, opcao, montagem.tipo, montagem.comp);
+      });
+
+      // Descrição funcional
+      if (opcao.descricao) {
+        const descEl = document.createElement('p');
+        descEl.className = 'popup-montagem-card-descricao';
+        descEl.textContent = opcao.descricao;
+        card.appendChild(descEl);
+      }
+
+      // Lista de componentes discretos da opção
+      const listaEl = document.createElement('div');
+      listaEl.className = 'popup-montagem-lista';
+
+      for (const peca of opcao.pecas || []) {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'popup-montagem-item';
+
+        const rotuloEl = document.createElement('span');
+        rotuloEl.className = 'popup-montagem-item-rotulo';
+        rotuloEl.textContent = peca.rotulo || `${peca.ref} (${peca.tipo})`;
+
+        const valorEl = document.createElement('span');
+        valorEl.className = 'popup-montagem-item-valor';
+        valorEl.textContent = peca.valor || montagem.valores?.estado || '—';
+
+        itemEl.appendChild(rotuloEl);
+        itemEl.appendChild(valorEl);
+        listaEl.appendChild(itemEl);
+      }
+      card.appendChild(listaEl);
+
+      // Rodapé com o botão "Trazer ao projeto" específico desta opção
+      const rodapeCard = document.createElement('div');
+      rodapeCard.className = 'popup-montagem-card-rodape';
+
+      const btnTrazer = document.createElement('button');
+      btnTrazer.type = 'button';
+      btnTrazer.className = 'popup-montagem-btn-trazer';
+      btnTrazer.textContent = 'Trazer ao projeto';
+      btnTrazer.title = `Substituir ${nomeDisplay} pela ${opcao.titulo.toLowerCase()}`;
+
+      btnTrazer.addEventListener('click', () => {
+        executarTrazerAoProjeto(
+          montagem.comp,
+          modo,
+          estado,
+          () => {
+            if (aoTrazer) aoTrazer();
+          },
+          (msg) => {
+            if (typeof estado?.mostrarToast === 'function') {
+              estado.mostrarToast(msg);
+            }
+          }
+        );
+      });
+
+      rodapeCard.appendChild(btnTrazer);
+      card.appendChild(rodapeCard);
+
+      opcoesContainer.appendChild(card);
+    };
+
+    // Card 1: Construção Industrial
+    if (montagem.industrial) {
+      renderizarCardOpcao(montagem.industrial, 'industrial');
+    }
+
+    // Card 2: Demonstração Didática
+    if (montagem.didatica) {
+      renderizarCardOpcao(montagem.didatica, 'didatica');
+    }
+
+    corpo.appendChild(opcoesContainer);
+  } else {
+    // Componente primitivo ou sem montagem cadastrada
+    const indisponivelEl = document.createElement('div');
+    indisponivelEl.className = 'popup-montagem-indisponivel';
+    indisponivelEl.textContent =
+      'Este componente é primitivo e não possui montagem em componentes discretos ou industriais.';
+    corpo.appendChild(indisponivelEl);
+
+    const rodapeEl = document.createElement('div');
+    rodapeEl.className = 'popup-montagem-rodape';
+    const btnTrazer = document.createElement('button');
+    btnTrazer.type = 'button';
+    btnTrazer.className = 'popup-montagem-btn-trazer';
+    btnTrazer.textContent = 'Trazer ao projeto';
+    btnTrazer.disabled = true;
+    rodapeEl.appendChild(btnTrazer);
+    corpo.appendChild(rodapeEl);
+  }
 }

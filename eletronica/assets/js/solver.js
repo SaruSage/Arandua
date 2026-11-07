@@ -18,9 +18,9 @@
 import { CATALOGO } from './catalogo.js';
 
 const VCC_PADRAO = 5;
-const TOLERANCIA = 1e-5;
+const TOLERANCIA = 1e-4;
 const MAX_ITERACOES = 120;
-const FATOR_RELAXACAO = 0.5;
+const FATOR_RELAXACAO = 0.1;
 const VT = 0.026; // tensão térmica a 300K
 const G_MIN = 1e-12;
 
@@ -37,6 +37,16 @@ function componentesPorId(circuito) {
 function tensaoNominalFonte(comp) {
   const tensao = comp.propriedades?.tensao ?? comp.propriedades?.amplitude ?? 5;
   return Number.isFinite(tensao) ? tensao : 5;
+}
+
+function ehFonteDeAlimentacao(comp) {
+  return ['BATERIA', 'FONTE_AC', 'FONTE_POSITIVA'].includes(comp.tipo);
+}
+
+function chaveFechada(comp) {
+  return comp.tipo === 'BOTAO'
+    ? comp.propriedades?.pressionado === true
+    : comp.propriedades?.fechada === true;
 }
 
 function avaliarPorta(tipo, entradas) {
@@ -56,11 +66,9 @@ function avaliarPorta(tipo, entradas) {
 }
 
 function tensaoParaLogico(tensao, vcc) {
-  if (tensao == null || !isFinite(tensao) || vcc <= 0) return 0;
-  const razao = tensao / vcc;
-  if (razao >= 0.6) return 1;
-  if (razao <= 0.4) return 0;
-  return 0;
+  if (tensao == null || !isFinite(tensao)) return 0;
+  const vRef = vcc > 0 ? vcc : VCC_PADRAO;
+  return tensao >= 0.45 * vRef ? 1 : 0;
 }
 
 function fiosPorExtremos(circuito) {
@@ -112,8 +120,15 @@ function construirNos(circuito) {
     );
   }
 
-  const raizes = new Map();
-  const nos = [];
+  const chaveTerraGlobal = '__GND_GLOBAL__';
+  encontrar(chaveTerraGlobal);
+  for (const comp of componentes) {
+    if (comp.tipo === 'GND') unir(`${comp.id}:p`, chaveTerraGlobal);
+  }
+
+  const raizGlobalFisica = encontrar(chaveTerraGlobal);
+  const raizes = new Map([[raizGlobalFisica, 0]]);
+  const nos = [{ id: 0, pinos: [], referenciaGlobal: true }];
   for (const comp of componentes) {
     for (const pino of comp.pinos) {
       const raiz = encontrar(`${comp.id}:${pino.id}`);
@@ -135,15 +150,81 @@ function construirNos(circuito) {
     }
   }
 
-  const fontes = componentes
-    .filter((comp) => comp.tipo === 'BATERIA' || comp.tipo === 'FONTE_AC')
-    .sort((a, b) => tensaoNominalFonte(b) - tensaoNominalFonte(a) || compararPorId(a, b));
-  const fonteReferencia = fontes[0];
-  const noTerra = fonteReferencia
-    ? pinoParaNo.get(`${fonteReferencia.id}:p2`) ?? 0
-    : 0;
+  const noTerraGlobal = 0;
 
-  return { nos, pinoParaNo, noTerra, semFonte: !fonteReferencia };
+  const ilhaPai = new Map(nos.map((no) => [no.id, no.id]));
+  const encontrarIlha = (no) => {
+    let raiz = no;
+    while (ilhaPai.get(raiz) !== raiz) raiz = ilhaPai.get(raiz);
+    while (ilhaPai.get(no) !== raiz) {
+      const proximo = ilhaPai.get(no);
+      ilhaPai.set(no, raiz);
+      no = proximo;
+    }
+    return raiz;
+  };
+  const unirIlhas = (nosIlha) => {
+    const nosValidos = nosIlha.filter((no) => no !== undefined);
+    for (let indice = 1; indice < nosValidos.length; indice++) {
+      const raizA = encontrarIlha(nosValidos[0]);
+      const raizB = encontrarIlha(nosValidos[indice]);
+      if (raizA !== raizB) ilhaPai.set(raizA, raizB);
+    }
+  };
+
+  for (const comp of componentes) {
+    if (comp.tipo === 'TRANSFORMADOR') {
+      for (const pinos of [['p1', 'p2'], ['s1', 's2']]) {
+        unirIlhas(pinos.map((pino) => pinoParaNo.get(`${comp.id}:${pino}`)));
+      }
+    } else if (
+      CATALOGO[comp.tipo].modelo === 'chave'
+      && ['CHAVE', 'CHAVE_SIMPLES', 'BOTAO'].includes(comp.tipo)
+    ) {
+      if (chaveFechada(comp)) {
+        unirIlhas(comp.pinos.map((pino) => pinoParaNo.get(`${comp.id}:${pino.id}`)));
+      }
+    } else {
+      unirIlhas(comp.pinos.map((pino) => pinoParaNo.get(`${comp.id}:${pino.id}`)));
+    }
+  }
+
+  for (const comp of componentes) {
+    if (comp.tipo === 'GND') {
+      unirIlhas([pinoParaNo.get(`${comp.id}:p`), noTerraGlobal]);
+    } else if (comp.tipo === 'FONTE_POSITIVA') {
+      unirIlhas([pinoParaNo.get(`${comp.id}:p`), noTerraGlobal]);
+    }
+  }
+
+  const fontesPorRaiz = new Map();
+  const fontes = componentes
+    .filter(ehFonteDeAlimentacao)
+    .sort((a, b) => tensaoNominalFonte(b) - tensaoNominalFonte(a) || compararPorId(a, b));
+  for (const fonte of fontes) {
+    const noNegativo = fonte.tipo === 'FONTE_POSITIVA'
+      ? noTerraGlobal
+      : pinoParaNo.get(`${fonte.id}:p2`);
+    const raiz = encontrarIlha(noNegativo);
+    if (!fontesPorRaiz.has(raiz)) {
+      fontesPorRaiz.set(raiz, noNegativo);
+    }
+  }
+
+  const nosTerraPorRaiz = new Map();
+  const raizGlobal = encontrarIlha(noTerraGlobal);
+  for (const no of nos) {
+    const raiz = encontrarIlha(no.id);
+    if (!nosTerraPorRaiz.has(raiz)) {
+      nosTerraPorRaiz.set(
+        raiz,
+        raiz === raizGlobal ? noTerraGlobal : fontesPorRaiz.get(raiz) ?? no.id
+      );
+    }
+  }
+  const noTerraPorNo = nos.map((no) => nosTerraPorRaiz.get(encontrarIlha(no.id)));
+
+  return { nos, pinoParaNo, noTerraPorNo, noTerraGlobal, semFonte: fontes.length === 0 };
 }
 
 /* ===== UTILITÁRIOS MATRICIAIS ===== */
@@ -255,49 +336,46 @@ function linearizarDiodo(vd, is, n = 1.5) {
  * Funciona em corte, ativo e saturação.
  * Retorna as correntes e as condutâncias linearizadas.
  */
-function linearizarBJT(vbe, vbc, beta, is, tipo) {
-  const sinal = tipo === 'PNP' ? -1 : 1;
-  const vbeE = sinal * vbe;
-  const vbcE = sinal * vbc;
+/**
+ * Transistor bipolar: modelo robusto com junção base-emissor e canal coletor-emissor controlado.
+ * Opera estavelmente em corte, linear e saturação profunda (comportamento de chave ideal).
+ */
 
-  // Correntes de junção (Shockley)
-  const iF = is * (Math.exp(Math.min(vbeE / VT, 40)) - 1);
-  const iR = is * (Math.exp(Math.min(vbcE / VT, 40)) - 1);
+function linearizarBJT(vbe, vce, beta = 100, isPNP = false) {
+  // Para NPN: vbe = Vb - Ve, vce = Vc - Ve
+  // Para PNP: vbe = Ve - Vb, vce = Ve - Vc
+  const vbeE = isPNP ? -vbe : vbe;
+  const vceE = isPNP ? -vce : vce;
 
-  const alphaF = beta / (beta + 1);
-  const alphaR = 0.5;
+  const VF = 0.65;
+  const R_OFF = 1e6;
+  const RSAT = 5;
+  const gOff = 1 / R_OFF;
+  const gSat = 1 / RSAT;
 
-  // Correntes nos terminais (normalizadas para NPN)
-  const ic = alphaF * iF - iR;
-  const ib = (1 - alphaF) * iF + (1 - alphaR) * iR;
-  const ie = ic + ib;
+  // O transistor só conduz pelo canal coletor-emissor se Vbe >= VF e Vce > 0
+  let gCE = gOff;
+  let ib = 0;
 
-  // Derivadas parciais (condutâncias)
-  const gF = Math.max((is / VT) * Math.exp(Math.min(vbeE / VT, 40)), G_MIN);
-  const gR = Math.max((is / VT) * Math.exp(Math.min(vbcE / VT, 40)), G_MIN);
+  if (vbeE >= VF && vceE > 0) {
+    // Base ativada
+    ib = (vbeE - VF) / 1000; // pequena corrente de controle
+    const icMax = beta * ib;
+    const vRef = Math.max(vceE, 0.2);
+    const gDrive = icMax / vRef;
+    gCE = Math.min(gSat, Math.max(gOff, gDrive));
+  }
 
-  const dIc_dVbe = alphaF * gF;
-  const dIc_dVbc = -gR;
-  const dIb_dVbe = (1 - alphaF) * gF;
-  const dIb_dVbc = (1 - alphaR) * gR;
+  const iCE = gCE * Math.max(0, vceE);
 
   return {
-    ic: sinal * ic,
-    ib: sinal * ib,
-    ie: sinal * ie,
-    gbe: dIb_dVbe + dIc_dVbe,
-    gbc: dIb_dVbc + dIc_dVbc,
-    gm: dIc_dVbe,
-    // Correntes equivalentes para o lado direito
-    iEqC: sinal * (ic - dIc_dVbe * vbeE - dIc_dVbc * vbcE),
-    iEqB: sinal * (ib - dIb_dVbe * vbeE - dIb_dVbc * vbcE),
+    gce: gCE,
+    ib,
+    ic: iCE,
+    ie: iCE,
+    isPNP,
   };
 }
-
-/**
- * Amplificador operacional: modelo de ganho finito com trilhos.
- * A saída é limitada entre V- e V+.
- */
 function resolverAmpOp(comp, vInm, vInp, vOutAnterior) {
   const A = comp.propriedades.ganho || 100000;
   const vMais = comp.propriedades.tensaoTrilhoPositivo ?? 12;
@@ -317,11 +395,19 @@ function resolverAmpOp(comp, vInm, vInp, vOutAnterior) {
 
 /* ===== MONTAGEM DO SISTEMA ===== */
 
-function montarSistema(circuito, nos, pinoParaNo, tensoesAnteriores, noTerra, avisos) {
+function montarSistema(
+  circuito,
+  nos,
+  pinoParaNo,
+  tensoesAnteriores,
+  noTerraPorNo,
+  avisos,
+  noTerraGlobal
+) {
   const numNos = nos.length;
   const componentes = componentesPorId(circuito);
   const fontesTensao = componentes.filter(
-    (c) => CATALOGO[c.tipo].modelo === 'fonte'
+    (c) => CATALOGO[c.tipo].modelo === 'fonte' || CATALOGO[c.tipo].modelo === 'fonte-positiva'
   );
   const numFontes = fontesTensao.length;
   const tamanho = numNos + numFontes;
@@ -411,19 +497,35 @@ function montarSistema(circuito, nos, pinoParaNo, tensoesAnteriores, noTerra, av
     /* ---- CHAVES ---- */
     else if (modelo === 'chave') {
       if (comp.tipo === 'CHAVE' || comp.tipo === 'CHAVE_SIMPLES' || comp.tipo === 'BOTAO') {
-        const fechada = comp.propriedades?.fechada === true
-                     || comp.propriedades?.pressionado === true;
-
-        // Resistência alta quando aberta, baixa quando fechada
-        const resistencia = fechada ? 0.001 : 1e9;
-        const condutancia = 1 / resistencia;
-
-        const noA = pinoParaNo.get(`${comp.id}:p1`);
-        const noB = pinoParaNo.get(`${comp.id}:p2`);
-
-        if (noA !== undefined && noB !== undefined && noA !== noB) {
-          adicionarCondutancia(G, noA, noB, condutancia);
+        if (chaveFechada(comp)) {
+          const noA = pinoParaNo.get(`${comp.id}:p1`);
+          const noB = pinoParaNo.get(`${comp.id}:p2`);
+          if (noA !== undefined && noB !== undefined && noA !== noB) {
+            adicionarCondutancia(G, noA, noB, 1 / 0.001);
+          }
         }
+      }
+    }
+
+    /* ---- CHAVE CONTROLADA POR NÍVEL LÓGICO ---- */
+    else if (modelo === 'chave-controlada') {
+      const noA = pinoParaNo.get(`${comp.id}:p1`);
+      const noB = pinoParaNo.get(`${comp.id}:p2`);
+      const noControle = pinoParaNo.get(`${comp.id}:controle`);
+      const tensaoControle = tensoesAnteriores[noControle] ?? 0;
+      const vcc = Math.max(
+        ...circuito.componentes
+          .filter(ehFonteDeAlimentacao)
+          .map((c) => c.propriedades?.tensao || c.propriedades?.amplitude || 0),
+        VCC_PADRAO
+      );
+      const fechada = tensaoParaLogico(tensaoControle, vcc) === 1;
+      const terraControle = noTerraPorNo[noControle];
+      if (noControle !== undefined && noControle !== terraControle) {
+        adicionarCondutancia(G, noControle, terraControle, 1 / 1e6);
+      }
+      if (noA !== undefined && noB !== undefined && noA !== noB) {
+        adicionarCondutancia(G, noA, noB, 1 / (fechada ? 0.001 : 1e9));
       }
     }
 
@@ -449,26 +551,28 @@ function montarSistema(circuito, nos, pinoParaNo, tensoesAnteriores, noTerra, av
         adicionarFonteCorrente(I, n1, n2, -iEq);
       } else if (comp.tipo === 'TRANSISTOR_NPN' || comp.tipo === 'TRANSISTOR_PNP') {
         const beta = comp.propriedades.ganho || 100;
-        const is = 1e-14;
         const nb = pinoParaNo.get(`${comp.id}:b`);
         const nc = pinoParaNo.get(`${comp.id}:c`);
         const ne = pinoParaNo.get(`${comp.id}:e`);
 
-        // Tensões anteriores
-        const vbeAnt = tensoesAnteriores[`${comp.id}:be`] || 0.6;
-        const vbcAnt = tensoesAnteriores[`${comp.id}:bc`] || -5;
+        const isPNP = comp.tipo === 'TRANSISTOR_PNP' || comp.tipo === 'PNP';
+        const vbeAnt = tensoesAnteriores[`${comp.id}:be`] ?? (isPNP ? -0.6 : 0.6);
+        const vceAnt = tensoesAnteriores[`${comp.id}:ce`] ?? (isPNP ? -2.0 : 2.0);
 
-        const r = linearizarBJT(vbeAnt, vbcAnt, beta, is, comp.tipo === 'PNP' ? 'PNP' : 'NPN');
+        const r = linearizarBJT(vbeAnt, vceAnt, beta, isPNP);
 
-        // Condutâncias base-emissor e base-coletor
-        adicionarCondutancia(G, nb, ne, Math.max(r.gbe, G_MIN));
-        adicionarCondutancia(G, nb, nc, Math.max(r.gbc, G_MIN));
-        // Transcondutância: corrente no coletor controlada por vbe
-        adicionarCondutancia(G, nc, ne, Math.max(r.gm, G_MIN));
-
-        // Correntes equivalentes
-        adicionarFonteCorrente(I, nc, ne, r.iEqC);
-        adicionarFonteCorrente(I, nb, ne, r.iEqB);
+        // O canal coletor-emissor conduz a corrente da alimentação
+        if (!isPNP) {
+          // NPN: Canal C -> E
+          adicionarCondutancia(G, nc, ne, Math.max(r.gce, G_MIN));
+          // Impedância Base-Emissor (1 MΩ) para nó de controle não flutuar
+          adicionarCondutancia(G, nb, ne, 1 / 1e6);
+        } else {
+          // PNP: Canal E -> C
+          adicionarCondutancia(G, ne, nc, Math.max(r.gce, G_MIN));
+          // Impedância Emissor-Base (1 MΩ) para nó de controle não flutuar
+          adicionarCondutancia(G, ne, nb, 1 / 1e6);
+        }
       }
     }
 
@@ -484,6 +588,17 @@ function montarSistema(circuito, nos, pinoParaNo, tensoesAnteriores, noTerra, av
       G[n1][idx] += 1;
       G[n2][idx] -= 1;
       I[idx] = v;
+    } else if (modelo === 'fonte-positiva') {
+      const idx = indiceFonte.get(comp.id);
+      const nPositivo = pinoParaNo.get(`${comp.id}:p`);
+      const nGlobal = noTerraGlobal;
+      const v = comp.propriedades.tensao ?? 5;
+
+      G[idx][nPositivo] += 1;
+      G[idx][nGlobal] -= 1;
+      G[nPositivo][idx] += 1;
+      G[nGlobal][idx] -= 1;
+      I[idx] = v;
     }
 
     /* ---- PORTAS LÓGICAS ---- */
@@ -492,18 +607,20 @@ function montarSistema(circuito, nos, pinoParaNo, tensoesAnteriores, noTerra, av
 
       for (const p of comp.pinos.filter((p) => p.id !== 'y')) {
         const no = pinoParaNo.get(`${comp.id}:${p.id}`);
-        if (no !== undefined && no !== noTerra) {
-          adicionarCondutancia(G, no, noTerra, 1 / RESISTENCIA_PULLDOWN);
+        const terra = noTerraPorNo[no];
+        if (no !== undefined && no !== terra) {
+          adicionarCondutancia(G, no, terra, 1 / RESISTENCIA_PULLDOWN);
         }
       }
 
-      // Descobre o Vcc do circuito
-      const vcc = Math.max(
+      // Descobre o Vcc do circuito (usa 5V padrão se não houver fonte explícita)
+      const vccFonte = Math.max(
         ...circuito.componentes
-          .filter((c) => c.tipo === 'BATERIA' || c.tipo === 'FONTE_AC')
+          .filter(ehFonteDeAlimentacao)
           .map((c) => c.propriedades?.tensao || c.propriedades?.amplitude || 0),
         0
       );
+      const vcc = vccFonte > 0 ? vccFonte : VCC_PADRAO;
 
       // Lê a tensão de cada pino de entrada e converte para lógica
       const entradas = comp.pinos
@@ -524,10 +641,11 @@ function montarSistema(circuito, nos, pinoParaNo, tensoesAnteriores, noTerra, av
       // Aplica a tensão de saída no nó do pino y
       const noY = pinoParaNo.get(`${comp.id}:y`);
       if (noY !== undefined) {
+        const terra = noTerraPorNo[noY];
         const vSaida = saida === 1 ? vcc : 0;
         const gSaida = 1 / 100; // 100 Ω de saída
-        adicionarCondutancia(G, noY, noTerra, gSaida);
-        adicionarFonteCorrente(I, noY, noTerra, gSaida * vSaida);
+        adicionarCondutancia(G, noY, terra, gSaida);
+        adicionarFonteCorrente(I, noY, terra, gSaida * vSaida);
       }
     }
 
@@ -545,12 +663,13 @@ function montarSistema(circuito, nos, pinoParaNo, tensoesAnteriores, noTerra, av
         const { vSaida, gOut } = resolverAmpOp(comp, vInm, vInp, vAnt);
 
         // Saída como fonte de tensão com resistência
-        adicionarCondutancia(G, nOut, noTerra, gOut);
-        adicionarFonteCorrente(I, nOut, noTerra, gOut * vSaida);
+        const terraOut = noTerraPorNo[nOut];
+        adicionarCondutancia(G, nOut, terraOut, gOut);
+        adicionarFonteCorrente(I, nOut, terraOut, gOut * vSaida);
 
         // Entradas de altíssima impedância (10 MΩ)
-        adicionarCondutancia(G, nInm, noTerra, 1 / 1e7);
-        adicionarCondutancia(G, nInp, noTerra, 1 / 1e7);
+        adicionarCondutancia(G, nInm, noTerraPorNo[nInm], 1 / 1e7);
+        adicionarCondutancia(G, nInp, noTerraPorNo[nInp], 1 / 1e7);
       } else if (comp.tipo === 'DISPLAY_7SEG') {
         // Cada segmento é um LED — modelado como diodo
         for (let i = 0; i < 7; i++) {
@@ -576,20 +695,24 @@ function montarSistema(circuito, nos, pinoParaNo, tensoesAnteriores, noTerra, av
           else if (funcao === 'inversor') vOut = logico ? 0 : VCC_PADRAO;
           else vOut = logico ? VCC_PADRAO : 0;
           const g = 1 / 100;
-          adicionarCondutancia(G, nOut, noTerra, g);
-          adicionarFonteCorrente(I, nOut, noTerra, g * vOut);
+          const terraOut = noTerraPorNo[nOut];
+          adicionarCondutancia(G, nOut, terraOut, g);
+          adicionarFonteCorrente(I, nOut, terraOut, g * vOut);
         }
       }
     }
   }
 
-  // Terra
-  for (let indice = 0; indice < tamanho; indice++) {
-    G[noTerra][indice] = 0;
-    G[indice][noTerra] = 0;
+  // Uma referência por ilha elétrica evita matrizes singulares em circuitos isolados.
+  const referenciasTerra = new Set(noTerraPorNo);
+  for (const noTerra of referenciasTerra) {
+    for (let indice = 0; indice < tamanho; indice++) {
+      G[noTerra][indice] = 0;
+      G[indice][noTerra] = 0;
+    }
+    G[noTerra][noTerra] = 1;
+    I[noTerra] = 0;
   }
-  G[noTerra][noTerra] = 1;
-  I[noTerra] = 0;
 
   return { G, I, numNos, numFontes };
 }
@@ -642,7 +765,7 @@ export function simular(circuito) {
     };
   }
 
-  const { nos, pinoParaNo, noTerra, semFonte } = construirNos(circuito);
+  const { nos, pinoParaNo, noTerraPorNo, noTerraGlobal, semFonte } = construirNos(circuito);
   if (semFonte) avisos.push('Circuito sem fonte: referência de terra arbitrária');
 
   let tensoesAnteriores = {};
@@ -652,7 +775,15 @@ export function simular(circuito) {
   const componentes = componentesPorId(circuito);
 
   for (let iter = 0; iter < MAX_ITERACOES; iter++) {
-    const { G, I } = montarSistema(circuito, nos, pinoParaNo, tensoesAnteriores, noTerra, avisos);
+    const { G, I } = montarSistema(
+      circuito,
+      nos,
+      pinoParaNo,
+      tensoesAnteriores,
+      noTerraPorNo,
+      avisos,
+      noTerraGlobal
+    );
     const Vbruto = resolverGauss(G, I);
 
     let maxDelta = 0;
@@ -686,7 +817,7 @@ export function simular(circuito) {
         const nc = pinoParaNo.get(`${comp.id}:c`);
         const ne = pinoParaNo.get(`${comp.id}:e`);
         tensoesAnteriores[`${comp.id}:be`] = (V[nb] ?? 0) - (V[ne] ?? 0);
-        tensoesAnteriores[`${comp.id}:bc`] = (V[nb] ?? 0) - (V[nc] ?? 0);
+        tensoesAnteriores[`${comp.id}:ce`] = (V[nc] ?? 0) - (V[ne] ?? 0);
       }
       // Tensões de entrada do amp-op
       if (comp.tipo === 'AMP_OP') {
@@ -711,15 +842,16 @@ export function simular(circuito) {
     }
   }
 
-  // Se não atingiu TOLERANCIA estrita mas a variação entre as duas últimas
-  // iterações for menor que 5%, considera o resultado estável e utilizável
+  // Considera estável se a variação residual for inferior a 5% ou a 10 mV.
   if (!convergiu && V && Vant) {
     let maxDiffRel = 0;
+    let maxDiffAbs = 0;
     for (let i = 0; i < V.length; i++) {
       const ref = Math.max(Math.abs(V[i]), 0.01);
       maxDiffRel = Math.max(maxDiffRel, Math.abs(V[i] - Vant[i]) / ref);
+      maxDiffAbs = Math.max(maxDiffAbs, Math.abs(V[i] - Vant[i]));
     }
-    if (maxDiffRel < 0.05) {
+    if (maxDiffRel < 0.05 || maxDiffAbs < 0.01) {
       convergiu = true;
     }
   }
@@ -754,7 +886,15 @@ export function simular(circuito) {
     let convPos = false;
     const avisosPos = [];
     for (let iter = 0; iter < MAX_ITERACOES; iter++) {
-      const { G, I } = montarSistema(circuito, nos, pinoParaNo, tensoesPos, noTerra, avisosPos);
+      const { G, I } = montarSistema(
+        circuito,
+        nos,
+        pinoParaNo,
+        tensoesPos,
+        noTerraPorNo,
+        avisosPos,
+        noTerraGlobal
+      );
       const Vbruto = resolverGauss(G, I);
       let maxDelta = 0;
       let Vnovo = Vbruto;
@@ -785,11 +925,13 @@ export function simular(circuito) {
     }
     if (!convPos && Vpos && VposAnt) {
       let maxDiffRel = 0;
+      let maxDiffAbs = 0;
       for (let i = 0; i < Vpos.length; i++) {
         const ref = Math.max(Math.abs(Vpos[i]), 0.01);
         maxDiffRel = Math.max(maxDiffRel, Math.abs(Vpos[i] - VposAnt[i]) / ref);
+        maxDiffAbs = Math.max(maxDiffAbs, Math.abs(Vpos[i] - VposAnt[i]));
       }
-      if (maxDiffRel < 0.05) convPos = true;
+      if (maxDiffRel < 0.05 || maxDiffAbs < 0.01) convPos = true;
     }
     resultado = finalizar(circuito, nos, pinoParaNo, Vpos, convPos, [...avisosPos, ...avisosQueima]);
     resultado.queimouFusivel = true;
@@ -834,22 +976,63 @@ function finalizar(circuito, nos, pinoParaNo, V, convergiu, avisos) {
       const nc = pinoParaNo.get(`${comp.id}:c`);
       const ne = pinoParaNo.get(`${comp.id}:e`);
       const vbe = (V[nb] ?? 0) - (V[ne] ?? 0);
-      const vbc = (V[nb] ?? 0) - (V[nc] ?? 0);
+      const vce = (V[nc] ?? 0) - (V[ne] ?? 0);
       const beta = comp.propriedades.ganho || 100;
-      const r = linearizarBJT(vbe, vbc, beta, 1e-14, comp.tipo === 'PNP' ? 'PNP' : 'NPN');
+      const isPNP = comp.tipo === 'TRANSISTOR_PNP' || comp.tipo === 'PNP';
+      const r = linearizarBJT(vbe, vce, beta, isPNP);
       correntes[comp.id] = r.ic;
     } else {
       correntes[comp.id] = 0;
     }
   }
 
-  // Estados visuais
+  // Determina o Vcc para níveis lógicos
+  const vccFonte = Math.max(
+    ...componentes
+      .filter(ehFonteDeAlimentacao)
+      .map((c) => c.propriedades?.tensao || c.propriedades?.amplitude || 0),
+    0
+  );
+  const vcc = vccFonte > 0 ? vccFonte : VCC_PADRAO;
+
+  // Estados visuais e níveis lógicos dos pinos
   for (const comp of componentes) {
+    const def = CATALOGO[comp.tipo];
+    if (def?.modelo === 'logica') {
+      const entradas = comp.pinos
+        .filter((p) => p.id !== 'y')
+        .map((p) => {
+          const tensao = tensoes[`${comp.id}:${p.id}`] ?? 0;
+          const val = tensaoParaLogico(tensao, vcc);
+          p.valor = val;
+          return val;
+        });
+      const saida = avaliarPorta(comp.tipo, entradas);
+      comp.estado = comp.estado || {};
+      comp.estado.saida = saida;
+      const pY = comp.pinos.find((p) => p.id === 'y');
+      if (pY) pY.valor = saida;
+    } else {
+      for (const p of comp.pinos || []) {
+        const tensao = tensoes[`${comp.id}:${p.id}`];
+        if (tensao !== undefined && isFinite(tensao)) {
+          p.valor = tensaoParaLogico(tensao, vcc);
+        } else {
+          p.valor = null;
+        }
+      }
+    }
+
     if (comp.tipo === 'LED') {
       const vd = (tensoes[`${comp.id}:p1`] ?? 0) - (tensoes[`${comp.id}:p2`] ?? 0);
       const { corrente } = modeloLED(vd, comp.propriedades);
       comp.estado = comp.estado || {};
       comp.estado.aceso = Math.abs(corrente) > 0.001;
+    }
+    if (def?.modelo === 'chave-controlada') {
+      const noControle = pinoParaNo.get(`${comp.id}:controle`);
+      comp.estado = comp.estado || {};
+      comp.estado.condutora = tensaoParaLogico(V[noControle] ?? 0, vcc) === 1;
     }
     if (comp.tipo === 'DISPLAY_7SEG') {
       comp.estado = comp.estado || {};

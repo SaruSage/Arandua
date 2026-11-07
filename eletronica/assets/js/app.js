@@ -15,11 +15,17 @@ import {
   montarPropriedadesArea,
   montarListaComandos,
   montarCorpoConstruir,
+  montarCorpoMontagem,
 } from './painel.js';
 import {
   analisarSelecaoParaConstruir,
   executarSubstituicaoConstruir,
 } from './construir.js';
+import {
+  gerarMontagem,
+  executarTrazerAoProjeto,
+} from './montagem.js';
+import { abrirModalExemplos } from './exemplos.js';
 import { simular, tensaoEm, correnteEm } from './solver.js';
 import { obterMontagem, desenharMontagem } from './montagens.js';
 import { desenharComponente } from './simbolos.js';
@@ -87,9 +93,6 @@ const estado = {
     renderizarPopups(true);
   },
   removerFioPorId(fioId) {
-    if (estado.simulando) {
-      pararSimulacao();
-    }
     removerFio(estado.circuito, fioId);
     const chave = `fio:${fioId}`;
     delete estado.popups[chave];
@@ -176,6 +179,9 @@ function pararSimulacao() {
   // Limpa o estado de todos os componentes
   for (const comp of estado.circuito.componentes) {
     comp.estado = {};
+    for (const p of comp.pinos || []) {
+      p.valor = null;
+    }
   }
 
   // Restaura o botão
@@ -198,6 +204,9 @@ function limparResultados() {
   estado.resultado = null;
   for (const comp of estado.circuito.componentes) {
     comp.estado = {};
+    for (const p of comp.pinos || []) {
+      p.valor = null;
+    }
   }
   const avisosSim = document.getElementById('avisos-simulacao');
   if (avisosSim) avisosSim.remove();
@@ -687,6 +696,12 @@ function montarInterface() {
           <button type="button" class="btn-toolbar" id="btn-refazer" title="Refazer (Ctrl+Y)">↷</button>
         </div>
         <div class="menu-container">
+          <button type="button" id="btn-exemplos" class="cabecalho-btn cabecalho-btn-exemplos" title="Exemplos de Portas Lógicas e Somadores">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+            <span>Exemplos</span>
+          </button>
           <button type="button" id="btn-menu" class="btn-icone" title="Menu">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
                  stroke="currentColor" stroke-width="2">
@@ -737,6 +752,10 @@ function montarInterface() {
   elPainel = document.getElementById('popups-container');
   canvas = criarCanvas(document.getElementById('canvas'), estado);
   estado.view = canvas.view;
+  estado.canvasElemento = canvas.elemento;
+  estado.iniciarSimulacao = iniciarSimulacao;
+  estado.pararSimulacao = pararSimulacao;
+  estado.recalcular = recalcular;
   canvas.redimensionar();
 
   try {
@@ -787,14 +806,28 @@ function montarInterface() {
     btnConstruir.addEventListener('click', () => {
       const resultado = analisarSelecaoParaConstruir(estado);
       if (!resultado.encontrado) {
-        mostrarToastConstruir('Nenhum circuito correspondente encontrado');
-        return;
+        if (!resultado.sugestoes?.length) {
+          mostrarToastConstruir('Nenhum circuito correspondente encontrado');
+          return;
+        }
       }
       estado.resultadoConstruir = resultado;
       if (canvas && typeof canvas.iniciarContornoConstruir === 'function') {
-        canvas.iniciarContornoConstruir(resultado.componentes);
+        canvas.iniciarContornoConstruir(resultado.componentes || obterComponentesSelecionados(estado));
       }
       abrirPopupEntidade('construir', 'modal');
+    });
+  }
+
+  const btnExemplos = document.getElementById('btn-exemplos');
+  if (btnExemplos) {
+    btnExemplos.addEventListener('click', (e) => {
+      e.stopPropagation();
+      menuDropdown?.classList.add('oculto');
+      abrirModalExemplos(estado, () => {
+        renderizarTudo();
+        atualizarBotoesHistorico();
+      });
     });
   }
 
@@ -1153,6 +1186,7 @@ function mostrarToastConstruir(texto = 'Nenhum circuito correspondente encontrad
     timerToastConstruir = null;
   }, 2200);
 }
+estado.mostrarToast = mostrarToastConstruir;
 
 function fecharPopupConstruir() {
   if (canvas && typeof canvas.pararContornoConstruir === 'function') {
@@ -1228,12 +1262,20 @@ function atualizarSecaoSimulacaoNoCorpo(corpo, comp) {
     titulo.textContent = 'Simulação';
     secao.appendChild(titulo);
 
-    const tensao = tensaoEm(estado.resultado, comp.id, comp.pinos[0]?.id);
+    const pino1 = comp.pinos[0];
+    const pino2 = comp.pinos[1];
+    const tensaoPino1 = tensaoEm(estado.resultado, comp.id, pino1?.id);
+    const tensao = comp.pinos.length === 2 && pino2
+      ? tensaoPino1 - tensaoEm(estado.resultado, comp.id, pino2.id)
+      : tensaoPino1;
     const corrente = correnteEm(estado.resultado, comp.id);
 
     const linhaT = document.createElement('p');
     linhaT.className = 'painel-resultado';
-    linhaT.textContent = `Tensão: ${tensao.toFixed(3)} V`;
+    const rotuloTensao = comp.pinos.length === 2
+      ? 'Tensão entre terminais'
+      : `Tensão no pino ${pino1?.nome || pino1?.id || ''}`.trim();
+    linhaT.textContent = `${rotuloTensao}: ${tensao.toFixed(3)} V`;
     secao.appendChild(linhaT);
 
     const linhaI = document.createElement('p');
@@ -1265,6 +1307,11 @@ function obterEntidadePopup(tipo, id) {
   if (tipo === 'construir') {
     return estado.resultadoConstruir || { id: 'construir', nome: 'Construir' };
   }
+  if (tipo === 'montagem') {
+    const comp = estado.circuito.componentes.find((c) => c.id === id);
+    if (!comp) return null;
+    return { id, comp, montagem: gerarMontagem(comp) };
+  }
   if (tipo === 'comp') {
     return estado.circuito.componentes.find((c) => c.id === id) || null;
   }
@@ -1289,6 +1336,7 @@ function escaparHtml(texto) {
 function obterTituloPopup(tipo, entidade) {
   if (tipo === 'comandos') return 'Lista de comandos';
   if (tipo === 'construir') return 'Construir';
+  if (tipo === 'montagem') return 'Montagem';
   if (tipo === 'comp') {
     return entidade.nomeCustom
       ? `${entidade.nomeCustom} (${entidade.tipo})`
@@ -1315,6 +1363,29 @@ function montarCorpoPopup(corpo, tipo, id) {
         fecharPopupConstruir();
       }
     );
+  } else if (tipo === 'montagem') {
+    const comp = estado.circuito.componentes.find((c) => c.id === id);
+    if (comp) {
+      const montagem = gerarMontagem(comp);
+      montarCorpoMontagem(
+        corpo,
+        montagem,
+        estado,
+        () => {
+          delete estado.popups[`montagem:${id}`];
+          delete estado.popups[`comp:${id}`];
+          if (estado.popupAtivo === `montagem:${id}` || estado.popupAtivo === `comp:${id}`) {
+            estado.popupAtivo = null;
+          }
+          renderizarTudo();
+        },
+        () => {
+          delete estado.popups[`montagem:${id}`];
+          if (estado.popupAtivo === `montagem:${id}`) estado.popupAtivo = null;
+          renderizarPopups(true);
+        }
+      );
+    }
   } else if (tipo === 'comp') {
     const comp = estado.circuito.componentes.find((c) => c.id === id);
     if (comp) montarPropriedades(corpo, comp);
@@ -1380,6 +1451,53 @@ function calcularPosicaoPadrao(container) {
 
 function abrirPopupEntidade(tipo, id) {
   const chave = (tipo === 'comandos' || tipo === 'construir') ? tipo : `${tipo}:${id}`;
+
+  if (tipo === 'montagem') {
+    const chaveMontagem = `montagem:${id}`;
+    if (estado.popups[chaveMontagem]) {
+      estado.zIndexPopup += 1;
+      estado.popups[chaveMontagem].zIndex = estado.zIndexPopup;
+      estado.popupAtivo = chaveMontagem;
+      renderizarPopups(true);
+      return;
+    }
+
+    const container = document.getElementById('popups-container');
+    const chaveComp = `comp:${id}`;
+    const popupComp = estado.popups[chaveComp];
+
+    let x, y;
+    const LARGURA_POPUP = 540;
+    const MARGEM = 12;
+
+    if (popupComp) {
+      const contWidth = container ? container.clientWidth : 800;
+      if (popupComp.x - LARGURA_POPUP - MARGEM >= MARGEM) {
+        x = popupComp.x - LARGURA_POPUP - MARGEM;
+      } else if (popupComp.x + 224 + MARGEM + LARGURA_POPUP <= contWidth) {
+        x = popupComp.x + 224 + MARGEM;
+      } else {
+        x = Math.max(MARGEM, Math.min(contWidth - LARGURA_POPUP - MARGEM, popupComp.x + 24));
+      }
+      y = Math.max(MARGEM, popupComp.y);
+    } else {
+      const pos = calcularPosicaoPadrao(container);
+      x = pos.x;
+      y = pos.y;
+    }
+
+    estado.popups[chaveMontagem] = {
+      fixado: true,
+      minimizado: false,
+      semAlfinete: false,
+      x,
+      y,
+      zIndex: ++estado.zIndexPopup,
+    };
+    estado.popupAtivo = chaveMontagem;
+    renderizarPopups(true);
+    return;
+  }
 
   if (tipo === 'comandos' || tipo === 'construir') {
     if (estado.popups[chave]) {
@@ -1627,6 +1745,7 @@ function ligarEventosPopup(el, chave) {
 function extrairTipoEId(chave) {
   if (chave === 'comandos') return { tipo: 'comandos', id: 'lista' };
   if (chave === 'construir') return { tipo: 'construir', id: 'modal' };
+  if (chave.startsWith('montagem:')) return { tipo: 'montagem', id: chave.slice(9) };
   const idx = chave.indexOf(':');
   if (idx === -1) return { tipo: 'comp', id: chave };
   return {
@@ -1664,8 +1783,13 @@ function renderizarPopups(forcar = false) {
     }
 
     const ehGrupo = tipo === 'area' || tipo === 'grupo';
+    const ehMontagem = tipo === 'montagem';
     const el = document.createElement('div');
-    el.className = 'popup-propriedades' + (ehGrupo ? ' popup-grupo' : '') + (cfg.minimizado ? ' minimizado' : '');
+    el.className =
+      'popup-propriedades' +
+      (ehGrupo ? ' popup-grupo' : '') +
+      (ehMontagem ? ' popup-montagem-largo' : '') +
+      (cfg.minimizado ? ' minimizado' : '');
     el.style.left = cfg.x + 'px';
     el.style.top = cfg.y + 'px';
     if (!cfg.zIndex) {
@@ -1692,6 +1816,8 @@ function renderizarPopups(forcar = false) {
       tituloHtml = `<span class="popup-titulo">Comandos</span>`;
     } else if (tipo === 'construir') {
       tituloHtml = `<span class="popup-titulo">Construir</span>`;
+    } else if (tipo === 'montagem') {
+      tituloHtml = `<span class="popup-titulo">Montagem</span>`;
     } else if (tipo === 'comp') {
       tituloHtml = `
         <span class="popup-titulo popup-titulo-editavel"
@@ -1775,70 +1901,8 @@ function renderizarPainel(forcar = false) {
 }
 
 function abrirMontagem(comp) {
-  const montagem = obterMontagem(comp.tipo);
-  if (!montagem) {
-    alert('Este componente não tem montagem interna disponível.');
-    return;
-  }
-
-  // Cria o modal
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-
-  const modal = document.createElement('div');
-  modal.className = 'modal-montagem';
-
-  const header = document.createElement('div');
-  header.className = 'modal-header';
-
-  const titulo = document.createElement('h2');
-  titulo.textContent = montagem.titulo;
-  header.appendChild(titulo);
-
-  const fechar = document.createElement('button');
-  fechar.type = 'button';
-  fechar.className = 'modal-fechar';
-  fechar.textContent = '×';
-  fechar.setAttribute('aria-label', 'Fechar');
-  fechar.addEventListener('click', () => overlay.remove());
-  header.appendChild(fechar);
-
-  modal.appendChild(header);
-
-  const descricao = document.createElement('p');
-  descricao.className = 'modal-descricao';
-  descricao.textContent = montagem.descricao;
-  modal.appendChild(descricao);
-
-  const canvasMontagem = document.createElement('canvas');
-  canvasMontagem.className = 'modal-canvas';
-  canvasMontagem.width = 800;
-  canvasMontagem.height = 500;
-  canvasMontagem.style.width = '100%';
-  canvasMontagem.style.maxWidth = '800px';
-  canvasMontagem.style.height = 'auto';
-  modal.appendChild(canvasMontagem);
-
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
-
-  // Desenha a montagem
-  const ctx = canvasMontagem.getContext('2d');
-  desenharMontagem(ctx, montagem, desenharComponente, CATALOGO);
-
-  // Fecha ao clicar fora
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) overlay.remove();
-  });
-
-  // Fecha com Escape
-  const escHandler = (e) => {
-    if (e.key === 'Escape') {
-      overlay.remove();
-      window.removeEventListener('keydown', escHandler);
-    }
-  };
-  window.addEventListener('keydown', escHandler);
+  if (!comp) return;
+  abrirPopupEntidade('montagem', comp.id);
 }
 
 montarInterface();

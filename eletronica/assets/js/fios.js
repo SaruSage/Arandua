@@ -15,6 +15,7 @@ import { registrar } from './historico.js';
 import { CATALOGO } from './catalogo.js';
 import { recalcularMembros } from './grupos.js';
 import { snap, TAMANHO_GRADE } from './canvas.js';
+import { componenteEm } from './circuito.js';
 
 export const CORES_FIO = [
   '#2b2b2b', '#e05a5a', '#e88a3a', '#e8c33a', '#8fbf3a',
@@ -233,9 +234,13 @@ export function dobraEm(circuito, x, y) {
 }
 
 /** Encontra o pino mais próximo do ponto. */
-export function pinoEm(circuito, x, y) {
+export function pinoEm(circuito, x, y, iniciandoFio = false, permitirNoIniciando = false) {
   for (let i = circuito.componentes.length - 1; i >= 0; i--) {
     const comp = circuito.componentes[i];
+    // Ao iniciar fio, o nó só responde se for explicitamente permitido (ex: Alt ou botão de puxar fio)
+    if (iniciandoFio && comp.tipo === 'NO' && !permitirNoIniciando) {
+      continue;
+    }
     const pinos = comp.pinos || CATALOGO[comp.tipo]?.pinos || [];
     const compComPinos = comp.pinos ? comp : { ...comp, pinos };
     for (const pino of pinos) {
@@ -252,13 +257,21 @@ export function pinoEm(circuito, x, y) {
 
 /** Cria um fio entre dois pinos. */
 export function criarFio(circuito, origem, destino) {
-  // Impede duplicata
+  // Impede ligar um pino nele mesmo
+  if (origem.componente === destino.componente && origem.pino === destino.pino) {
+    return null;
+  }
+  // Impede duplicata em qualquer sentido
   const existe = circuito.fios.some(
     (f) =>
-      f.origem.componente === origem.componente &&
+      (f.origem.componente === origem.componente &&
       f.origem.pino === origem.pino &&
       f.destino.componente === destino.componente &&
-      f.destino.pino === destino.pino
+      f.destino.pino === destino.pino) ||
+      (f.origem.componente === destino.componente &&
+      f.origem.pino === destino.pino &&
+      f.destino.componente === origem.componente &&
+      f.destino.pino === origem.pino)
   );
   if (existe) return null;
 
@@ -512,12 +525,38 @@ export function configurarFios(canvas, estado, aoMudar) {
     return { x: dobra.x, y: dobra.y, guiaX, guiaY };
   }
 
+  estado.iniciarFioDePino = (compId, pinoId = 'p') => {
+    const comp = estado.circuito?.componentes.find((c) => c.id === compId);
+    if (!comp) return;
+    const pos = posicaoPino(comp, pinoId);
+    if (!pos) return;
+    fioEmConstrucao = {
+      origem: { componente: comp.id, pino: pinoId },
+      posicaoOrigem: pos,
+    };
+    const tela = canvas.mundoParaTela(pos.x, pos.y);
+    estado.fioFantasma = {
+      origem: pos,
+      cursor: { x: tela.x, y: tela.y },
+    };
+    el.style.cursor = 'crosshair';
+    aoMudar();
+  };
+
   // ---- mousedown ----
   el.addEventListener('mousedown', (e) => {
     if (e.button !== 0 || e.shiftKey) return;
     _circuitoAtual = estado.circuito;
 
     const mundo = telaParaMundo(e);
+
+    // Se o clique foi sobre um nó e NÃO está segurando Alt para puxar fio,
+    // não intercepta em fios.js: deixa o selecao.js selecionar, abrir o popup
+    // e arrastar/mover o nó livremente com todos os seus fios conectados.
+    const compSobMouse = componenteEm(estado.circuito, mundo.x, mundo.y);
+    if (compSobMouse && compSobMouse.tipo === 'NO' && !e.altKey) {
+      return;
+    }
 
     // 1. Dobra sob o cursor → inicia arrasto
     const dobra = dobraEm(estado.circuito, mundo.x, mundo.y);
@@ -548,7 +587,7 @@ export function configurarFios(canvas, estado, aoMudar) {
     }
 
     // 2. Pino sob o cursor → inicia fio
-    const pino = pinoEm(estado.circuito, mundo.x, mundo.y);
+    const pino = pinoEm(estado.circuito, mundo.x, mundo.y, true, e.altKey);
     if (pino) {
       for (const id of estado.selecionados) {
         const g = estado.circuito.grupos.find((x) => x.id === id);
@@ -767,7 +806,11 @@ export function configurarFios(canvas, estado, aoMudar) {
     // Cursor de crosshair quando sobre pino
     const pino = pinoEm(estado.circuito, mundo.x, mundo.y);
     if (pino && !estado.arrastandoComponente) {
-      el.style.cursor = 'crosshair';
+      if (pino.componente.tipo === 'NO') {
+        el.style.cursor = (fioEmConstrucao || e.altKey) ? 'crosshair' : 'grab';
+      } else {
+        el.style.cursor = 'crosshair';
+      }
     }
   });
 

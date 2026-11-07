@@ -196,7 +196,15 @@ export function criarCanvas(elemento, estado) {
     ctx.strokeStyle = CORES.primaria;
     ctx.lineWidth = 1.5;
     ctx.setLineDash([5, 4]);
-    ctx.strokeRect(tela.x - 8, tela.y - 8, w + 16, h + 16);
+    if (comp.tipo === 'NO') {
+      const cx = tela.x + w / 2;
+      const cy = tela.y + h / 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 8 * view.zoom, 0, Math.PI * 2);
+      ctx.stroke();
+    } else {
+      ctx.strokeRect(tela.x - 8, tela.y - 8, w + 16, h + 16);
+    }
     ctx.restore();
   }
 
@@ -317,6 +325,64 @@ export function criarCanvas(elemento, estado) {
     }
   }
 
+  /** Um nó está conectado quando pelo menos um fio termina nele. */
+  function noEstaConectado(circuito, comp) {
+    return circuito.fios.some(
+      (f) => f.origem?.componente === comp.id || f.destino?.componente === comp.id
+    );
+  }
+
+  function nosDesconectados(circuito) {
+    if (!estado?.simulando) return [];
+    return circuito.componentes.filter(
+      (c) => c.tipo === 'NO' && !noEstaConectado(circuito, c)
+    );
+  }
+
+  /** Círculo vermelho tracejado que gira no sentido horário ao redor de nós soltos. */
+  function desenharAlertaNosDesconectados(ctx, circuito, view) {
+    const soltos = nosDesconectados(circuito);
+    if (soltos.length === 0) return;
+
+    const fase = (performance.now() / 1000) * 24; // px de dash por segundo
+    for (const comp of soltos) {
+      const dim = CATALOGO[comp.tipo].dimensoes;
+      const centro = mundoParaTela(comp.x + dim.w / 2, comp.y + dim.h / 2);
+      ctx.save();
+      ctx.strokeStyle = '#e53935';
+      ctx.lineWidth = 1.8;
+      ctx.setLineDash([4, 3]);
+      // O arco é percorrido no sentido horário; deslocar o offset para valores
+      // negativos faz os traços avançarem nesse mesmo sentido.
+      ctx.lineDashOffset = -fase;
+      ctx.beginPath();
+      ctx.arc(centro.x, centro.y, 8 * view.zoom, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  let nosAnimacaoRafId = null;
+
+  function loopAnimacaoNos() {
+    nosAnimacaoRafId = null;
+    if (ultimoRenderArgs) {
+      render(...ultimoRenderArgs);
+    }
+  }
+
+  /** Mantém a animação rodando enquanto existir nó solto durante a simulação. */
+  function atualizarAnimacaoNos(circuito) {
+    if (nosDesconectados(circuito).length > 0) {
+      if (!nosAnimacaoRafId) {
+        nosAnimacaoRafId = requestAnimationFrame(loopAnimacaoNos);
+      }
+    } else if (nosAnimacaoRafId) {
+      cancelAnimationFrame(nosAnimacaoRafId);
+      nosAnimacaoRafId = null;
+    }
+  }
+
   function render(circuito, selecionados = [], fioSelecionadoId = null, dobraSelecionada = null, fioFantasma = null, selecaoRetangular = null, grupoSelecionadoId = null) {
     ultimoRenderArgs = [circuito, selecionados, fioSelecionadoId, dobraSelecionada, fioFantasma, selecaoRetangular, grupoSelecionadoId];
     desenharGrade();
@@ -336,6 +402,10 @@ export function criarCanvas(elemento, estado) {
       desenharComponente(ctx, comp, tela.x, tela.y, view.zoom);
       desenharNomeComponente(ctx, comp, view);
     }
+
+    // Alerta de nós sem conexão durante a simulação
+    desenharAlertaNosDesconectados(ctx, circuito, view);
+    atualizarAnimacaoNos(circuito);
 
     // Seleção de componentes
     for (const id of selecionados) {

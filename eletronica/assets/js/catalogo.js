@@ -8,8 +8,11 @@
  * Tipos de modelo de simulação:
  * - 'linear'      → resolve com lei de Ohm
  * - 'nao-linear'  → usa modelo exponencial (diodo, transistor)
- * - 'fonte'       → impõe tensão ou corrente
+ * - 'fonte'       → impõe tensão ou corrente entre dois pinos
+ * - 'fonte-positiva' → impõe tensão positiva em relação ao GND global
+ * - 'terra'       → referência de terra global
  * - 'chave'       → abre ou fecha o circuito
+ * - 'chave-controlada' → chave acionada pelo nível lógico do pino de controle
  * - 'logica'      → porta lógica (simulada em tensão)
  * - 'composto'    → sub-circuito interno (amp-op, display, CI)
  */
@@ -110,6 +113,37 @@ export const CATALOGO = {
       espirasSecundario: { tipo: 'numero', valor: 100, min: 1, max: 10000, rotulo: 'Espiras secundário' },
     },
     dimensoes: { w: 128, h: 96 },
+  },
+
+  /**
+   * Nó: ponto de junção passivo. Um único pino que aceita quantos fios o usuário
+   * quiser. Não impõe nenhuma restrição elétrica (apenas une os fios no mesmo nó).
+   * Pode ter cor e nome personalizados.
+   */
+  NO: {
+    nome: 'Nó',
+    rotulo: 'Nó',
+    categoria: 'Passivos',
+    modelo: 'no',
+    pinos: [
+      { id: 'p', x: 0, y: 0, nome: '' },
+    ],
+    propriedades: {
+      cor: { tipo: 'cor', valor: '#2b2b2b', rotulo: 'Cor' },
+    },
+    dimensoes: { w: 20, h: 20 },
+    semMontagem: true,
+  },
+
+  GND: {
+    rotulo: 'GND',
+    categoria: 'Fontes',
+    modelo: 'terra',
+    pinos: [
+      { id: 'p', x: 0, y: -26, nome: '' },
+    ],
+    dimensoes: { w: 48, h: 64 },
+    semMontagem: true,
   },
 
   /* ===== PASSIVOS SENSÍVEIS ===== */
@@ -254,6 +288,20 @@ export const CATALOGO = {
     dimensoes: { w: 40, h: 30 },
   },
 
+  FONTE_POSITIVA: {
+    rotulo: 'Fonte Positiva',
+    categoria: 'Fontes',
+    modelo: 'fonte-positiva',
+    pinos: [
+      { id: 'p', x: 32, y: 0, nome: '+' },
+    ],
+    propriedades: {
+      tensao: { tipo: 'numero', valor: 5, min: 0.1, max: 100, step: 0.1, unidade: 'V', rotulo: 'Tensão positiva' },
+    },
+    dimensoes: { w: 72, h: 48 },
+    semMontagem: true,
+  },
+
   CHAVE: {
     rotulo: 'Chave',
     categoria: 'Fontes',
@@ -266,6 +314,18 @@ export const CATALOGO = {
       fechada: { tipo: 'booleano', valor: false, rotulo: 'Fechada' },
     },
     dimensoes: { w: 48, h: 34 },
+  },
+
+  CHAVE_CONTROLADA: {
+    rotulo: 'Chave Controlada',
+    categoria: 'Montagem',
+    modelo: 'chave-controlada',
+    pinos: [
+      { id: 'p1', x: -24, y: 0, nome: 'A' },
+      { id: 'p2', x: 24, y: 0, nome: 'B' },
+      { id: 'controle', x: 0, y: -18, nome: 'C' },
+    ],
+    dimensoes: { w: 48, h: 38 },
   },
 
   BOTAO: {
@@ -321,13 +381,13 @@ export const CATALOGO = {
     categoria: 'Lógica',
     modelo: 'logica',
     pinos: [
-      { id: 'a', x: -32, y: 0, nome: 'A' },
-      { id: 'y', x: 34, y: 0, nome: 'Y' },
+      { id: 'a', x: -20, y: 0, nome: 'A' },
+      { id: 'y', x: 20, y: 0, nome: 'Y' },
     ],
     propriedades: {
       familia: { tipo: 'select', valor: 'CMOS', opcoes: ['CMOS', 'TTL'], rotulo: 'Família' },
     },
-    dimensoes: { w: 64, h: 32 },
+    dimensoes: { w: 48, h: 26 },
     montagem: 'NOT',
   },
 
