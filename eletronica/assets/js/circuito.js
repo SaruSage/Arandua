@@ -16,11 +16,15 @@ export function criarCircuito() {
 
 /** Adiciona um componente ao circuito. */
 export function adicionarComponente(circuito, tipo, x, y) {
-  if (!Number.isInteger(circuito.proximoId) || circuito.proximoId < 1) {
-    circuito.proximoId = circuito.componentes.reduce((proximo, componente) => {
-      const correspondencia = /^c(\d+)$/.exec(componente.id || '');
-      return correspondencia ? Math.max(proximo, Number(correspondencia[1]) + 1) : proximo;
-    }, 1);
+  const proximoIdDisponivel = circuito.componentes.reduce((proximo, componente) => {
+    const correspondencia = /^c(\d+)$/.exec(componente.id || '');
+    return correspondencia ? Math.max(proximo, Number(correspondencia[1]) + 1) : proximo;
+  }, 1);
+  if (
+    !Number.isInteger(circuito.proximoId)
+    || circuito.proximoId < proximoIdDisponivel
+  ) {
+    circuito.proximoId = proximoIdDisponivel;
   }
   const comp = criarInstancia(tipo, x, y);
   comp.id = `c${circuito.proximoId++}`;
@@ -45,6 +49,15 @@ export function buscarComponente(circuito, id) {
 export function componenteEm(circuito, x, y) {
   for (let i = circuito.componentes.length - 1; i >= 0; i--) {
     const c = circuito.componentes[i];
+    if (c.tipo === 'NO') {
+      const dim = CATALOGO[c.tipo]?.dimensoes || { w: 20, h: 20 };
+      const cx = c.x + dim.w / 2;
+      const cy = c.y + dim.h / 2;
+      if (Math.hypot(x - cx, y - cy) <= 12) {
+        return c;
+      }
+      continue;
+    }
     const dim = CATALOGO[c.tipo].dimensoes;
     if (
       x >= c.x - 10 && x <= c.x + dim.w + 10 &&

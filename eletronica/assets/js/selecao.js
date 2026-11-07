@@ -5,22 +5,162 @@
 import { componenteEm, moverComponente, rotacionarComponente } from './circuito.js';
 import { CATALOGO } from './catalogo.js';
 import { registrar } from './historico.js';
+import { recalcularMembros, pontoDentroDoGrupo } from './grupos.js';
+import { snap, TAMANHO_GRADE } from './canvas.js';
+import { posicaoPino } from './simbolos.js';
+
+const TOLERANCIA = 8; // px
 
 export function configurarInteracao(canvas, estado, aoMudar) {
   const el = canvas.elemento;
   const renderizarTudo = aoMudar;
-  const recalcular = () => estado.recalcular?.();
+  const recalcular = () => {
+    if (!estado.simulando) {
+      estado.iniciarSimulacao?.();
+      return;
+    }
+    estado.recalcular?.();
+  };
   let arrastando = null;
   let panIniciado = null;
 
+  function atualizarPan(e) {
+    if (!panIniciado) return;
+    const rect = el.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    canvas.view.panX = panIniciado.panX + (mx - panIniciado.x);
+    canvas.view.panY = panIniciado.panY + (my - panIniciado.y);
+    aoMudar();
+  }
+
+  function finalizarPan() {
+    if (!panIniciado) return;
+    panIniciado = null;
+    el.style.cursor = 'default';
+  }
+
+  /**
+   * Alinha os pinos do componente arrastado com pinos de outros
+   * componentes que estejam próximos.
+   */
+  function alinharPinos(comp) {
+    const listaPinos = comp.pinos || CATALOGO[comp.tipo]?.pinos || [];
+    const pinos = listaPinos.map((p) => ({
+      pino: p,
+      mundo: posicaoPino(comp, p),
+    })).filter((item) => item.mundo);
+
+    let alinhouY = false;
+    let alinhouX = false;
+
+    for (const outro of estado.circuito.componentes) {
+      if (outro.id === comp.id) continue;
+
+      const pinosOutro = outro.pinos || CATALOGO[outro.tipo]?.pinos || [];
+      for (const pOutro of pinosOutro) {
+        const mOutro = posicaoPino(outro, pOutro);
+        if (!mOutro) continue;
+
+        for (const { mundo } of pinos) {
+          // Alinhamento horizontal (mesma altura)
+          if (!alinhouY
+              && Math.abs(mundo.y - mOutro.y) < TOLERANCIA
+              && Math.abs(mundo.y - mOutro.y) > 0) {
+            const ajuste = mOutro.y - mundo.y;
+            comp.y += ajuste;
+            alinhouY = true;
+          }
+
+          // Alinhamento vertical (mesma coluna)
+          if (!alinhouX
+              && Math.abs(mundo.x - mOutro.x) < TOLERANCIA
+              && Math.abs(mundo.x - mOutro.x) > 0) {
+            const ajuste = mOutro.x - mundo.x;
+            comp.x += ajuste;
+            alinhouX = true;
+          }
+
+          if (alinhouY && alinhouX) return;
+        }
+      }
+    }
+  }
+
   function finalizarArrasto() {
     const moveu = arrastando?.movido;
+    const idsMovidos = arrastando?.ids ? new Set(arrastando.ids) : null;
     arrastando = null;
+    estado.arrastoInicial = null;
+    estado.guiaAtiva = null;
     if (moveu) {
+      // Snap na posição absoluta e alinhamento de pinos dos componentes movidos
+      if (idsMovidos) {
+        for (const comp of estado.circuito.componentes) {
+          if (!idsMovidos.has(comp.id)) continue;
+          comp.x = snap(comp.x);
+          comp.y = snap(comp.y);
+          alinharPinos(comp);
+        }
+      }
+
+      // Se um componente foi removido manualmente de sua área original (arrastado para fora dela),
+      // libera-o da área original
+      if (idsMovidos) {
+        for (const comp of estado.circuito.componentes) {
+          if (!idsMovidos.has(comp.id)) continue;
+          for (const g of estado.circuito.grupos) {
+            if (idsMovidos.has(g.id)) continue;
+            if (g.membros.includes(comp.id) && !pontoDentroDoGrupo(comp, g)) {
+              g.membros = g.membros.filter((m) => m !== comp.id);
+            }
+          }
+        }
+      }
+
+      // Verifica se o componente solto entrou em alguma área
+      const comp = estado.circuito.componentes.find(
+        (c) => c.id === estado.arrastandoId
+      );
+
+      if (comp) {
+        // Só adquire se o componente não tem dono
+        const jaTemDono = estado.circuito.grupos.some((g) =>
+          g.membros.includes(comp.id)
+        );
+
+        if (!jaTemDono) {
+          // Procura a área mais interna que contém o componente
+          const areas = estado.circuito.grupos
+            .filter((g) => pontoDentroDoGrupo(comp, g))
+            .sort((a, b) => (a.w * a.h) - (b.w * b.h)); // menor primeiro
+
+          if (areas.length > 0) {
+            areas[0].membros.push(comp.id);
+          }
+        }
+      }
+
       registrar(estado.circuito, 'mover', true);
       aoMudar();
       recalcular();
+    } else {
+      if (idsMovidos && idsMovidos.size === 1) {
+        const idClicado = idsMovidos.values().next().value;
+        const compClicado = estado.circuito.componentes.find((c) => c.id === idClicado);
+        if (compClicado && ['CHAVE', 'CHAVE_SIMPLES', 'BOTAO'].includes(compClicado.tipo)) {
+          if (compClicado.tipo === 'BOTAO') {
+            compClicado.propriedades.pressionado = !compClicado.propriedades.pressionado;
+          } else {
+            compClicado.propriedades.fechada = !compClicado.propriedades.fechada;
+          }
+          registrar(estado.circuito, 'alternar', true);
+          recalcular();
+        }
+      }
+      aoMudar();
     }
+    estado.arrastandoId = null;
   }
 
   el.addEventListener('mousedown', (e) => {
@@ -54,22 +194,83 @@ export function configurarInteracao(canvas, estado, aoMudar) {
         if (idx >= 0) estado.selecionados.splice(idx, 1);
         else estado.selecionados.push(comp.id);
       } else if (!estado.selecionados.includes(comp.id)) {
+        for (const id of estado.selecionados) {
+          const g = estado.circuito.grupos.find((x) => x.id === id);
+          if (g) recalcularMembros(g);
+        }
         estado.selecionados = [comp.id];
       }
 
+      estado._ultimoDx = 0;
+      estado._ultimoDy = 0;
+      estado.arrastandoId = comp.id;
+      const posicoesIniciais = new Map();
+      for (const c of estado.circuito.componentes) {
+        if (estado.selecionados.includes(c.id)) {
+          posicoesIniciais.set(c.id, { x: c.x, y: c.y });
+        }
+      }
       arrastando = {
         ids: [...estado.selecionados],
         inicio: { x: mundo.x, y: mundo.y },
-        posicoes: estado.selecionados.map((id) => {
-          const c = estado.circuito.componentes.find((x) => x.id === id);
-          return { id, x: c.x, y: c.y };
-        }),
+        posicoesIniciais,
         movido: false,
       };
+
+      if (estado.selecionados.length > 1) {
+        estado.arrastoInicial = {
+          tipo: 'selecao',
+          itens: estado.selecionados.map((id) => {
+            const c = estado.circuito.componentes.find((x) => x.id === id);
+            return c ? { id: c.id, x: c.x, y: c.y, rotacao: c.rotacao } : null;
+          }).filter(Boolean),
+          grupos: estado.circuito.grupos
+            .filter((g) => estado.selecionados.includes(g.id))
+            .map((g) => ({
+              id: g.id,
+              x: g.x,
+              y: g.y,
+              bounds: g.bounds ? { ...g.bounds } : null,
+              vertices: g.vertices ? g.vertices.map((v) => ({ ...v })) : null,
+            })),
+          moveu: false,
+        };
+      } else {
+        estado.arrastoInicial = {
+          tipo: 'componente',
+          id: comp.id,
+          x: comp.x,
+          y: comp.y,
+          rotacao: comp.rotacao,
+          moveu: false,
+        };
+      }
+
       el.style.cursor = 'grabbing';
+      estado.abrirPopupEntidade?.('comp', comp.id);
     } else {
+      // Recalcula membros das áreas que estavam selecionadas
+      for (const id of estado.selecionados) {
+        const g = estado.circuito.grupos.find((x) => x.id === id);
+        if (g) recalcularMembros(g);
+      }
+
+      // Depois limpa a seleção normalmente
       estado.selecionados = [];
       estado.grupoSelecionadoId = null;
+
+      if (estado.popupAtivo) {
+        const cfg = estado.popups?.[estado.popupAtivo];
+        if (!cfg || !cfg.fixado) {
+          delete estado.popups[estado.popupAtivo];
+        }
+        estado.popupAtivo = null;
+        estado.renderizarPopups?.(true);
+      }
+
+      panIniciado = { x: mx, y: my, panX: canvas.view.panX, panY: canvas.view.panY };
+      el.style.cursor = 'grabbing';
+      e.preventDefault();
     }
 
     aoMudar();
@@ -77,11 +278,85 @@ export function configurarInteracao(canvas, estado, aoMudar) {
 
   el.addEventListener('contextmenu', (e) => e.preventDefault());
 
+  // ---- Renomear componente (clique direito) ----
+  const inputRenomear = document.getElementById('input-renomear');
+
+  function fecharInputRenomear() {
+    if (!inputRenomear) return;
+    // Remove o id ANTES de ocultar: o blur causado pelo ocultamento não salva de novo
+    delete inputRenomear.dataset.compId;
+    inputRenomear.classList.add('oculto');
+    inputRenomear.value = '';
+  }
+
+  function salvarNome() {
+    if (!inputRenomear) return;
+    const id = inputRenomear.dataset.compId;
+    if (!id) return; // já salvo/cancelado (evita salvar duas vezes: Enter + blur)
+
+    const valor = inputRenomear.value.trim().slice(0, 15);
+    fecharInputRenomear();
+
+    const comp = estado.circuito.componentes.find((c) => c.id === id);
+    if (!comp) return;
+    if ((comp.nomeCustom || '') === valor) return;
+
+    if (valor) {
+      comp.nomeCustom = valor;
+    } else {
+      delete comp.nomeCustom;
+    }
+    registrar(estado.circuito, 'propriedade', true);
+    renderizarTudo();
+    estado.renderizarPopups?.(true);
+  }
+
+  function abrirInputRenomear(comp, x, y) {
+    if (!inputRenomear) return;
+    inputRenomear.dataset.compId = comp.id;
+    inputRenomear.value = comp.nomeCustom || '';
+    inputRenomear.classList.remove('oculto');
+
+    // Posiciona acima do componente
+    const altura = 28;
+    const larguraMax = Math.max(4, el.clientWidth - 144);
+    inputRenomear.style.left = `${Math.min(larguraMax, Math.max(4, x - 70))}px`;
+    inputRenomear.style.top = `${Math.max(4, y - altura - 12)}px`;
+
+    inputRenomear.focus();
+    inputRenomear.select();
+  }
+
+  if (inputRenomear) {
+    inputRenomear.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        salvarNome();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        fecharInputRenomear();
+      }
+      e.stopPropagation(); // não dispara atalhos globais
+    });
+    inputRenomear.addEventListener('blur', () => salvarNome());
+    inputRenomear.addEventListener('mousedown', (e) => e.stopPropagation());
+  }
+
   el.addEventListener('contextmenu', (e) => {
     e.preventDefault();
 
     const rect = el.getBoundingClientRect();
     const mundo = canvas.telaParaMundo(e.clientX - rect.left, e.clientY - rect.top);
+
+    // Clique direito em componente: renomear.
+    // Chaves/botões continuam alternando com o clique direito; use Alt+clique direito para renomeá-los.
+    const alvo = componenteEm(estado.circuito, mundo.x, mundo.y);
+    const alternavel = alvo && ['CHAVE', 'CHAVE_SIMPLES', 'BOTAO'].includes(alvo.tipo);
+    if (alvo && (!alternavel || e.altKey)) {
+      abrirInputRenomear(alvo, e.clientX - rect.left, e.clientY - rect.top);
+      return;
+    }
+    if (!alvo) fecharInputRenomear();
 
     // Procura um componente alternável sob o cursor
     const comp = estado.circuito.componentes.find((c) => {
@@ -115,21 +390,109 @@ export function configurarInteracao(canvas, estado, aoMudar) {
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
     const mundo = canvas.telaParaMundo(mx, my);
+    if (typeof estado !== 'undefined' && estado) {
+      estado.ultimoMouse = mundo;
+    }
 
     if (panIniciado) {
-      canvas.view.panX = panIniciado.panX + (mx - panIniciado.x);
-      canvas.view.panY = panIniciado.panY + (my - panIniciado.y);
-      aoMudar();
+      atualizarPan(e);
       return;
     }
 
     if (arrastando) {
-      const dx = mundo.x - arrastando.inicio.x;
-      const dy = mundo.y - arrastando.inicio.y;
-      for (const pos of arrastando.posicoes) {
-        moverComponente(estado.circuito, pos.id, pos.x + dx, pos.y + dy);
+      const dxBruto = mundo.x - arrastando.inicio.x;
+      const dyBruto = mundo.y - arrastando.inicio.y;
+      const LIMIAR = TAMANHO_GRADE / 2;
+      if (Math.abs(dxBruto) > LIMIAR || Math.abs(dyBruto) > LIMIAR) {
+        arrastando.movido = true;
+        if (estado.arrastoInicial) {
+          estado.arrastoInicial.moveu = true;
+        }
       }
-      if (dx !== 0 || dy !== 0) arrastando.movido = true;
+      const dxTotal = snap(dxBruto);
+      const dyTotal = snap(dyBruto);
+      const dx = dxTotal - (estado._ultimoDx || 0);
+      const dy = dyTotal - (estado._ultimoDy || 0);
+      estado._ultimoDx = dxTotal;
+      estado._ultimoDy = dyTotal;
+
+      if (dx === 0 && dy === 0) return;
+
+      const idsSelecionados = new Set(estado.selecionados);
+
+      // Move os componentes aplicando snap na posição absoluta
+      for (const comp of estado.circuito.componentes) {
+        if (idsSelecionados.has(comp.id)) {
+          const ini = arrastando.posicoesIniciais?.get(comp.id);
+          if (ini) {
+            comp.x = snap(ini.x + dxBruto);
+            comp.y = snap(ini.y + dyBruto);
+          } else {
+            comp.x = snap(comp.x + dx);
+            comp.y = snap(comp.y + dy);
+          }
+          alinharPinos(comp);
+        }
+      }
+
+      let guiaX = null;
+      let guiaY = null;
+
+      const comp = estado.circuito.componentes.find(
+        (c) => c.id === estado.arrastandoId
+      );
+
+      if (comp) {
+        const pinosComp = comp.pinos || CATALOGO[comp.tipo]?.pinos || [];
+        for (const p of pinosComp) {
+          const m = posicaoPino(comp, p);
+          if (!m) continue;
+
+          for (const outro of estado.circuito.componentes) {
+            if (outro.id === comp.id) continue;
+
+            const pinosOutro = outro.pinos || CATALOGO[outro.tipo]?.pinos || [];
+            for (const pOutro of pinosOutro) {
+              const mOutro = posicaoPino(outro, pOutro);
+              if (!mOutro) continue;
+
+              if (Math.abs(m.y - mOutro.y) < 2) guiaY = m.y;
+              if (Math.abs(m.x - mOutro.x) < 2) guiaX = m.x;
+            }
+          }
+        }
+      }
+
+      estado.guiaAtiva = (guiaX !== null || guiaY !== null)
+        ? { guiaX, guiaY }
+        : null;
+
+      // Move os grupos selecionados
+      for (const g of estado.circuito.grupos) {
+        if (idsSelecionados.has(g.id)) {
+          g.x += dx;
+          g.y += dy;
+          if (g.bounds) {
+            g.bounds.x += dx;
+            g.bounds.y += dy;
+          }
+          if (g.vertices) {
+            g.vertices = g.vertices.map((v) => ({ x: v.x + dx, y: v.y + dy }));
+          }
+        }
+      }
+
+      // Move as dobras dos fios cujos DOIS extremos estão selecionados
+      for (const fio of estado.circuito.fios) {
+        const origemSel = idsSelecionados.has(fio.origem.componente);
+        const destinoSel = idsSelecionados.has(fio.destino.componente);
+
+        if (origemSel && destinoSel && fio.dobras?.length) {
+          fio.dobras = fio.dobras.map((d) => ({ x: d.x + dx, y: d.y + dy }));
+        }
+      }
+
+      arrastando.movido = true;
       aoMudar();
       return;
     }
@@ -138,15 +501,23 @@ export function configurarInteracao(canvas, estado, aoMudar) {
     el.style.cursor = comp ? 'grab' : 'default';
   });
 
+  window.addEventListener('mousemove', (e) => {
+    if (panIniciado && e.target !== el) atualizarPan(e);
+  });
+
   el.addEventListener('mouseup', () => {
     finalizarArrasto();
-    panIniciado = null;
+    finalizarPan();
     el.style.cursor = 'default';
   });
 
   el.addEventListener('mouseleave', () => {
+    if (panIniciado) return;
     finalizarArrasto();
-    panIniciado = null;
+  });
+
+  window.addEventListener('mouseup', (e) => {
+    if (e.button === 0) finalizarPan();
   });
 
   el.addEventListener('wheel', (e) => {
@@ -179,12 +550,12 @@ export function configurarInteracao(canvas, estado, aoMudar) {
   });
 
   window.addEventListener('keydown', (e) => {
-    if (estado.fioSelecionadoId) {
+    if ((e.key === 'Delete' || e.key === 'Backspace') && estado.fioSelecionadoId) {
       // Deixa o handler de fios tratar Delete
       return;
     }
 
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
 
     if (e.key === 'Delete' || e.key === 'Backspace') {
       if (estado.selecionados.length > 0) {
@@ -192,8 +563,105 @@ export function configurarInteracao(canvas, estado, aoMudar) {
         e.preventDefault();
       }
     } else if (e.key === 'Escape') {
-      estado.selecionados = [];
-      aoMudar();
+      // 1. Se há arrasto em andamento (componente ou seleção múltipla)
+      if (estado.arrastoInicial) {
+        const a = estado.arrastoInicial;
+        if (a.tipo === 'componente') {
+          if (a.moveu) {
+            const comp = estado.circuito.componentes.find((c) => c.id === a.id);
+            if (comp) {
+              comp.x = a.x;
+              comp.y = a.y;
+              if (a.rotacao !== undefined) comp.rotacao = a.rotacao;
+            }
+            arrastando = null;
+            estado.arrastoInicial = null;
+            estado.arrastandoId = null;
+            estado.guiaAtiva = null;
+            el.style.cursor = 'default';
+            renderizarTudo();
+            return;
+          }
+          // Não moveu: apenas desseleciona
+          arrastando = null;
+          estado.arrastoInicial = null;
+          estado.arrastandoId = null;
+          estado.guiaAtiva = null;
+          estado.selecionados = [];
+          el.style.cursor = 'default';
+          estado.fecharPopupsNaoFixados?.();
+          renderizarTudo();
+          return;
+        }
+
+        if (a.tipo === 'selecao') {
+          if (a.moveu) {
+            for (const item of a.itens || []) {
+              const c = estado.circuito.componentes.find((x) => x.id === item.id);
+              if (c) {
+                c.x = item.x;
+                c.y = item.y;
+                if (item.rotacao !== undefined) c.rotacao = item.rotacao;
+              }
+            }
+            for (const gInfo of a.grupos || []) {
+              const g = estado.circuito.grupos.find((x) => x.id === gInfo.id);
+              if (g) {
+                g.x = gInfo.x;
+                g.y = gInfo.y;
+                if (gInfo.bounds) g.bounds = { ...gInfo.bounds };
+                if (gInfo.vertices) g.vertices = gInfo.vertices.map((v) => ({ ...v }));
+              }
+            }
+            arrastando = null;
+            estado.arrastoInicial = null;
+            estado.arrastandoId = null;
+            estado.guiaAtiva = null;
+            el.style.cursor = 'default';
+            renderizarTudo();
+            return;
+          }
+          // Não moveu: apenas desseleciona
+          arrastando = null;
+          estado.arrastoInicial = null;
+          estado.arrastandoId = null;
+          estado.guiaAtiva = null;
+          estado.selecionados = [];
+          el.style.cursor = 'default';
+          estado.fecharPopupsNaoFixados?.();
+          renderizarTudo();
+          return;
+        }
+
+        // Se for outro tipo de arrasto (fio ou área), já tratado no seu respectivo módulo
+        return;
+      }
+
+      // 2. Se há edição de texto inline (nome de área)
+      if (estado.cancelarEdicaoTexto?.()) {
+        renderizarTudo();
+        return;
+      }
+
+      // 3. Se há popup aberto → fecha popups não fixados e retorna
+      if (estado.fecharPopupsNaoFixados?.()) {
+        renderizarTudo();
+        return;
+      }
+
+      // 4. Se há seleção → desseleciona
+      if (estado.selecionados.length > 0 || estado.grupoSelecionadoId || estado.fioSelecionadoId) {
+        for (const id of estado.selecionados) {
+          const g = estado.circuito.grupos.find((x) => x.id === id);
+          if (g) recalcularMembros(g);
+        }
+        estado.selecionados = [];
+        estado.grupoSelecionadoId = null;
+        estado.fioSelecionadoId = null;
+        estado.guiaAtiva = null;
+        renderizarTudo();
+        return;
+      }
     } else if (e.key === 'r' || e.key === 'R') {
       if (estado.selecionados.length > 0) {
         const comp = estado.circuito.componentes.find((c) => c.id === estado.selecionados[0]);

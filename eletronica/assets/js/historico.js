@@ -30,6 +30,7 @@ function snapshot(circuito) {
       x: c.x,
       y: c.y,
       rotacao: c.rotacao || 0,
+      ...(c.nomeCustom ? { nomeCustom: c.nomeCustom } : {}),
       propriedades: { ...c.propriedades },
     })),
     fios: circuito.fios.map((f) => ({
@@ -67,6 +68,7 @@ function reconstruir(snap, CATALOGO) {
       x: c.x,
       y: c.y,
       rotacao: c.rotacao || 0,
+      ...(c.nomeCustom ? { nomeCustom: c.nomeCustom } : {}),
       propriedades: { ...def.padrao, ...c.propriedades },
       pinos: def.pinos.map((p) => ({ ...p })),
       dimensoes: { ...def.dimensoes },

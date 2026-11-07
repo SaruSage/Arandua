@@ -36,6 +36,7 @@ export function serializar(estado) {
     x: c.x,
     y: c.y,
     rotacao: c.rotacao || 0,
+    ...(c.nomeCustom ? { nomeCustom: c.nomeCustom } : {}),
     propriedades: { ...c.propriedades },
   }));
 
@@ -184,6 +185,7 @@ export function reconstruir(dados) {
       x: comp.x,
       y: comp.y,
       rotacao: comp.rotacao || 0,
+      ...(comp.nomeCustom ? { nomeCustom: String(comp.nomeCustom).slice(0, 15) } : {}),
       propriedades: { ...def.padrao, ...comp.propriedades },
       pinos: def.pinos.map((p) => ({ ...p })),
       dimensoes: { ...def.dimensoes },
