@@ -4,7 +4,7 @@
  * botão "Ver montagem" para componentes compostos.
  */
 
-import { CATALOGO } from './catalogo.js';
+import { CATALOGO, obterDimensoesComponente } from './catalogo.js';
 import { rotacionarComponente } from './circuito.js';
 import { registrar } from './historico.js';
 import { CORES_FIO, removerFio } from './fios.js';
@@ -170,6 +170,13 @@ function criarCampo(chave, spec, comp, aoMudar, circuito) {
     }
     input.addEventListener('change', () => {
       comp.propriedades[chave] = input.value;
+      if (comp.tipo === 'LED' && chave === 'estilo') {
+        const dimensoesAnteriores = comp.dimensoes || CATALOGO.LED.dimensoes;
+        const novasDimensoes = obterDimensoesComponente(comp.tipo, comp.propriedades);
+        comp.x += (dimensoesAnteriores.w - novasDimensoes.w) / 2;
+        comp.y += (dimensoesAnteriores.h - novasDimensoes.h) / 2;
+        comp.dimensoes = novasDimensoes;
+      }
       registrar(circuito, 'propriedade');
       aoMudar();
     });
@@ -340,7 +347,7 @@ export function montarPropriedadesComponente(container, comp, estado, aoMudar, a
     btnPuxarFio.type = 'button';
     btnPuxarFio.className = 'btn-puxar-fio';
     btnPuxarFio.textContent = '+ Puxar fio';
-    btnPuxarFio.title = 'Inicia uma nova ligação a partir deste nó (atalho: Alt + clique no nó)';
+    btnPuxarFio.title = 'Inicia uma nova ligação a partir deste nó (ou arraste com o botão esquerdo)';
     btnPuxarFio.addEventListener('click', () => {
       estado.iniciarFioDePino?.(comp.id, 'p');
     });
@@ -949,7 +956,7 @@ export function renderizarPainel(container, estado, aoMudar, aoVerMontagem) {
     btnPuxarFio.type = 'button';
     btnPuxarFio.className = 'btn-puxar-fio';
     btnPuxarFio.textContent = '+ Puxar fio';
-    btnPuxarFio.title = 'Inicia uma nova ligação a partir deste nó (atalho: Alt + clique no nó)';
+    btnPuxarFio.title = 'Inicia uma nova ligação a partir deste nó (ou arraste com o botão esquerdo)';
     btnPuxarFio.addEventListener('click', () => {
       estado.iniciarFioDePino?.(comp.id, 'p');
     });
@@ -1050,22 +1057,56 @@ export function renderizarPainel(container, estado, aoMudar, aoVerMontagem) {
 export function montarListaComandos(corpo) {
   corpo.innerHTML = '';
   const COMANDOS = [
-    { teclas: ['Ctrl', 'Z'], acao: 'Desfazer' },
-    { teclas: ['Ctrl', 'Y'], acao: 'Refazer' },
-    { teclas: ['Ctrl', 'S'], acao: 'Salvar' },
-    { teclas: ['Ctrl', 'O'], acao: 'Abrir' },
-    { teclas: ['Ctrl', 'C'], acao: 'Copiar' },
-    { teclas: ['Ctrl', 'V'], acao: 'Colar' },
-    { teclas: ['Ctrl', 'D'], acao: 'Duplicar' },
-    { teclas: ['Tab'], acao: 'Criar dobra no fio' },
-    { teclas: ['Del'], acao: 'Remover seleção' },
-    { teclas: ['R'], acao: 'Girar 90°' },
-    { teclas: ['Esc'], acao: 'Cancelar / desselecionar' },
+    { secao: 'Atalhos de teclado' },
+    { teclas: ['Ctrl/Cmd', 'Z'], acao: 'Desfazer' },
+    { teclas: ['Ctrl/Cmd', 'Y'], acao: 'Refazer' },
+    { teclas: ['Ctrl/Cmd', 'Shift', 'Z'], acao: 'Refazer' },
+    { teclas: ['Ctrl/Cmd', 'S'], acao: 'Salvar projeto' },
+    { teclas: ['Ctrl/Cmd', 'O'], acao: 'Abrir projeto' },
+    { teclas: ['Ctrl/Cmd', 'E'], acao: 'Exportar imagem PNG' },
+    { teclas: ['Ctrl/Cmd', 'C'], acao: 'Copiar seleção' },
+    { teclas: ['Ctrl/Cmd', 'V'], acao: 'Colar' },
+    { teclas: ['Ctrl/Cmd', 'D'], acao: 'Duplicar seleção' },
+    { teclas: ['R'], acao: 'Girar componente selecionado em 90°' },
+    { teclas: ['Tab'], acao: 'Adicionar dobra ao fio ou vértice ao contorno selecionado' },
+    { teclas: ['Del/Backspace'], acao: 'Excluir seleção; sobre fio: dobra/fio; na área: vértice próximo ou área' },
+    { teclas: ['Esc'], acao: 'Cancelar ação, ligação ou edição; desselecionar' },
+    { teclas: ['Enter'], acao: 'Confirmar edição do nome' },
+    { secao: 'Mouse e edição' },
+    { teclas: ['Roda do mouse'], acao: 'Aproximar ou afastar o zoom' },
+    { teclas: ['Botão do meio'], acao: 'Arrastar para mover a tela' },
+    { teclas: ['Shift + arraste'], acao: 'Mover a tela' },
+    { teclas: ['Ctrl/Cmd + clique'], acao: 'Adicionar ou remover item da seleção' },
+    { teclas: ['Arraste esquerdo'], acao: 'Mover componente/área, alça do contorno ou segmento do fio' },
+    { teclas: ['Arraste entre pinos'], acao: 'Criar fio' },
+    { teclas: ['Botão direito + arraste no nó'], acao: 'Mover nó' },
+    { teclas: ['Botão direito + arraste vazio'], acao: 'Selecionar itens em retângulo' },
+    { teclas: ['Botão direito + arraste no nome'], acao: 'Mover nome da área entre topo e base' },
+    { teclas: ['Duplo clique no nome da área'], acao: 'Renomear área; Enter confirma, Esc cancela' },
+    { teclas: ['Duplo clique em vértices'], acao: 'Duplo clique no primeiro e depois no segundo para conectar áreas; repetir para desconectar' },
+    { secao: 'Ações do editor' },
+    { teclas: ['Paleta'], acao: 'Clique ou arraste um componente para adicioná-lo' },
+    { teclas: ['Botão Simular'], acao: 'Iniciar ou parar a simulação' },
+    { teclas: ['Botão Juntar'], acao: 'Agrupar itens selecionados' },
+    { teclas: ['Botão Construir'], acao: 'Identificar ou substituir circuito selecionado' },
+    { teclas: ['Botão Exemplos'], acao: 'Abrir circuitos de exemplo' },
+    { teclas: ['Botões de rotação'], acao: 'Girar componente em −90° ou +90°' },
+    { teclas: ['+ Puxar fio'], acao: 'Iniciar fio a partir de um pino' },
+    { teclas: ['Mostrar montagem'], acao: 'Ver a montagem interna do componente' },
+    { teclas: ['Remover componente'], acao: 'Excluir o componente selecionado' },
   ];
 
   const lista = document.createElement('div');
   lista.className = 'lista-comandos';
   for (const item of COMANDOS) {
+    if (item.secao) {
+      const titulo = document.createElement('div');
+      titulo.className = 'comandos-secao';
+      titulo.textContent = item.secao;
+      lista.appendChild(titulo);
+      continue;
+    }
+
     const linha = document.createElement('div');
     linha.className = 'linha-comando';
 

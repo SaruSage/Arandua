@@ -219,6 +219,7 @@ export const CATALOGO = {
     ],
     propriedades: {
       cor: { tipo: 'cor', valor: '#ff3b30', rotulo: 'Cor' },
+      estilo: { tipo: 'select', valor: 'Padrão', opcoes: ['Padrão', 'Alternativo'], rotulo: 'Estilo de design' },
       tensaoDireta: { tipo: 'numero', valor: 2.0, min: 1.2, max: 3.6, step: 0.1, unidade: 'V', rotulo: 'Vf' },
       correnteNominal: { tipo: 'numero', valor: 0.02, min: 0.001, max: 0.1, step: 0.001, unidade: 'A', rotulo: 'Corrente nominal' },
     },
@@ -551,6 +552,13 @@ export const CATEGORIAS = [
   'Compostos',
 ];
 
+export function obterDimensoesComponente(tipo, propriedades = {}) {
+  if (tipo === 'LED' && propriedades.estilo === 'Alternativo') {
+    return { w: 40, h: 48 };
+  }
+  return CATALOGO[tipo]?.dimensoes || { w: 80, h: 60 };
+}
+
 /** Retorna os itens de uma categoria. */
 export function itensDaCategoria(categoria) {
   return Object.entries(CATALOGO)
@@ -573,7 +581,7 @@ export function criarInstancia(tipo, x = 0, y = 0) {
     tipo,
     x,
     y,
-    dimensoes: def.dimensoes,
+    dimensoes: obterDimensoesComponente(tipo, propriedades),
     rotacao: 0,
     propriedades,
     pinos: def.pinos.map((p) => ({ ...p })),

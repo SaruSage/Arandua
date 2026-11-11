@@ -2,7 +2,7 @@
  * montagem.js — Motor de montagem paramétrica com suporte a construção industrial e didática.
  */
 
-import { CATALOGO } from './catalogo.js';
+import { CATALOGO, obterDimensoesComponente } from './catalogo.js';
 import { adicionarComponente, removerComponente } from './circuito.js';
 import { registrar } from './historico.js';
 import { recalcularMembros, atualizarTodosBounds, boundsDoComponente } from './grupos.js';
@@ -281,9 +281,214 @@ function criarReceitaBuffer() {
   };
 }
 
+const SEGMENTOS_DISPLAY = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+
+function criarReceitaDisplay(tipoComum = 'cátodo comum', corLED = '#ff3b30') {
+  const anodoComum = tipoComum === 'ânodo comum';
+  const pecas = [];
+  const ligacoes = [];
+  const mapeamentoPinos = {};
+  const entradas = [];
+
+  SEGMENTOS_DISPLAY.forEach((segmento) => {
+    const refResistor = `R${segmento}`;
+    const refLed = `LED${segmento}`;
+    const refComum = `COM${segmento.toUpperCase()}`;
+    pecas.push(
+      {
+        ref: refResistor,
+        tipo: 'RESISTOR',
+        rotulo: `R ${segmento}`,
+        valor: '330 Ω',
+        propriedades: { resistencia: 330 },
+        rotacao: { a: 90, b: 180, c: 180, d: 270 }[segmento] || 0,
+      },
+      {
+        ref: refLed,
+        tipo: 'LED',
+        rotulo: `LED ${segmento}`,
+        valor: 'Vermelho · 2 V',
+        propriedades: { cor: corLED, tensaoDireta: 2, correnteNominal: 0.02 },
+        rotacao: { b: 90, c: 90, e: 90, f: 90 }[segmento] || 0,
+      },
+      {
+        ref: refComum,
+        tipo: 'NO',
+        rotulo: `COM ${segmento}`,
+        propriedades: { cor: '#3e9670' },
+      }
+    );
+
+    ligacoes.push(
+      anodoComum
+        ? [`${refComum}.p`, `${refLed}.p1`]
+        : [`${refResistor}.p2`, `${refLed}.p1`],
+      anodoComum
+        ? [`${refLed}.p2`, `${refResistor}.p2`]
+        : [`${refLed}.p2`, `${refComum}.p`]
+    );
+    mapeamentoPinos[segmento] = { ref: refResistor, pino: 'p1' };
+    entradas.push(`${refResistor}.p1`);
+  });
+
+  const ordemComum = anodoComum
+    ? ['a', 'f', 'g', 'e', 'd', 'c', 'b']
+    : ['a', 'b', 'g', 'c', 'd', 'e', 'f'];
+  for (let indice = 1; indice < ordemComum.length; indice++) {
+    ligacoes.push([
+      `COM${ordemComum[indice - 1].toUpperCase()}.p`,
+      `COM${ordemComum[indice].toUpperCase()}.p`,
+    ]);
+  }
+  mapeamentoPinos.com = { ref: 'COMG', pino: 'p' };
+  entradas.push('COMG.p');
+
+  return {
+    titulo: 'Display de sete segmentos',
+    industrial: {
+      titulo: 'Montagem funcional',
+      subtitulo: 'Sete LEDs com resistores limitadores',
+      descricao: `Um LED e um resistor de 330 Ω em cada segmento, ligados ao barramento de ${anodoComum ? 'ânodo' : 'cátodo'} comum.`,
+      pecas: pecas.map((peca) =>
+        peca.tipo === 'RESISTOR'
+          ? { ...peca, valor: '330 Ω', propriedades: { resistencia: 330 } }
+          : peca
+      ),
+      ligacoes,
+      entradas,
+      saidas: [],
+      mapeamentoPinos,
+    },
+    didatica: {
+      titulo: 'Versão de menor corrente',
+      subtitulo: 'Sete LEDs com resistores de 470 Ω',
+      descricao: `O mesmo arranjo com 470 Ω por segmento, reduzindo a corrente e o brilho. O barramento é de ${anodoComum ? 'ânodo' : 'cátodo'} comum.`,
+      pecas: pecas.map((peca) =>
+        peca.tipo === 'RESISTOR'
+          ? { ...peca, valor: '470 Ω', propriedades: { resistencia: 470 } }
+          : peca
+      ),
+      ligacoes,
+      entradas,
+      saidas: [],
+      mapeamentoPinos,
+    },
+  };
+}
+
+function criarReceitaAmpOp(comBuffer) {
+  const pecas = [
+    { ref: 'RINP', tipo: 'RESISTOR', rotulo: 'Resistor de entrada +', valor: '10 kΩ', propriedades: { resistencia: 10000 } },
+    { ref: 'RINM', tipo: 'RESISTOR', rotulo: 'Resistor de entrada −', valor: '10 kΩ', propriedades: { resistencia: 10000 } },
+    { ref: 'Q1', tipo: 'TRANSISTOR_NPN', rotulo: 'Q1 · entrada +', valor: 'NPN' },
+    { ref: 'Q2', tipo: 'TRANSISTOR_NPN', rotulo: 'Q2 · entrada −', valor: 'NPN' },
+    { ref: 'RC1', tipo: 'RESISTOR', rotulo: 'Carga do coletor Q1', valor: '10 kΩ', propriedades: { resistencia: 10000 } },
+    { ref: 'RC2', tipo: 'RESISTOR', rotulo: 'Carga do coletor Q2', valor: '10 kΩ', propriedades: { resistencia: 10000 } },
+    { ref: 'RT', tipo: 'RESISTOR', rotulo: 'Resistor de cauda', valor: '10 kΩ', propriedades: { resistencia: 10000 } },
+    { ref: 'VP', tipo: 'NO', rotulo: 'Trilho positivo', propriedades: { cor: '#e05a5a' } },
+    { ref: 'VN', tipo: 'NO', rotulo: 'Trilho negativo', propriedades: { cor: '#5271c4' } },
+    { ref: 'OUT', tipo: 'NO', rotulo: 'Saída', propriedades: { cor: '#3e9670' } },
+  ];
+  const ligacoes = [
+    ['RINP.p2', 'Q1.b'],
+    ['RINM.p2', 'Q2.b'],
+    ['VP.p', 'RC1.p1'],
+    ['VP.p', 'RC2.p1'],
+    ['RC1.p2', 'Q1.c'],
+    ['RC2.p2', 'Q2.c'],
+    ['Q1.e', 'RT.p1'],
+    ['Q2.e', 'RT.p1'],
+    ['RT.p2', 'VN.p'],
+    ['Q2.c', 'Q3.b'],
+    ['VP.p', 'Q3.c'],
+    ['Q3.e', 'OUT.p'],
+    ['OUT.p', 'RL.p1'],
+    ['RL.p2', 'VN.p'],
+  ];
+
+  if (comBuffer) {
+    pecas.push(
+      { ref: 'Q3', tipo: 'TRANSISTOR_NPN', rotulo: 'Q3 · buffer de saída', valor: 'NPN' },
+      { ref: 'RL', tipo: 'RESISTOR', rotulo: 'Carga da saída', valor: '10 kΩ', propriedades: { resistencia: 10000 } }
+    );
+  } else {
+    ligacoes.splice(9);
+    ligacoes.push(['Q2.c', 'OUT.p']);
+  }
+
+  const receita = {
+    pecas,
+    ligacoes,
+    entradas: ['RINP.p1', 'RINM.p1', 'VP.p', 'VN.p'],
+    saidas: ['OUT.p'],
+    mapeamentoPinos: {
+      inp: { ref: 'RINP', pino: 'p1' },
+      inm: { ref: 'RINM', pino: 'p1' },
+      vmais: { ref: 'VP', pino: 'p' },
+      vmenos: { ref: 'VN', pino: 'p' },
+      out: { ref: 'OUT', pino: 'p' },
+    },
+  };
+
+  return {
+    ...receita,
+    titulo: comBuffer ? 'Par diferencial com buffer de saída' : 'Par diferencial básico',
+    subtitulo: comBuffer ? 'Transistores NPN e cargas resistivas' : 'Dois transistores e três resistores',
+    descricao: comBuffer
+      ? 'O par diferencial compara as entradas; um seguidor de emissor fornece uma saída com menor impedância. Conecte os trilhos positivo e negativo aos pinos V+ e V−.'
+      : 'Dois transistores compartilham a corrente de cauda e convertem a diferença entre as entradas em uma variação de tensão no coletor Q2. Conecte os trilhos aos pinos V+ e V−.',
+  };
+}
+
+function criarReceitaCiGenerico(funcao = 'buffer') {
+  const tiposPorta = {
+    buffer: 'BUFFER',
+    inversor: 'NOT',
+    AND: 'AND',
+    OR: 'OR',
+    NAND: 'NAND',
+    NOR: 'NOR',
+  };
+  const tipoPorta = tiposPorta[funcao] || 'BUFFER';
+  const portaBinaria = ['AND', 'OR', 'NAND', 'NOR'].includes(tipoPorta);
+  const pinosLivres = ['p2', 'p3', 'p4', 'p6', 'p7', 'p8']
+    .filter((pino) => !(portaBinaria && pino === 'p2'));
+  const pecas = [
+    { ref: 'U1', tipo: tipoPorta, rotulo: `Função interna · ${funcao}`, valor: tipoPorta },
+    ...pinosLivres.map((pino) => ({
+      ref: `NC${pino.slice(1)}`,
+      tipo: 'NO',
+      rotulo: `Pino ${pino.slice(1)} sem função interna`,
+      propriedades: { cor: '#8a8a8a' },
+    })),
+  ];
+  const mapeamentoPinos = {
+    p1: { ref: 'U1', pino: 'a' },
+    p5: { ref: 'U1', pino: 'y' },
+  };
+  if (portaBinaria) mapeamentoPinos.p2 = { ref: 'U1', pino: 'b' };
+  for (const pino of pinosLivres) {
+    mapeamentoPinos[pino] = { ref: `NC${pino.slice(1)}`, pino: 'p' };
+  }
+
+  return {
+    titulo: `CI genérico · ${funcao}`,
+    industrial: {
+      titulo: 'Equivalente funcional',
+      subtitulo: `Função lógica ${funcao}`,
+      descricao: 'A função selecionada é representada pela porta lógica equivalente do catálogo. As conexões dos demais pinos são preservadas como nós sem ligação interna.',
+      pecas,
+      ligacoes: [],
+      entradas: portaBinaria ? ['U1.a', 'U1.b'] : ['U1.a'],
+      saidas: ['U1.y'],
+      mapeamentoPinos,
+    },
+  };
+}
+
 /**
  * Tabela de receitas de montagem paramétrica para portas lógicas e componentes compostos.
- * Cada tipo suporta duas variantes:
+ * Cada tipo pode oferecer uma ou duas variantes:
  * 1. industrial: Construção convencional industrial utilizando transistores e componentes convencionais com lógica real.
  * 2. didatica: Demonstração didática funcional utilizando chaves mecânicas/circuitos discretos de contato.
  */
@@ -578,7 +783,27 @@ export const RECEITAS_MONTAGEM = {
   XOR: criarReceitaXor(false),
   XNOR: criarReceitaXor(true),
   BUFFER: criarReceitaBuffer(),
+  DISPLAY_7SEG: criarReceitaDisplay(),
+  AMP_OP: {
+    titulo: 'Amplificador operacional',
+    industrial: criarReceitaAmpOp(true),
+    didatica: criarReceitaAmpOp(false),
+  },
+  CI_GENERICO: criarReceitaCiGenerico(),
 };
+
+function receitasDoComponente(componente) {
+  if (componente.tipo === 'DISPLAY_7SEG') {
+    return criarReceitaDisplay(
+      componente.propriedades?.tipo,
+      componente.propriedades?.cor || '#ff3b30'
+    );
+  }
+  if (componente.tipo === 'CI_GENERICO') {
+    return criarReceitaCiGenerico(componente.propriedades?.funcao);
+  }
+  return RECEITAS_MONTAGEM[componente.tipo];
+}
 
 /* ===== ESQUEMAS INDUSTRIAIS FIXOS (AND e OR) ===== */
 
@@ -760,7 +985,7 @@ function desenharPreviaEsquema(ctx, w, h, tipoPorta) {
       rotacao: p.rotacao,
       propriedades: p.propriedades ? { ...p.propriedades } : {},
       pinos: def.pinos.map((pino) => ({ ...pino })),
-      dimensoes: def.dimensoes,
+      dimensoes: obterDimensoesComponente(p.tipo, p.propriedades),
     };
     const t = tela({ x: p.x, y: p.y });
     desenharComponente(ctx, comp, t.x, t.y, escala);
@@ -827,7 +1052,7 @@ export function gerarMontagem(componente) {
     return { disponivel: false, motivo: 'invalido' };
   }
 
-  const receita = RECEITAS_MONTAGEM[componente.tipo];
+  const receita = receitasDoComponente(componente);
   if (!receita) {
     return {
       disponivel: false,
@@ -885,6 +1110,236 @@ export function desenharPreviaOpcao(canvasEl, opcao, tipoPorta, componente) {
   ctx.restore();
 
   const cy = h / 2;
+
+  if (tipoPorta === 'DISPLAY_7SEG') {
+    const resistencia = opcao.subtitulo?.includes('470') ? '470' : '330';
+    const corLED = componente?.propriedades?.cor || '#ff3b30';
+    const escala = Math.min(1, (w - 56) / 190, (h - 40) / 200);
+    const centroX = w / 2;
+    const centroY = h / 2;
+    const segmentos = {
+      a: { x: 0, y: -60, horizontal: true },
+      b: { x: 40, y: -30, horizontal: false },
+      c: { x: 40, y: 30, horizontal: false },
+      d: { x: 0, y: 60, horizontal: true },
+      e: { x: -40, y: 30, horizontal: false },
+      f: { x: -40, y: -30, horizontal: false },
+      g: { x: 0, y: 0, horizontal: true },
+    };
+
+    ctx.save();
+    ctx.font = '600 7px system-ui, sans-serif';
+    ctx.textBaseline = 'middle';
+    ctx.strokeStyle = '#315b89';
+    ctx.fillStyle = '#536273';
+    ctx.lineWidth = 1;
+    Object.entries(segmentos).forEach(([segmento, geometria]) => {
+      const x = centroX + geometria.x * escala;
+      const y = centroY + geometria.y * escala;
+      const largura = (geometria.horizontal ? 42 : 10) * escala;
+      const altura = (geometria.horizontal ? 10 : 42) * escala;
+      ctx.fillStyle = corLED;
+      ctx.strokeStyle = '#4b5563';
+      ctx.beginPath();
+      ctx.roundRect(x - largura / 2, y - altura / 2, largura, altura, altura / 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#536273';
+      ctx.textAlign = 'center';
+      const rotuloX = geometria.horizontal
+        ? x
+        : x + Math.sign(geometria.x || 1) * 31 * escala;
+      const rotuloY = geometria.horizontal
+        ? y + Math.sign(geometria.y || -1) * 11 * escala
+        : y;
+      ctx.fillText(segmento.toUpperCase(), rotuloX, rotuloY);
+
+      const resistorX = geometria.horizontal
+        ? x
+        : x + Math.sign(geometria.x || 1) * 82 * escala;
+      const resistorY = geometria.horizontal
+        ? y + Math.sign(geometria.y || -1) * 34 * escala
+        : y;
+      const resistorW = 26 * escala;
+      const resistorH = 10 * escala;
+      const lado = Math.sign(resistorX - x) || 1;
+      const acima = Math.sign(resistorY - y) || 1;
+      ctx.strokeStyle = '#315b89';
+      ctx.beginPath();
+      if (geometria.horizontal) {
+        ctx.moveTo(x, y + acima * altura / 2);
+        ctx.lineTo(resistorX, resistorY - acima * resistorH / 2);
+      } else {
+        ctx.moveTo(x + lado * largura / 2, y);
+        ctx.lineTo(resistorX - lado * resistorW / 2, resistorY);
+      }
+      ctx.stroke();
+      ctx.strokeRect(
+        resistorX - resistorW / 2,
+        resistorY - resistorH / 2,
+        resistorW,
+        resistorH
+      );
+      ctx.fillStyle = '#536273';
+      ctx.font = '600 5px system-ui, sans-serif';
+      ctx.fillText(resistencia, resistorX, resistorY);
+      ctx.font = '600 7px system-ui, sans-serif';
+    });
+    ctx.fillStyle = '#536273';
+    ctx.textAlign = 'right';
+    ctx.fillText('COM', w - 7, cy);
+    ctx.restore();
+    return;
+  }
+
+  if (tipoPorta === 'AMP_OP') {
+    const industrial = opcao.titulo?.includes('buffer');
+    const cores = { fio: '#315b89', texto: '#536273', transistor: '#fff' };
+    const resistor = (x, y, nome) => {
+      ctx.strokeRect(x - 7, y - 12, 14, 24);
+      ctx.fillStyle = cores.texto;
+      ctx.font = '600 7px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(nome, x, y + 3);
+    };
+
+    ctx.save();
+    ctx.strokeStyle = cores.fio;
+    ctx.fillStyle = cores.texto;
+    ctx.lineWidth = 1.5;
+    ctx.font = '600 8px system-ui, sans-serif';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+
+    const q1 = { x: 104, y: 76 };
+    const q2 = { x: 148, y: 126 };
+    ctx.fillText('V+', 72, 22);
+    ctx.beginPath();
+    ctx.moveTo(84, 26);
+    ctx.lineTo(164, 26);
+    ctx.stroke();
+    resistor(104, 45, 'RC1');
+    resistor(148, 45, 'RC2');
+    ctx.beginPath();
+    ctx.moveTo(q1.x, 26);
+    ctx.lineTo(q1.x, 33);
+    ctx.moveTo(q1.x, 57);
+    ctx.lineTo(q1.x, q1.y - 12);
+    ctx.moveTo(q2.x, 26);
+    ctx.lineTo(q2.x, 33);
+    ctx.moveTo(q2.x, 57);
+    ctx.lineTo(q2.x, q2.y - 12);
+    ctx.stroke();
+
+    for (const [q, label] of [[q1, 'Q1'], [q2, 'Q2']]) {
+      ctx.beginPath();
+      ctx.arc(q.x, q.y, 13, 0, Math.PI * 2);
+      ctx.fillStyle = cores.transistor;
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = cores.texto;
+      ctx.textAlign = 'center';
+      ctx.fillText(label, q.x, q.y);
+    }
+
+    ctx.strokeStyle = cores.fio;
+    ctx.beginPath();
+    ctx.moveTo(8, q1.y);
+    ctx.lineTo(q1.x - 13, q1.y);
+    ctx.moveTo(8, q2.y);
+    ctx.lineTo(q2.x - 13, q2.y);
+    ctx.stroke();
+    ctx.fillStyle = cores.texto;
+    ctx.textAlign = 'left';
+    ctx.fillText('IN+', 8, q1.y - 9);
+    ctx.fillText('IN−', 8, q2.y - 9);
+
+    ctx.beginPath();
+    ctx.moveTo(q1.x, q1.y + 13);
+    ctx.lineTo(q1.x, 164);
+    ctx.lineTo(q2.x, 164);
+    ctx.moveTo(q2.x, q2.y + 13);
+    ctx.lineTo(q2.x, 164);
+    ctx.stroke();
+    resistor(126, 181, 'RT');
+    ctx.beginPath();
+    ctx.moveTo(126, 164);
+    ctx.lineTo(126, 169);
+    ctx.moveTo(126, 193);
+    ctx.lineTo(126, 202);
+    ctx.stroke();
+    ctx.fillText('V−', 132, 202);
+
+    if (industrial) {
+      ctx.beginPath();
+      ctx.moveTo(q2.x + 13, q2.y);
+      ctx.lineTo(184, q2.y);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(198, q2.y, 13, 0, Math.PI * 2);
+      ctx.fillStyle = cores.transistor;
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = cores.texto;
+      ctx.textAlign = 'center';
+      ctx.fillText('Q3', 198, q2.y);
+      ctx.beginPath();
+      ctx.moveTo(211, q2.y);
+      ctx.lineTo(w - 18, q2.y);
+      ctx.stroke();
+      ctx.fillStyle = cores.texto;
+      ctx.textAlign = 'right';
+      ctx.fillText('OUT', w - 7, q2.y - 9);
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(q2.x + 13, q2.y);
+      ctx.lineTo(w - 18, q2.y);
+      ctx.stroke();
+      ctx.fillStyle = cores.texto;
+      ctx.textAlign = 'right';
+      ctx.fillText('OUT', w - 7, q2.y - 9);
+    }
+    ctx.restore();
+    return;
+  }
+
+  if (tipoPorta === 'CI_GENERICO') {
+    const funcao = componente?.propriedades?.funcao || 'buffer';
+    const nomePorta = ({ inversor: 'NOT', buffer: 'BUFFER' })[funcao] || funcao;
+    ctx.save();
+    ctx.strokeStyle = '#315b89';
+    ctx.fillStyle = '#fff';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(w * 0.27, h * 0.2, w * 0.46, h * 0.6, 8);
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(w / 2, h * 0.2, 7, Math.PI, 0);
+    ctx.stroke();
+    ctx.beginPath();
+    for (let indice = 0; indice < 4; indice++) {
+      const y = h * 0.29 + indice * h * 0.14;
+      ctx.moveTo(w * 0.27, y);
+      ctx.lineTo(w * 0.18, y);
+      ctx.moveTo(w * 0.73, y);
+      ctx.lineTo(w * 0.82, y);
+    }
+    ctx.stroke();
+    ctx.fillStyle = '#536273';
+    ctx.font = '700 8px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('CI GENÉRICO', w / 2, h * 0.34);
+    ctx.font = '700 11px system-ui, sans-serif';
+    ctx.fillText(nomePorta, w / 2, h * 0.55);
+    ctx.font = '600 8px system-ui, sans-serif';
+    ctx.fillText('p1 · entrada', w * 0.3, h * 0.9);
+    ctx.fillText('p5 · saída', w * 0.7, h * 0.9);
+    ctx.restore();
+    return;
+  }
 
   if (opcao.subtitulo?.includes('Transistores') || opcao.titulo?.includes('Industrial')) {
     // ===== DESENHO DA OPÇÃO INDUSTRIAL (TRANSISTORES) =====
@@ -1302,7 +1757,7 @@ function trazerEsquemaIndustrial(circuito, gate, conexoesExternas, receita, font
  */
 export function executarTrazerAoProjeto(componente, modo, estado, aoFinalizar, avisarToast) {
   if (!componente || !estado?.circuito) return false;
-  const receitaCompleta = RECEITAS_MONTAGEM[componente.tipo];
+  const receitaCompleta = receitasDoComponente(componente);
   if (!receitaCompleta) return false;
 
   const receita = receitaCompleta[modo];
@@ -1436,6 +1891,10 @@ export function executarTrazerAoProjeto(componente, modo, estado, aoFinalizar, a
     y: centroY + dy,
     ...(rotacao === undefined ? {} : { rotacao }),
   });
+  const posicaoCentro = (tipoPeca, dx, dy) => {
+    const dimensoes = obterDimensoesComponente(tipoPeca);
+    return posicao(dx - dimensoes.w / 2, dy - dimensoes.h / 2);
+  };
   if (tipo === 'BUFFER') {
     posicoesRelativas.industrial = {
       InA: posicao(-250, 0), R1: posicao(-150, 0), Q1: posicao(-50, 0),
@@ -1467,6 +1926,92 @@ export function executarTrazerAoProjeto(componente, modo, estado, aoFinalizar, a
       Q1: posicao(-120, -260), Q2: posicao(80, -260),
       R1: posicao(-120, -360), R2: posicao(80, -360),
       R3: posicao(-220, -260), R4: posicao(-20, -260), R5: posicao(200, 30),
+    };
+  } else if (tipo === 'DISPLAY_7SEG') {
+    const layoutDisplay = {};
+    const anodoComum = componente.propriedades?.tipo === 'ânodo comum';
+    const segmentos = {
+      a: { x: 0, y: -130, rotacao: 0 },
+      b: { x: 55, y: -65, rotacao: 90 },
+      c: { x: 55, y: 65, rotacao: 90 },
+      d: { x: 0, y: 130, rotacao: 0 },
+      e: { x: -55, y: 65, rotacao: 90 },
+      f: { x: -55, y: -65, rotacao: 90 },
+      g: { x: 0, y: 0, rotacao: 0 },
+    };
+    const resistores = {
+      a: { x: 0, y: -200 },
+      b: { x: 145, y: -65 },
+      c: { x: 145, y: 65 },
+      d: { x: 0, y: 200 },
+      e: { x: -145, y: 65 },
+      f: { x: -145, y: -65 },
+      g: { x: -145, y: 0 },
+    };
+    const comuns = anodoComum
+      ? {
+        a: { x: -80, y: -130 },
+        b: { x: 100, y: -85 },
+        c: { x: 100, y: 45 },
+        d: { x: -80, y: 130 },
+        e: { x: -100, y: 45 },
+        f: { x: -100, y: -85 },
+        g: { x: -80, y: 0 },
+      }
+      : {
+        a: { x: 80, y: -130 },
+        b: { x: 100, y: -45 },
+        c: { x: 100, y: 85 },
+        d: { x: 80, y: 130 },
+        e: { x: -100, y: 85 },
+        f: { x: -100, y: -45 },
+        g: { x: 80, y: 0 },
+      };
+    SEGMENTOS_DISPLAY.forEach((segmento) => {
+      const geometria = segmentos[segmento];
+      layoutDisplay[`R${segmento}`] = posicaoCentro(
+        'RESISTOR',
+        resistores[segmento].x,
+        resistores[segmento].y
+      );
+      layoutDisplay[`LED${segmento}`] = {
+        ...posicaoCentro('LED', geometria.x, geometria.y),
+        rotacao: geometria.rotacao,
+      };
+      layoutDisplay[`COM${segmento.toUpperCase()}`] = posicaoCentro(
+        'NO',
+        comuns[segmento].x,
+        comuns[segmento].y
+      );
+    });
+    posicoesRelativas.industrial = layoutDisplay;
+    posicoesRelativas.didatica = layoutDisplay;
+  } else if (tipo === 'AMP_OP') {
+    const layoutAmpOp = {
+      RINP: posicao(-260, -80),
+      RINM: posicao(-260, 80),
+      Q1: posicao(-100, -80),
+      Q2: posicao(-100, 80),
+      RC1: posicao(20, -130),
+      RC2: posicao(20, 30),
+      RT: posicao(-80, 190),
+      VP: posicao(180, -150),
+      VN: posicao(180, 190),
+      OUT: posicao(300, 30),
+      Q3: posicao(180, 20),
+      RL: posicao(300, 100),
+    };
+    posicoesRelativas.industrial = layoutAmpOp;
+    posicoesRelativas.didatica = layoutAmpOp;
+  } else if (tipo === 'CI_GENERICO') {
+    posicoesRelativas.industrial = {
+      U1: posicao(-40, -20),
+      NC2: posicao(-150, 100),
+      NC3: posicao(-100, 120),
+      NC4: posicao(-50, 130),
+      NC6: posicao(30, 130),
+      NC7: posicao(80, 120),
+      NC8: posicao(130, 100),
     };
   }
 
@@ -1506,7 +2051,11 @@ export function executarTrazerAoProjeto(componente, modo, estado, aoFinalizar, a
       if (peca.rotacao !== undefined) novo.rotacao = peca.rotacao;
       if (peca.propriedades) Object.assign(novo.propriedades, peca.propriedades);
       if (peca.ref === 'V1') novo.propriedades.montagemInterna = true;
-      if (nomeCustom) novo.nomeCustom = `${nomeCustom} - ${peca.ref}`;
+      if (nomeCustom) {
+        novo.nomeCustom = `${nomeCustom} - ${peca.ref}`;
+      } else if (['DISPLAY_7SEG', 'AMP_OP', 'CI_GENERICO'].includes(tipo) && peca.rotulo) {
+        novo.nomeCustom = peca.rotulo;
+      }
       novosComps[peca.ref] = novo;
     }
   });

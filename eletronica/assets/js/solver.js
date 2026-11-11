@@ -1026,8 +1026,31 @@ function finalizar(circuito, nos, pinoParaNo, V, convergiu, avisos) {
     if (comp.tipo === 'LED') {
       const vd = (tensoes[`${comp.id}:p1`] ?? 0) - (tensoes[`${comp.id}:p2`] ?? 0);
       const { corrente } = modeloLED(vd, comp.propriedades);
+      const nominalConfigurada = Number(comp.propriedades?.correnteNominal);
+      const correnteNominal = Number.isFinite(nominalConfigurada) && nominalConfigurada > 0
+        ? nominalConfigurada
+        : 0.02;
+      const correnteMinima = Math.min(0.0001, correnteNominal * 0.01);
+      const correnteDireta = vd > 0 ? Math.max(0, corrente) : 0;
+      const t = Math.max(
+        0,
+        Math.min(1, (correnteDireta - correnteMinima) / (correnteNominal - correnteMinima))
+      );
+      const curva = Math.pow(t, 0.65);
+      const intensidade = correnteDireta < correnteMinima ? 0 : curva;
+
       comp.estado = comp.estado || {};
-      comp.estado.aceso = Math.abs(corrente) > 0.001;
+      comp.estado.corrente = correnteDireta;
+      comp.estado.intensidade = intensidade;
+      comp.estado.aceso = intensidade > 0;
+      comp.estado.sobrecorrente = correnteDireta > correnteNominal;
+
+      if (comp.estado.sobrecorrente) {
+        const nome = comp.nomeCustom || CATALOGO[comp.tipo]?.rotulo || 'LED';
+        avisos.push(
+          `Sobrecorrente no ${nome}: ${(correnteDireta * 1000).toFixed(1)} mA excede a corrente nominal de ${(correnteNominal * 1000).toFixed(1)} mA.`
+        );
+      }
     }
     if (def?.modelo === 'chave-controlada') {
       const noControle = pinoParaNo.get(`${comp.id}:controle`);

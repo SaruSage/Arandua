@@ -960,7 +960,7 @@ test('clicar em uma entrada do exemplo OR acende e apaga o LED conforme a tabela
         preventDefault() {},
       };
       listeners.mousedown(evento);
-      listeners.mouseup();
+      listeners.mouseup({ button: 0 });
     };
 
     clicarChave(componentes.swA);
@@ -1032,7 +1032,7 @@ test('cliques nas chaves do AND industrial são independentes e só acendem o LE
         preventDefault() {},
       };
       listeners.mousedown(evento);
-      listeners.mouseup();
+      listeners.mouseup({ button: 0 });
       assert.equal(resultado.convergiu, true);
     };
 

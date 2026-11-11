@@ -46,6 +46,95 @@ export function snap(valor, tamanho = TAMANHO_GRADE) {
   return Math.round(valor / tamanho) * tamanho;
 }
 
+export function nomeVisivelComponente(comp) {
+  return String(comp?.nomeCustom || '')
+    .replace(/^Resistor do segmento\s+/i, 'R ')
+    .replace(/^LED do segmento\s+/i, 'LED ')
+    .replace(/^Barramento comum\s+/i, 'COM ');
+}
+
+export function projetarCentroNomeComponente(bounds, meiaLargura, meiaAltura, alvo, margem = 8) {
+  const minX = bounds.x - meiaLargura - margem;
+  const maxX = bounds.x + bounds.w + meiaLargura + margem;
+  const minY = bounds.y - meiaAltura - margem;
+  const maxY = bounds.y + bounds.h + meiaAltura + margem;
+  const x = Math.max(minX, Math.min(maxX, alvo.x));
+  const y = Math.max(minY, Math.min(maxY, alvo.y));
+
+  if (alvo.x >= minX && alvo.x <= maxX && alvo.y >= minY && alvo.y <= maxY) {
+    const distancias = [
+      { lado: 'esquerda', distancia: Math.abs(alvo.x - minX) },
+      { lado: 'direita', distancia: Math.abs(maxX - alvo.x) },
+      { lado: 'topo', distancia: Math.abs(alvo.y - minY) },
+      { lado: 'base', distancia: Math.abs(maxY - alvo.y) },
+    ];
+    const maisProximo = distancias.reduce((menor, atual) =>
+      atual.distancia < menor.distancia ? atual : menor
+    );
+    if (maisProximo.lado === 'esquerda') return { x: minX, y };
+    if (maisProximo.lado === 'direita') return { x: maxX, y };
+    if (maisProximo.lado === 'topo') return { x, y: minY };
+    return { x, y: maxY };
+  }
+
+  return { x, y };
+}
+
+export function layoutNomeComponente(ctx, comp, zoom = 1) {
+  if (!ctx || !comp?.nomeCustom) return null;
+
+  const escala = Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
+  const texto = nomeVisivelComponente(comp);
+  ctx.save();
+  ctx.font = `600 ${Math.max(9, 11 * escala)}px system-ui, sans-serif`;
+  const largura = ctx.measureText(texto).width + 6;
+  ctx.restore();
+
+  const altura = Math.max(12, 14 * escala);
+  const meiaLargura = largura / (2 * escala);
+  const meiaAltura = altura / (2 * escala);
+  const bounds = boundsDoComponente(comp);
+  const centroBounds = {
+    x: bounds.x + bounds.w / 2,
+    y: bounds.y + bounds.h / 2,
+  };
+  const posicao = comp.propriedades?.posicaoNome;
+  const alvo = Number.isFinite(posicao?.dx) && Number.isFinite(posicao?.dy)
+    ? { x: centroBounds.x + posicao.dx, y: centroBounds.y + posicao.dy }
+    : {
+      x: centroBounds.x,
+      y: bounds.y - 8 - meiaAltura,
+    };
+  const centro = projetarCentroNomeComponente(bounds, meiaLargura, meiaAltura, alvo);
+
+  return {
+    bounds,
+    centro,
+    meiaLargura,
+    meiaAltura,
+    largura,
+    altura,
+    texto,
+  };
+}
+
+export function componenteNomeEm(circuito, x, y, ctx, zoom = 1) {
+  for (let indice = circuito.componentes.length - 1; indice >= 0; indice--) {
+    const comp = circuito.componentes[indice];
+    const layout = layoutNomeComponente(ctx, comp, zoom);
+    if (!layout) continue;
+    if (
+      x >= layout.centro.x - layout.meiaLargura
+      && x <= layout.centro.x + layout.meiaLargura
+      && y >= layout.centro.y - layout.meiaAltura
+      && y <= layout.centro.y + layout.meiaAltura
+    ) {
+      return { comp, layout };
+    }
+  }
+  return null;
+}
+
 export function criarCanvas(elemento, estado) {
   const ctx = elemento.getContext('2d');
   if (estado && typeof estado.offsetOrigemX === 'undefined') {
@@ -187,7 +276,7 @@ export function criarCanvas(elemento, estado) {
   }
 
   function desenharSelecao(comp) {
-    const dim = CATALOGO[comp.tipo].dimensoes;
+    const dim = comp.dimensoes || CATALOGO[comp.tipo].dimensoes;
     const tela = mundoParaTela(comp.x, comp.y);
     const w = dim.w * view.zoom;
     const h = dim.h * view.zoom;
@@ -210,14 +299,9 @@ export function criarCanvas(elemento, estado) {
 
   function desenharNomeComponente(ctx, comp, view) {
     if (!comp.nomeCustom) return;
-
-    const bounds = boundsDoComponente(comp);
-    const centroX = bounds.x + bounds.w / 2;
-    const topoY = bounds.y;
-    const centro = mundoParaTela(centroX, topoY);
-
-    // Posiciona acima do componente
-    const y = centro.y - 10 * view.zoom;
+    const layout = layoutNomeComponente(ctx, comp, view.zoom);
+    if (!layout) return;
+    const centro = mundoParaTela(layout.centro.x, layout.centro.y);
 
     ctx.save();
     ctx.font = `600 ${Math.max(9, 11 * view.zoom)}px system-ui, sans-serif`;
@@ -225,18 +309,16 @@ export function criarCanvas(elemento, estado) {
     ctx.textBaseline = 'bottom';
 
     // Fundo suave para legibilidade sobre a grade
-    const largura = ctx.measureText(comp.nomeCustom).width;
-    const alturaFundo = Math.max(12, 14 * view.zoom);
     ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
     ctx.fillRect(
-      centro.x - largura / 2 - 3,
-      y - alturaFundo + 2,
-      largura + 6,
-      alturaFundo
+      centro.x - layout.largura / 2,
+      centro.y - layout.altura / 2,
+      layout.largura,
+      layout.altura
     );
 
     ctx.fillStyle = '#374151';
-    ctx.fillText(comp.nomeCustom, centro.x, y);
+    ctx.fillText(layout.texto, centro.x, centro.y + layout.altura / 2 - 2);
     ctx.restore();
   }
 
@@ -362,24 +444,18 @@ export function criarCanvas(elemento, estado) {
     }
   }
 
-  let nosAnimacaoRafId = null;
-
-  function loopAnimacaoNos() {
-    nosAnimacaoRafId = null;
-    if (ultimoRenderArgs) {
-      render(...ultimoRenderArgs);
-    }
-  }
-
-  /** Mantém a animação rodando enquanto existir nó solto durante a simulação. */
-  function atualizarAnimacaoNos(circuito) {
-    if (nosDesconectados(circuito).length > 0) {
-      if (!nosAnimacaoRafId) {
-        nosAnimacaoRafId = requestAnimationFrame(loopAnimacaoNos);
-      }
-    } else if (nosAnimacaoRafId) {
-      cancelAnimationFrame(nosAnimacaoRafId);
-      nosAnimacaoRafId = null;
+  let indicadoresAnimacaoRafId = null;
+  function atualizarAnimacaoIndicadores(circuito, fioSelecionadoId, fioFantasma) {
+    const animar = fioFantasma || circuito.fios.some((fio) => fio.id === fioSelecionadoId)
+      || nosDesconectados(circuito).length > 0;
+    if (animar && !indicadoresAnimacaoRafId) {
+      indicadoresAnimacaoRafId = requestAnimationFrame(() => {
+        indicadoresAnimacaoRafId = null;
+        if (ultimoRenderArgs) render(...ultimoRenderArgs);
+      });
+    } else if (!animar && indicadoresAnimacaoRafId) {
+      cancelAnimationFrame(indicadoresAnimacaoRafId);
+      indicadoresAnimacaoRafId = null;
     }
   }
 
@@ -405,7 +481,7 @@ export function criarCanvas(elemento, estado) {
 
     // Alerta de nós sem conexão durante a simulação
     desenharAlertaNosDesconectados(ctx, circuito, view);
-    atualizarAnimacaoNos(circuito);
+    atualizarAnimacaoIndicadores(circuito, fioSelecionadoId, fioFantasma);
 
     // Seleção de componentes
     for (const id of selecionados) {

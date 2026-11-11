@@ -9,7 +9,7 @@
  * - Setas dos transistores: simétricas, na direção da linha
  */
 
-import { CATALOGO } from './catalogo.js';
+import { CATALOGO, obterDimensoesComponente } from './catalogo.js';
 
 export const CORES = {
   traco: '#2b2b2b',
@@ -38,6 +38,141 @@ function preparar(ctx) {
   ctx.lineJoin = 'round';
   ctx.strokeStyle = CORES.traco;
   ctx.fillStyle = CORES.preenchimento;
+}
+
+function dimensoesDoComponente(comp) {
+  if (comp.tipo === 'LED' && comp.propriedades?.estilo === 'Alternativo') {
+    return obterDimensoesComponente(comp.tipo, comp.propriedades);
+  }
+  return comp.dimensoes || CATALOGO[comp.tipo]?.dimensoes || { w: 80, h: 60 };
+}
+
+function corComOpacidade(cor, opacidade) {
+  const hex = /^#([0-9a-f]{6})$/i.exec(cor);
+  if (!hex) return cor;
+  const valor = hex[1];
+  const r = parseInt(valor.slice(0, 2), 16);
+  const g = parseInt(valor.slice(2, 4), 16);
+  const b = parseInt(valor.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacidade})`;
+}
+
+function misturarCor(cor, corDestino, proporcao) {
+  const origem = /^#([0-9a-f]{6})$/i.exec(cor);
+  const destino = /^#([0-9a-f]{6})$/i.exec(corDestino);
+  if (!origem || !destino) return cor;
+  const t = Math.max(0, Math.min(1, proporcao));
+  const canais = [0, 2, 4].map((inicio) => {
+    const a = parseInt(origem[1].slice(inicio, inicio + 2), 16);
+    const b = parseInt(destino[1].slice(inicio, inicio + 2), 16);
+    return Math.round(a + (b - a) * t).toString(16).padStart(2, '0');
+  });
+  return `#${canais.join('')}`;
+}
+
+function desenharBrilhoLED(ctx, cx, cy, cor, intensidade) {
+  if (intensidade <= 0) return;
+  const raio = 14 + 30 * intensidade;
+  const grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, raio);
+  grad.addColorStop(0, corComOpacidade(cor, 0.58 * intensidade));
+  grad.addColorStop(0.55, corComOpacidade(cor, 0.26 * intensidade));
+  grad.addColorStop(0.82, corComOpacidade(cor, 0.08 * intensidade));
+  grad.addColorStop(1, corComOpacidade(cor, 0));
+  ctx.save();
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, raio, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function desenharBrilhoLEDAlternativo(ctx, x, y, w, cor, intensidade) {
+  if (intensidade <= 0) return;
+  const cx = x + w / 2;
+  const raio = (7 + 12 * intensidade) * 1.5;
+  const pontos = [
+    { x: cx, y: y + 6 },
+    { x: cx - 10, y: y + 18 },
+    { x: cx + 10, y: y + 18 },
+  ];
+
+  ctx.save();
+  for (const ponto of pontos) {
+    const grad = ctx.createRadialGradient(ponto.x, ponto.y, 1, ponto.x, ponto.y, raio);
+    grad.addColorStop(0, corComOpacidade(cor, 0.87 * intensidade));
+    grad.addColorStop(0.55, corComOpacidade(cor, 0.3 * intensidade));
+    grad.addColorStop(1, corComOpacidade(cor, 0));
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(ponto.x, ponto.y, raio, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function pinoLEDAlternativo(pino) {
+  if (pino.id === 'p1') return { x: -6, y: 23 };
+  if (pino.id === 'p2') return { x: 8, y: 18 };
+  return { x: pino.x, y: pino.y };
+}
+
+function desenharLEDAlternativo(ctx, x, y, w, h, cor, intensidade, sobrecorrente) {
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  const meiaLarguraCorpo = 11;
+  const topo = y + 1;
+  const base = y + 35;
+  const fimAnodo = cy + 23;
+  const fimCatodo = cy + 18;
+  const corEscura = misturarCor(cor, '#000000', 0.58);
+  const corClara = misturarCor(cor, '#ffffff', 0.5);
+  const corIluminada = misturarCor(corEscura, corClara, intensidade);
+
+  ctx.save();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#777f86';
+  ctx.beginPath();
+  ctx.moveTo(cx - 6, base);
+  ctx.lineTo(cx - 6, fimAnodo);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(cx + 8, base);
+  ctx.lineTo(cx + 8, fimCatodo);
+  ctx.stroke();
+
+  const contorno = sobrecorrente ? '#ff3b30' : CORES.traco;
+  ctx.beginPath();
+  ctx.moveTo(cx - meiaLarguraCorpo, base);
+  ctx.lineTo(cx - meiaLarguraCorpo, topo + 12);
+  ctx.bezierCurveTo(cx - meiaLarguraCorpo, topo + 4, cx - 7, topo, cx, topo);
+  ctx.bezierCurveTo(cx + 7, topo, cx + meiaLarguraCorpo, topo + 4, cx + meiaLarguraCorpo, topo + 12);
+  ctx.lineTo(cx + meiaLarguraCorpo, base);
+  ctx.quadraticCurveTo(cx, base + 2, cx - meiaLarguraCorpo, base);
+  ctx.closePath();
+  ctx.fillStyle = corIluminada;
+  ctx.fill();
+  ctx.lineWidth = sobrecorrente ? 2.5 : 1.8;
+  ctx.strokeStyle = sobrecorrente ? contorno : misturarCor(cor, '#000000', 0.45 + 0.2 * (1 - intensidade));
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(cx - meiaLarguraCorpo + 1, base - 5);
+  ctx.lineTo(cx + meiaLarguraCorpo - 1, base - 5);
+  ctx.lineTo(cx + meiaLarguraCorpo - 1, base - 2);
+  ctx.quadraticCurveTo(cx, base + 1, cx - meiaLarguraCorpo + 1, base - 2);
+  ctx.closePath();
+  ctx.fillStyle = misturarCor(corIluminada, '#ffffff', 0.04 + 0.14 * intensidade);
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(cx - meiaLarguraCorpo + 2, topo + 10);
+  ctx.quadraticCurveTo(cx - meiaLarguraCorpo + 3, topo + 2, cx, topo + 2);
+  ctx.quadraticCurveTo(cx - 2, topo + 2, cx - 2, topo + 10);
+  ctx.closePath();
+  ctx.fillStyle = misturarCor(corIluminada, '#ffffff', 0.02 + 0.34 * intensidade);
+  ctx.fill();
+  ctx.restore();
 }
 
 /**
@@ -550,35 +685,41 @@ export function desenharDIODO(ctx, comp, x, y, w, h) {
   ctx.stroke();
 }
 
-/**
- * LED: diodo com duas setas paralelas saindo na diagonal superior direita.
- * Setas cinzas quando apagado; coloridas com brilho quando aceso.
- */
+/** LED com emissão proporcional à corrente direta. */
 export function desenharLED(ctx, comp, x, y, w, h) {
-  desenharDIODO(ctx, comp, x, y, w, h);
   const cx = x + w / 2;
   const cy = y + h / 2;
   const tam = h * 0.38;
-  const aceso = comp.estado?.aceso === true;
   const cor = comp.propriedades?.cor || '#ff3b30';
+  const intensidade = Math.max(0, Math.min(1, Number(comp.estado?.intensidade) || 0));
+  const sobrecorrente = comp.estado?.sobrecorrente === true;
 
-  if (aceso) {
-    ctx.save();
-    const grad = ctx.createRadialGradient(cx, cy, 4, cx, cy, 32);
-    grad.addColorStop(0, cor + '99');
-    grad.addColorStop(0.6, cor + '33');
-    grad.addColorStop(1, cor + '00');
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, 32, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+  if (comp.propriedades?.estilo === 'Alternativo') {
+    desenharBrilhoLEDAlternativo(ctx, x, y, w, cor, intensidade);
+    desenharLEDAlternativo(ctx, x, y, w, h, cor, intensidade, sobrecorrente);
+    return;
   }
 
-  const corSeta = aceso ? cor : CORES.tracoFino;
-
+  desenharBrilhoLED(ctx, cx, cy, cor, intensidade);
+  desenharDIODO(ctx, comp, x, y, w, h);
   ctx.save();
-  ctx.globalAlpha = aceso ? 1 : 0.6;
+  ctx.beginPath();
+  ctx.moveTo(cx - tam, cy - tam);
+  ctx.lineTo(cx + tam, cy);
+  ctx.lineTo(cx - tam, cy + tam);
+  ctx.closePath();
+  ctx.globalAlpha = 0.3 + 0.7 * intensidade;
+  ctx.fillStyle = cor;
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = sobrecorrente ? '#ff3b30' : CORES.traco;
+  ctx.lineWidth = sobrecorrente ? 2.5 : TRACO;
+  ctx.stroke();
+  ctx.restore();
+
+  const corSeta = misturarCor(CORES.tracoFino, cor, intensidade);
+  ctx.save();
+  ctx.globalAlpha = 0.6 + 0.4 * intensidade;
   ctx.strokeStyle = corSeta;
   ctx.fillStyle = corSeta;
   ctx.lineWidth = 1.6;
@@ -1477,11 +1618,28 @@ function desenharPinosDoComponente(ctx, comp, dim) {
   const centroX = dim.w / 2;
   const centroY = dim.h / 2;
 
-  const pinos = comp.pinos || CATALOGO[comp.tipo]?.pinos || [];
+  const pinosBase = comp.pinos || CATALOGO[comp.tipo]?.pinos || [];
+  const estiloAlternativo = comp.tipo === 'LED' && comp.propriedades?.estilo === 'Alternativo';
+  const pinos = estiloAlternativo
+    ? pinosBase.map((pino) => ({ ...pino, ...pinoLEDAlternativo(pino) }))
+    : pinosBase;
 
   for (const pino of pinos) {
     const px = centroX + pino.x;
     const py = centroY + pino.y;
+
+    if (estiloAlternativo) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#b8b8b8';
+      ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = '#596168';
+      ctx.stroke();
+      ctx.restore();
+      continue;
+    }
 
     // O rótulo COM do DISPLAY_7SEG já é desenhado fora do corpo em desenharDISPLAY_7SEG
     const nome = (comp.tipo === 'DISPLAY_7SEG' && pino.id === 'com') ? '' : pino.nome;
@@ -1494,7 +1652,7 @@ function desenharPinosDoComponente(ctx, comp, dim) {
  * Desenha um componente completo com transformação uniforme.
  */
 export function desenharComponente(ctx, comp, telaX, telaY, escala) {
-  const dim = comp.dimensoes || CATALOGO[comp.tipo]?.dimensoes || { w: 80, h: 60 };
+  const dim = dimensoesDoComponente(comp);
   const cx = dim.w / 2;
   const cy = dim.h / 2;
 
@@ -1530,12 +1688,16 @@ export function desenharComponente(ctx, comp, telaX, telaY, escala) {
  */
 export function posicaoPino(comp, pinoOuId) {
   const pinos = comp.pinos || CATALOGO[comp.tipo]?.pinos || [];
-  const pino = (typeof pinoOuId === 'object' && pinoOuId !== null)
+  let pino = (typeof pinoOuId === 'object' && pinoOuId !== null)
     ? pinoOuId
     : pinos.find((p) => p.id === pinoOuId);
   if (!pino) return null;
 
-  const dim = comp.dimensoes || CATALOGO[comp.tipo]?.dimensoes || { w: 80, h: 60 };
+  if (comp.tipo === 'LED' && comp.propriedades?.estilo === 'Alternativo') {
+    pino = { ...pino, ...pinoLEDAlternativo(pino) };
+  }
+
+  const dim = dimensoesDoComponente(comp);
   const cx = dim.w / 2;
   const cy = dim.h / 2;
 
@@ -1550,4 +1712,45 @@ export function posicaoPino(comp, pinoOuId) {
     x: comp.x + cx + rotX,
     y: comp.y + cy + rotY,
   };
+}
+
+function distanciaPontoSegmento(px, py, ax, ay, bx, by) {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const comprimento = dx * dx + dy * dy;
+  const t = comprimento
+    ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / comprimento))
+    : 0;
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+
+export function terminalLEDAlternativoEm(comp, x, y, tolerancia = 5) {
+  if (comp.tipo !== 'LED' || comp.propriedades?.estilo !== 'Alternativo') return null;
+  const dim = dimensoesDoComponente(comp);
+  const cx = comp.x + dim.w / 2;
+  const cy = comp.y + dim.h / 2;
+  const rad = -((comp.rotacao || 0) * Math.PI) / 180;
+  const dx = x - cx;
+  const dy = y - cy;
+  const localX = dx * Math.cos(rad) - dy * Math.sin(rad);
+  const localY = dx * Math.sin(rad) + dy * Math.cos(rad);
+  const trajetorias = {
+    p1: [[-6, 11], [-6, 23]],
+    p2: [[8, 11], [8, 18]],
+  };
+  let terminal = null;
+  let menorDistancia = tolerancia;
+
+  for (const [id, pontos] of Object.entries(trajetorias)) {
+    for (let i = 1; i < pontos.length; i++) {
+      const [ax, ay] = pontos[i - 1];
+      const [bx, by] = pontos[i];
+      const distancia = distanciaPontoSegmento(localX, localY, ax, ay, bx, by);
+      if (distancia <= menorDistancia) {
+        menorDistancia = distancia;
+        terminal = id;
+      }
+    }
+  }
+  return terminal;
 }

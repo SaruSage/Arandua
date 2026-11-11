@@ -8,6 +8,8 @@
  * - Redo é limpo quando uma nova ação é registrada
  */
 
+import { obterDimensoesComponente } from './catalogo.js';
+
 const LIMITE = 50;
 const JANELA_AGRUPAMENTO_MS = 300;
 
@@ -45,6 +47,7 @@ function snapshot(circuito) {
       nome: g.nome,
       membros: [...g.membros],
       cor: g.cor,
+      ...(g.posicaoNome ? { posicaoNome: { ...g.posicaoNome } } : {}),
       x: g.x ?? g.bounds?.x ?? 0,
       y: g.y ?? g.bounds?.y ?? 0,
       w: g.w ?? g.bounds?.w ?? 0,
@@ -71,7 +74,7 @@ function reconstruir(snap, CATALOGO) {
       ...(c.nomeCustom ? { nomeCustom: c.nomeCustom } : {}),
       propriedades: { ...def.padrao, ...c.propriedades },
       pinos: def.pinos.map((p) => ({ ...p })),
-      dimensoes: { ...def.dimensoes },
+      dimensoes: obterDimensoesComponente(c.tipo, { ...def.padrao, ...c.propriedades }),
       estado: {},
     };
   }).filter(Boolean);
@@ -89,6 +92,7 @@ function reconstruir(snap, CATALOGO) {
     nome: g.nome,
     membros: [...g.membros],
     cor: g.cor,
+    ...(g.posicaoNome ? { posicaoNome: { ...g.posicaoNome } } : {}),
     x: g.x ?? g.bounds?.x ?? 0,
     y: g.y ?? g.bounds?.y ?? 0,
     w: g.w ?? g.bounds?.w ?? 0,

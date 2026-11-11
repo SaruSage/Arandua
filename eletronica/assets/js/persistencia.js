@@ -14,7 +14,7 @@
  * }
  */
 
-import { CATALOGO } from './catalogo.js';
+import { CATALOGO, obterDimensoesComponente } from './catalogo.js';
 import { calcularBounds } from './grupos.js';
 
 const CHAVE_LOCALSTORAGE = 'eletronica:circuito-autosave';
@@ -53,6 +53,7 @@ export function serializar(estado) {
     nome: g.nome,
     membros: [...g.membros],
     cor: g.cor,
+    ...(g.posicaoNome ? { posicaoNome: { ...g.posicaoNome } } : {}),
     x: g.x ?? g.bounds?.x ?? 0,
     y: g.y ?? g.bounds?.y ?? 0,
     w: g.w ?? g.bounds?.w ?? 0,
@@ -188,7 +189,7 @@ export function reconstruir(dados) {
       ...(comp.nomeCustom ? { nomeCustom: String(comp.nomeCustom).slice(0, 15) } : {}),
       propriedades: { ...def.padrao, ...comp.propriedades },
       pinos: def.pinos.map((p) => ({ ...p })),
-      dimensoes: { ...def.dimensoes },
+      dimensoes: obterDimensoesComponente(comp.tipo, { ...def.padrao, ...comp.propriedades }),
       estado: {},
     };
   }).filter(Boolean);
@@ -217,6 +218,9 @@ export function reconstruir(dados) {
       .map((id) => idsReparados.get(id) || id)
       .filter((id) => idsComponentes.has(id) || idsGrupos.has(id)),
     cor: g.cor || '#53b588',
+    ...(g.posicaoNome && Number.isFinite(g.posicaoNome.fracao) &&
+      ['topo', 'base'].includes(g.posicaoNome.lado)
+      ? { posicaoNome: { fracao: Math.max(0, Math.min(1, g.posicaoNome.fracao)), lado: g.posicaoNome.lado } } : {}),
     x: g.x ?? g.bounds?.x ?? 0,
     y: g.y ?? g.bounds?.y ?? 0,
     w: g.w ?? g.bounds?.w ?? 0,

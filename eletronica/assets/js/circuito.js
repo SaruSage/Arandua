@@ -3,7 +3,7 @@
  * Não desenha nada; só guarda e manipula dados.
  */
 
-import { criarInstancia, CATALOGO } from './catalogo.js';
+import { criarInstancia, CATALOGO, obterDimensoesComponente } from './catalogo.js';
 
 export function criarCircuito() {
   return {
@@ -58,7 +58,9 @@ export function componenteEm(circuito, x, y) {
       }
       continue;
     }
-    const dim = CATALOGO[c.tipo].dimensoes;
+    const dim = c.tipo === 'LED' && c.propriedades?.estilo === 'Alternativo'
+      ? obterDimensoesComponente(c.tipo, c.propriedades)
+      : c.dimensoes || CATALOGO[c.tipo].dimensoes;
     if (
       x >= c.x - 10 && x <= c.x + dim.w + 10 &&
       y >= c.y - 10 && y <= c.y + dim.h + 10
@@ -95,5 +97,7 @@ export function atualizarPropriedade(circuito, id, chave, valor) {
 export function dimensoes(circuito, id) {
   const c = buscarComponente(circuito, id);
   if (!c) return { w: 0, h: 0 };
-  return CATALOGO[c.tipo].dimensoes;
+  return c.tipo === 'LED' && c.propriedades?.estilo === 'Alternativo'
+    ? obterDimensoesComponente(c.tipo, c.propriedades)
+    : c.dimensoes || CATALOGO[c.tipo].dimensoes;
 }

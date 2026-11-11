@@ -5,8 +5,14 @@
 import { componenteEm, moverComponente, rotacionarComponente } from './circuito.js';
 import { CATALOGO } from './catalogo.js';
 import { registrar } from './historico.js';
-import { recalcularMembros, pontoDentroDoGrupo } from './grupos.js';
-import { snap, TAMANHO_GRADE } from './canvas.js';
+import { recalcularMembros, pontoDentroDoGrupo, sincronizarVerticesVinculados } from './grupos.js';
+import {
+  componenteNomeEm,
+  layoutNomeComponente,
+  projetarCentroNomeComponente,
+  snap,
+  TAMANHO_GRADE,
+} from './canvas.js';
 import { posicaoPino } from './simbolos.js';
 
 const TOLERANCIA = 8; // px
@@ -22,7 +28,58 @@ export function configurarInteracao(canvas, estado, aoMudar) {
     estado.recalcular?.();
   };
   let arrastando = null;
+  let arrastandoNomeComponente = null;
   let panIniciado = null;
+  const contextoNome = el.getContext?.('2d') || null;
+  estado.componenteNomeEm = (x, y) =>
+    Boolean(componenteNomeEm(estado.circuito, x, y, contextoNome, canvas.view.zoom));
+
+  function atualizarNomeComponente(e) {
+    if (!arrastandoNomeComponente) return;
+    const rect = el.getBoundingClientRect();
+    const mundo = canvas.telaParaMundo(e.clientX - rect.left, e.clientY - rect.top);
+    const { comp, deslocamentoCursor, centroInicial } = arrastandoNomeComponente;
+    const layout = layoutNomeComponente(contextoNome, comp, canvas.view.zoom);
+    if (!layout) return;
+
+    const centro = projetarCentroNomeComponente(
+      layout.bounds,
+      layout.meiaLargura,
+      layout.meiaAltura,
+      {
+        x: mundo.x - deslocamentoCursor.x,
+        y: mundo.y - deslocamentoCursor.y,
+      }
+    );
+    const centroBoundsX = layout.bounds.x + layout.bounds.w / 2;
+    const centroBoundsY = layout.bounds.y + layout.bounds.h / 2;
+    comp.propriedades.posicaoNome = {
+      dx: centro.x - centroBoundsX,
+      dy: centro.y - centroBoundsY,
+    };
+    if (!arrastandoNomeComponente.moveu && Math.hypot(
+      centro.x - centroInicial.x,
+      centro.y - centroInicial.y
+    ) > 2) {
+      arrastandoNomeComponente.moveu = true;
+    }
+    aoMudar();
+  }
+
+  function finalizarNomeComponente() {
+    if (!arrastandoNomeComponente) return;
+    const { comp, posicaoInicial, moveu } = arrastandoNomeComponente;
+    arrastandoNomeComponente = null;
+    if (moveu) {
+      registrar(estado.circuito, 'mover nome', true);
+    } else if (posicaoInicial) {
+      comp.propriedades.posicaoNome = posicaoInicial;
+    } else {
+      delete comp.propriedades.posicaoNome;
+    }
+    el.style.cursor = 'default';
+    aoMudar();
+  }
 
   function atualizarPan(e) {
     if (!panIniciado) return;
@@ -174,6 +231,33 @@ export function configurarInteracao(canvas, estado, aoMudar) {
     const my = e.clientY - rect.top;
     const mundo = canvas.telaParaMundo(mx, my);
 
+    if (e.button === 2) {
+      const nome = componenteNomeEm(
+        estado.circuito,
+        mundo.x,
+        mundo.y,
+        contextoNome,
+        canvas.view.zoom
+      );
+      if (nome) {
+        const posicaoInicial = nome.comp.propriedades?.posicaoNome;
+        arrastandoNomeComponente = {
+          comp: nome.comp,
+          posicaoInicial: posicaoInicial ? { ...posicaoInicial } : null,
+          centroInicial: { ...nome.layout.centro },
+          deslocamentoCursor: {
+            x: mundo.x - nome.layout.centro.x,
+            y: mundo.y - nome.layout.centro.y,
+          },
+          moveu: false,
+        };
+        el.style.cursor = 'grabbing';
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
+    }
+
     // Pan com botão do meio ou Shift
     if (e.button === 1 || e.shiftKey) {
       panIniciado = { x: mx, y: my, panX: canvas.view.panX, panY: canvas.view.panY };
@@ -182,11 +266,11 @@ export function configurarInteracao(canvas, estado, aoMudar) {
       return;
     }
 
-    if (e.button !== 0) return;
-
     const comp = componenteEm(estado.circuito, mundo.x, mundo.y);
+    if (e.button !== 0 && !(e.button === 2 && comp?.tipo === 'NO')) return;
 
     if (comp) {
+      if (e.button === 2) estado.limparSelecaoFio?.();
       estado.grupoSelecionadoId = null;
       if (e.ctrlKey || e.metaKey) {
         // Alterna seleção
@@ -214,10 +298,17 @@ export function configurarInteracao(canvas, estado, aoMudar) {
         ids: [...estado.selecionados],
         inicio: { x: mundo.x, y: mundo.y },
         posicoesIniciais,
+        botao: e.button,
         movido: false,
       };
 
       if (estado.selecionados.length > 1) {
+        const vinculos = new Set(
+          estado.circuito.grupos
+            .filter((grupo) => estado.selecionados.includes(grupo.id))
+            .flatMap((grupo) => (grupo.vertices || []).map((vertice) => vertice.vinculoId))
+            .filter(Boolean)
+        );
         estado.arrastoInicial = {
           tipo: 'selecao',
           itens: estado.selecionados.map((id) => {
@@ -225,7 +316,8 @@ export function configurarInteracao(canvas, estado, aoMudar) {
             return c ? { id: c.id, x: c.x, y: c.y, rotacao: c.rotacao } : null;
           }).filter(Boolean),
           grupos: estado.circuito.grupos
-            .filter((g) => estado.selecionados.includes(g.id))
+            .filter((g) => estado.selecionados.includes(g.id) ||
+              (g.vertices || []).some((vertice) => vinculos.has(vertice.vinculoId)))
             .map((g) => ({
               id: g.id,
               x: g.x,
@@ -248,6 +340,7 @@ export function configurarInteracao(canvas, estado, aoMudar) {
 
       el.style.cursor = 'grabbing';
       estado.abrirPopupEntidade?.('comp', comp.id);
+      if (e.button === 2) e.preventDefault();
     } else {
       // Recalcula membros das áreas que estavam selecionadas
       for (const id of estado.selecionados) {
@@ -259,7 +352,9 @@ export function configurarInteracao(canvas, estado, aoMudar) {
       estado.selecionados = [];
       estado.grupoSelecionadoId = null;
 
-      if (estado.popupAtivo) {
+      if (estado.fecharPopupsNaoFixados) {
+        estado.fecharPopupsNaoFixados();
+      } else if (estado.popupAtivo) {
         const cfg = estado.popups?.[estado.popupAtivo];
         if (!cfg || !cfg.fixado) {
           delete estado.popups[estado.popupAtivo];
@@ -385,13 +480,18 @@ export function configurarInteracao(canvas, estado, aoMudar) {
     if (typeof recalcular === 'function') recalcular();
   });
 
-  el.addEventListener('mousemove', (e) => {
+  function moverInteracao(e) {
     const rect = el.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
     const mundo = canvas.telaParaMundo(mx, my);
     if (typeof estado !== 'undefined' && estado) {
       estado.ultimoMouse = mundo;
+    }
+
+    if (arrastandoNomeComponente) {
+      atualizarNomeComponente(e);
+      return;
     }
 
     if (panIniciado) {
@@ -477,10 +577,11 @@ export function configurarInteracao(canvas, estado, aoMudar) {
             g.bounds.y += dy;
           }
           if (g.vertices) {
-            g.vertices = g.vertices.map((v) => ({ x: v.x + dx, y: v.y + dy }));
+            g.vertices = g.vertices.map((v) => ({ ...v, x: v.x + dx, y: v.y + dy }));
           }
         }
       }
+      sincronizarVerticesVinculados(estado.circuito, idsSelecionados);
 
       // Move as dobras dos fios cujos DOIS extremos estão selecionados
       for (const fio of estado.circuito.fios) {
@@ -499,24 +600,32 @@ export function configurarInteracao(canvas, estado, aoMudar) {
 
     const comp = componenteEm(estado.circuito, mundo.x, mundo.y);
     el.style.cursor = comp ? 'grab' : 'default';
-  });
+  }
+
+  el.addEventListener('mousemove', moverInteracao);
 
   window.addEventListener('mousemove', (e) => {
     if (panIniciado && e.target !== el) atualizarPan(e);
+    else if ((arrastandoNomeComponente || arrastando?.botao === 2) && e.target !== el) {
+      moverInteracao(e);
+    }
   });
 
-  el.addEventListener('mouseup', () => {
-    finalizarArrasto();
+  el.addEventListener('mouseup', (e) => {
+    if (arrastandoNomeComponente && e.button === 2) finalizarNomeComponente();
+    if (arrastando && e.button === arrastando.botao) finalizarArrasto();
     finalizarPan();
     el.style.cursor = 'default';
   });
 
   el.addEventListener('mouseleave', () => {
-    if (panIniciado) return;
-    finalizarArrasto();
+    if (panIniciado || arrastando?.botao === 2) return;
+    if (arrastando) finalizarArrasto();
   });
 
   window.addEventListener('mouseup', (e) => {
+    if (arrastandoNomeComponente && e.button === 2) finalizarNomeComponente();
+    if (arrastando && e.button === arrastando.botao) finalizarArrasto();
     if (e.button === 0) finalizarPan();
   });
 
@@ -556,6 +665,17 @@ export function configurarInteracao(canvas, estado, aoMudar) {
     }
 
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+
+    if (arrastandoNomeComponente) {
+      const { comp, posicaoInicial } = arrastandoNomeComponente;
+      arrastandoNomeComponente = null;
+      if (posicaoInicial) comp.propriedades.posicaoNome = posicaoInicial;
+      else delete comp.propriedades.posicaoNome;
+      el.style.cursor = 'default';
+      e.preventDefault();
+      renderizarTudo();
+      return;
+    }
 
     if (e.key === 'Delete' || e.key === 'Backspace') {
       if (estado.selecionados.length > 0) {

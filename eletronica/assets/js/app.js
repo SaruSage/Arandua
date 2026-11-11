@@ -3,8 +3,13 @@
  * Monta a interface, paleta, canvas e painel.
  */
 
-import { CATALOGO, CATEGORIAS, itensDaCategoria } from './catalogo.js';
-import { criarCircuito, adicionarComponente, removerComponente } from './circuito.js';
+import { CATALOGO, CATEGORIAS, itensDaCategoria, obterDimensoesComponente } from './catalogo.js';
+import {
+  criarCircuito,
+  adicionarComponente,
+  removerComponente,
+  componenteEm,
+} from './circuito.js';
 import { criarCanvas } from './canvas.js';
 import { configurarInteracao } from './selecao.js';
 import { configurarFios, removerFio } from './fios.js';
@@ -375,6 +380,7 @@ function copiarGrupo(grupo) {
       idOriginal: g.id,
       nome: g.nome,
       cor: g.cor,
+      posicaoNome: g.posicaoNome ? { ...g.posicaoNome } : null,
       x: g.x,
       y: g.y,
       w: g.w,
@@ -389,6 +395,7 @@ function copiarGrupo(grupo) {
     tipo: 'grupo',
     nome: grupo.nome,
     cor: grupo.cor,
+    posicaoNome: grupo.posicaoNome ? { ...grupo.posicaoNome } : null,
     x: grupo.x,
     y: grupo.y,
     w: grupo.w,
@@ -472,7 +479,7 @@ function colarGrupo(mouse) {
       rotacao: c.rotacao,
       propriedades: { ...c.propriedades },
       pinos: def.pinos.map((p) => ({ ...p })),
-      dimensoes: { ...def.dimensoes },
+      dimensoes: obterDimensoesComponente(c.tipo, c.propriedades),
       estado: {},
     });
   }
@@ -506,6 +513,7 @@ function colarGrupo(mouse) {
       id: novoSubId,
       nome: sg.nome,
       cor: sg.cor,
+      posicaoNome: sg.posicaoNome ? { ...sg.posicaoNome } : null,
       x: sg.x + dx,
       y: sg.y + dy,
       w: sg.w,
@@ -532,6 +540,7 @@ function colarGrupo(mouse) {
     id: novoGrupoId,
     nome: t.nome,
     cor: t.cor,
+    posicaoNome: t.posicaoNome ? { ...t.posicaoNome } : null,
     x: t.x + dx,
     y: t.y + dy,
     w: t.w,
@@ -596,7 +605,7 @@ function colarComponentes(mouse) {
       rotacao: c.rotacao,
       propriedades: { ...c.propriedades },
       pinos: def.pinos.map((p) => ({ ...p })),
-      dimensoes: { ...def.dimensoes },
+      dimensoes: obterDimensoesComponente(c.tipo, c.propriedades),
       estado: {},
     };
     estado.circuito.componentes.push(novoComp);
@@ -757,6 +766,22 @@ function montarInterface() {
   estado.pararSimulacao = pararSimulacao;
   estado.recalcular = recalcular;
   canvas.redimensionar();
+
+  document.addEventListener('mousedown', (e) => {
+    if (e.target?.closest?.('.popup-propriedades')) return;
+
+    if (canvas.elemento.contains(e.target)) {
+      const rect = canvas.elemento.getBoundingClientRect();
+      const mundo = canvas.telaParaMundo(e.clientX - rect.left, e.clientY - rect.top);
+      const comp = componenteEm(estado.circuito, mundo.x, mundo.y);
+      if (comp && (
+        estado.popups[`comp:${comp.id}`]
+        || estado.popups[`montagem:${comp.id}`]
+      )) return;
+    }
+
+    fecharPopupsNaoFixados();
+  });
 
   try {
     // Recupera autosave, se existir
@@ -966,44 +991,45 @@ function montarInterface() {
 
   window.addEventListener('keydown', (e) => {
     if (e.target instanceof HTMLElement && (e.target.isContentEditable || ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName))) return;
+    const tecla = e.key.toLowerCase();
 
     if (e.key === 'Escape') {
       if (estado.popups['construir']) {
         fecharPopupConstruir();
       }
     }
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+    if ((e.ctrlKey || e.metaKey) && tecla === 'c') {
       e.preventDefault();
       copiarSelecionados();
       return;
     }
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+    if ((e.ctrlKey || e.metaKey) && tecla === 'v') {
       e.preventDefault();
       colar();
       return;
     }
-    if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+    if ((e.ctrlKey || e.metaKey) && tecla === 'd') {
       e.preventDefault();
       duplicarSelecionados();
       return;
     }
-    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    if ((e.ctrlKey || e.metaKey) && tecla === 's') {
       e.preventDefault();
       baixarArquivo(estado, 'circuito.json');
     }
-    if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
+    if ((e.ctrlKey || e.metaKey) && tecla === 'o') {
       e.preventDefault();
       document.getElementById('btn-abrir')?.click();
     }
-    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+    if ((e.ctrlKey || e.metaKey) && tecla === 'z' && !e.shiftKey) {
       e.preventDefault();
       document.getElementById('btn-desfazer')?.click();
     }
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+    if ((e.ctrlKey || e.metaKey) && (tecla === 'y' || (tecla === 'z' && e.shiftKey))) {
       e.preventDefault();
       document.getElementById('btn-refazer')?.click();
     }
-    if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+    if ((e.ctrlKey || e.metaKey) && tecla === 'e') {
       e.preventDefault();
       exportarPNG(estado.circuito, 'circuito.png');
     }
@@ -1399,21 +1425,24 @@ function montarCorpoPopup(corpo, tipo, id) {
   }
 }
 
-function fecharPopupsNaoFixados() {
+function removerPopupsTransitorios(exceto = []) {
+  const manter = new Set(exceto);
   let fechou = false;
   for (const [chave, cfg] of Object.entries(estado.popups || {})) {
-    if (!cfg.fixado) {
+    if (!cfg.fixado && !manter.has(chave)) {
       delete estado.popups[chave];
       fechou = true;
     }
   }
-  if (estado.popupAtivo) {
-    const cfg = estado.popups[estado.popupAtivo];
-    if (!cfg || !cfg.fixado) {
-      estado.popupAtivo = null;
-      fechou = true;
-    }
+  if (estado.popupAtivo && !estado.popups[estado.popupAtivo]) {
+    estado.popupAtivo = null;
+    fechou = true;
   }
+  return fechou;
+}
+
+function fecharPopupsNaoFixados() {
+  const fechou = removerPopupsTransitorios();
   if (fechou) {
     renderizarPopups(true);
   }
@@ -1454,6 +1483,8 @@ function abrirPopupEntidade(tipo, id) {
 
   if (tipo === 'montagem') {
     const chaveMontagem = `montagem:${id}`;
+    const chaveComp = `comp:${id}`;
+    removerPopupsTransitorios([chaveMontagem, chaveComp]);
     if (estado.popups[chaveMontagem]) {
       estado.zIndexPopup += 1;
       estado.popups[chaveMontagem].zIndex = estado.zIndexPopup;
@@ -1461,9 +1492,7 @@ function abrirPopupEntidade(tipo, id) {
       renderizarPopups(true);
       return;
     }
-
     const container = document.getElementById('popups-container');
-    const chaveComp = `comp:${id}`;
     const popupComp = estado.popups[chaveComp];
 
     let x, y;
@@ -1487,7 +1516,7 @@ function abrirPopupEntidade(tipo, id) {
     }
 
     estado.popups[chaveMontagem] = {
-      fixado: true,
+      fixado: false,
       minimizado: false,
       semAlfinete: false,
       x,
@@ -1521,13 +1550,8 @@ function abrirPopupEntidade(tipo, id) {
     return;
   }
 
-  // 1. Se o popup anterior não está fixado, remove
-  if (estado.popupAtivo && estado.popupAtivo !== chave) {
-    const anterior = estado.popups[estado.popupAtivo];
-    if (!anterior || !anterior.fixado) {
-      delete estado.popups[estado.popupAtivo];
-    }
-  }
+  const relacionados = tipo === 'comp' ? [chave, `montagem:${id}`] : [chave];
+  removerPopupsTransitorios(relacionados);
 
   // 2. Se a entidade já tem popup fixado, não cria outro
   if (estado.popups[chave]?.fixado) {
@@ -1784,11 +1808,13 @@ function renderizarPopups(forcar = false) {
 
     const ehGrupo = tipo === 'area' || tipo === 'grupo';
     const ehMontagem = tipo === 'montagem';
+    const ehComandos = tipo === 'comandos';
     const el = document.createElement('div');
     el.className =
       'popup-propriedades' +
       (ehGrupo ? ' popup-grupo' : '') +
       (ehMontagem ? ' popup-montagem-largo' : '') +
+      (ehComandos ? ' popup-comandos' : '') +
       (cfg.minimizado ? ' minimizado' : '');
     el.style.left = cfg.x + 'px';
     el.style.top = cfg.y + 'px';

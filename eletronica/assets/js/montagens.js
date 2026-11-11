@@ -6,6 +6,7 @@
  */
 
 import { posicaoPino } from './simbolos.js';
+import { obterDimensoesComponente } from './catalogo.js';
 
 /**
  * Estrutura de uma montagem:
@@ -428,8 +429,8 @@ export function desenharMontagem(ctx, montagem, desenharComponente, CATALOGO) {
     const compD = montagem.componentes[fio.para.comp];
     if (!compO || !compD) continue;
 
-    const pO = posicaoPino({ ...compO, x: compO.x, y: compO.y, pinos: CATALOGO[compO.tipo].pinos, dimensoes: CATALOGO[compO.tipo].dimensoes, rotacao: compO.rotacao || 0 }, fio.de.pino);
-    const pD = posicaoPino({ ...compD, x: compD.x, y: compD.y, pinos: CATALOGO[compD.tipo].pinos, dimensoes: CATALOGO[compD.tipo].dimensoes, rotacao: compD.rotacao || 0 }, fio.para.pino);
+    const pO = posicaoPino({ ...compO, pinos: CATALOGO[compO.tipo].pinos, dimensoes: obterDimensoesComponente(compO.tipo, compO.propriedades), rotacao: compO.rotacao || 0 }, fio.de.pino);
+    const pD = posicaoPino({ ...compD, pinos: CATALOGO[compD.tipo].pinos, dimensoes: obterDimensoesComponente(compD.tipo, compD.propriedades), rotacao: compD.rotacao || 0 }, fio.para.pino);
     if (!pO || !pD) continue;
     const x1 = pO.x;
     const y1 = pO.y;
@@ -447,7 +448,7 @@ export function desenharMontagem(ctx, montagem, desenharComponente, CATALOGO) {
   for (const comp of montagem.componentes) {
     const def = CATALOGO[comp.tipo];
     if (!def) continue;
-    const dim = def.dimensoes;
+    const dim = obterDimensoesComponente(comp.tipo, comp.propriedades);
 
     const compFake = {
       tipo: comp.tipo,

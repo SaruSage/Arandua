@@ -13,6 +13,7 @@
 import { CATALOGO } from './catalogo.js';
 import { registrar } from './historico.js';
 import { CORES } from './simbolos.js';
+import { componenteEm } from './circuito.js';
 
 export const CORES_GRUPO = [
   '#53b588', '#3a8fe8', '#8a4ae8', '#e84a9e', '#e05a5a',
@@ -201,6 +202,78 @@ function distanciaPontoSegmento(px, py, x1, y1, x2, y2) {
   return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
 }
 
+function anguloAlvoDeSnap(ponto, fixo) {
+  const dx = ponto.x - fixo.x;
+  const dy = ponto.y - fixo.y;
+  if (!dx && !dy) return null;
+
+  const angulo = Math.atan2(dy, dx);
+  const eixo = Math.round(angulo / (Math.PI / 2)) * (Math.PI / 2);
+  if (Math.abs(angulo - eixo) < 20 * Math.PI / 180) {
+    return eixo;
+  }
+  const diagonal = Math.round(angulo / (Math.PI / 4)) * (Math.PI / 4);
+  const ehDiagonal = Math.abs(Math.round(diagonal / (Math.PI / 4)) % 2) === 1;
+  return ehDiagonal && Math.abs(angulo - diagonal) < 15 * Math.PI / 180
+    ? diagonal
+    : null;
+}
+
+function eixoProximo(ponto, fixo, tolerancia) {
+  const dx = ponto.x - fixo.x;
+  const dy = ponto.y - fixo.y;
+  if (!dx && !dy) return null;
+  const angulo = ((Math.atan2(dy, dx) % Math.PI) + Math.PI) % Math.PI;
+  const horizontal = Math.min(angulo, Math.PI - angulo);
+  const vertical = Math.abs(angulo - Math.PI / 2);
+  if (horizontal < tolerancia) return 'x';
+  if (vertical < tolerancia) return 'y';
+  return null;
+}
+
+function intersecaoDirecionada(fixoA, anguloA, fixoB, anguloB) {
+  const ax = Math.cos(anguloA), ay = Math.sin(anguloA);
+  const bx = Math.cos(anguloB), by = Math.sin(anguloB);
+  const determinante = ax * by - ay * bx;
+  if (Math.abs(determinante) < 1e-8) return null;
+  const dx = fixoB.x - fixoA.x;
+  const dy = fixoB.y - fixoA.y;
+  const distancia = (dx * by - dy * bx) / determinante;
+  return { x: fixoA.x + distancia * ax, y: fixoA.y + distancia * ay };
+}
+
+function ajustarVerticeAoAngulo(grupo, indice, ponto) {
+  const vertices = grupo.vertices;
+  const anterior = vertices[(indice - 1 + vertices.length) % vertices.length];
+  const proximo = vertices[(indice + 1) % vertices.length];
+  const anguloAnterior = anguloAlvoDeSnap(ponto, anterior);
+  const anguloProximo = anguloAlvoDeSnap(ponto, proximo);
+  const eixoAnterior = eixoProximo(ponto, anterior, 22 * Math.PI / 180);
+  const eixoProximoAtual = eixoProximo(ponto, proximo, 22 * Math.PI / 180);
+
+  if (eixoAnterior && eixoProximoAtual && eixoAnterior !== eixoProximoAtual) {
+    const anguloX = eixoAnterior === 'x' ? 0 : Math.PI / 2;
+    const anguloY = eixoProximoAtual === 'x' ? 0 : Math.PI / 2;
+    return intersecaoDirecionada(anterior, anguloX, proximo, anguloY) || ponto;
+  }
+
+  if (anguloAnterior !== null && anguloProximo !== null) {
+    return intersecaoDirecionada(anterior, anguloAnterior, proximo, anguloProximo) || ponto;
+  }
+
+  if (anguloAnterior !== null) {
+    const anguloPreservado = Math.atan2(ponto.y - proximo.y, ponto.x - proximo.x);
+    return intersecaoDirecionada(anterior, anguloAnterior, proximo, anguloPreservado) || ponto;
+  }
+
+  if (anguloProximo !== null) {
+    const anguloPreservado = Math.atan2(ponto.y - anterior.y, ponto.x - anterior.x);
+    return intersecaoDirecionada(anterior, anguloPreservado, proximo, anguloProximo) || ponto;
+  }
+
+  return ponto;
+}
+
 /** Identifica a alça de canto ou lateral sob o ponto. */
 export function alcaEm(grupo, x, y, tolerancia = 9) {
   const cantos = cantosDoGrupo(grupo);
@@ -219,26 +292,47 @@ export function alcaEm(grupo, x, y, tolerancia = 9) {
   return null;
 }
 
-/** Redimensiona o contorno pela lateral sem mover seus componentes. */
-export function redimensionarLateral(grupo, aresta, x, y) {
+/** Translada uma aresta em um único eixo da tela, preservando sua geometria. */
+export function redimensionarLateral(grupo, aresta, x, y, inicio = null, verticesOriginais = null, eixo = null) {
   if (!grupo.vertices) grupo.vertices = cantosDoGrupo(grupo).map((ponto) => ({ ...ponto }));
 
   const quantidade = grupo.vertices.length;
   const indice = aresta % quantidade;
   const proximo = (indice + 1) % quantidade;
-  const a = grupo.vertices[indice];
-  const b = grupo.vertices[proximo];
-  const horizontal = Math.abs(a.y - b.y) < Math.abs(a.x - b.x);
+  const originais = verticesOriginais || grupo.vertices.map((ponto) => ({ ...ponto }));
+  const a = originais[indice];
+  const b = originais[proximo];
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const comprimento = Math.hypot(dx, dy);
+  if (!comprimento) return;
 
-  if (horizontal) {
-    a.y = y;
-    b.y = y;
-  } else {
-    a.x = x;
-    b.x = x;
-  }
+  const origem = inicio || { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  const deltaX = x - origem.x;
+  const deltaY = y - origem.y;
+  const eixoArrasto = eixo || (Math.abs(deltaX) >= Math.abs(deltaY) ? 'x' : 'y');
+  const deslocamentoX = eixoArrasto === 'x' ? deltaX : 0;
+  const deslocamentoY = eixoArrasto === 'y' ? deltaY : 0;
+  grupo.vertices[indice] = { ...a, x: a.x + deslocamentoX, y: a.y + deslocamentoY };
+  grupo.vertices[proximo] = { ...b, x: b.x + deslocamentoX, y: b.y + deslocamentoY };
 
   atualizarRetanguloBase(grupo);
+}
+
+function ajustarArestasVizinhas(grupo, aresta) {
+  const quantidade = grupo.vertices.length;
+  const indice = aresta % quantidade;
+  const proximo = (indice + 1) % quantidade;
+  const vizinhos = new Set([
+    (indice - 1 + quantidade) % quantidade,
+    (proximo + 1) % quantidade,
+  ]);
+  for (const indiceVizinho of vizinhos) {
+    const vertice = grupo.vertices[indiceVizinho];
+    const ajustado = ajustarVerticeAoAngulo(grupo, indiceVizinho, vertice);
+    grupo.vertices[indiceVizinho] = { ...vertice, x: ajustado.x, y: ajustado.y };
+    atualizarRetanguloBase(grupo);
+  }
 }
 
 /** Atualiza o retângulo base e os bounds após editar vértices. */
@@ -246,11 +340,37 @@ export function atualizarRetanguloBase(grupo) {
   atualizarGeometriaBase(grupo);
 }
 
+/** Calcula a caixa do nome e seu ponto de contato com o contorno. */
+export function caixaNomeGrupo(grupo) {
+  const b = geometria(grupo);
+  const largura = Math.min(Math.max(0, b.w), Math.max(70, grupo.nome.length * 7 + 16));
+  const fracao = Number.isFinite(grupo.posicaoNome?.fracao)
+    ? Math.max(0, Math.min(1, grupo.posicaoNome.fracao)) : 0;
+  const lado = grupo.posicaoNome?.lado === 'base' ? 'base' : 'topo';
+  const x = b.x + (b.w - largura) * fracao;
+  const centro = x + largura / 2;
+  const intersecoes = [];
+  const cantos = cantosDoGrupo(grupo);
+  for (let i = 0; i < cantos.length; i++) {
+    const a = cantos[i];
+    const prox = cantos[(i + 1) % cantos.length];
+    if (centro < Math.min(a.x, prox.x) || centro > Math.max(a.x, prox.x)) continue;
+    if (a.x === prox.x) {
+      if (centro === a.x) intersecoes.push(a.y, prox.y);
+    } else {
+      intersecoes.push(a.y + (prox.y - a.y) * (centro - a.x) / (prox.x - a.x));
+    }
+  }
+  const contato = intersecoes.length
+    ? (lado === 'base' ? Math.max(...intersecoes) : Math.min(...intersecoes))
+    : (lado === 'base' ? b.y + b.h : b.y);
+  return { x, y: lado === 'base' ? contato : contato - 18, largura, altura: 18, contato, lado };
+}
+
 /** Verifica se o ponto está sobre a caixa do nome do grupo. */
 export function noNome(grupo, x, y) {
-  const b = geometria(grupo);
-  const largura = Math.max(70, grupo.nome.length * 7 + 16);
-  return x >= b.x && x <= b.x + largura && y >= b.y - 22 && y <= b.y;
+  const caixa = caixaNomeGrupo(grupo);
+  return x >= caixa.x && x <= caixa.x + caixa.largura && y >= caixa.y && y <= caixa.y + caixa.altura;
 }
 
 function coordenadaDentroDoGrupo(grupo, x, y) {
@@ -450,18 +570,20 @@ export function subdividirAresta(grupo, aresta) {
 }
 
 /** Move um vértice do contorno. */
-export function moverVertice(grupo, indice, x, y) {
-  if (!grupo.vertices) grupo.vertices = cantosDoGrupo(grupo);
+export function moverVertice(grupo, indice, x, y, circuito = estado?.circuito) {
+  if (!grupo.vertices) grupo.vertices = cantosDoGrupo(grupo).map((ponto) => ({ ...ponto }));
   if (!grupo.vertices[indice]) return;
-  grupo.vertices[indice] = { x, y };
+  grupo.vertices[indice] = { ...grupo.vertices[indice], x, y };
   atualizarGeometriaBase(grupo);
+  if (circuito) sincronizarVerticesVinculados(circuito, [grupo.id]);
 }
 
-/** Remove um vértice, mantendo no mínimo quatro. */
+/** Remove um vértice do contorno. */
 export function removerVertice(grupo, indice) {
-  if (!grupo.vertices || grupo.vertices.length <= 4) return;
+  if (!grupo.vertices || !grupo.vertices[indice]) return false;
   grupo.vertices.splice(indice, 1);
   atualizarGeometriaBase(grupo);
+  return true;
 }
 
 /** Mantido por compatibilidade: a geometria do grupo é independente dos membros. */
@@ -472,8 +594,9 @@ export function atualizarTodosBounds() {}
 
 /** Remove um grupo, mantendo os componentes. */
 export function desfazerGrupo(circuito, grupoId) {
-  const existe = circuito.grupos.some((g) => g.id === grupoId);
-  if (!existe) return;
+  const grupo = circuito.grupos.find((g) => g.id === grupoId);
+  if (!grupo) return;
+  for (const vertice of grupo.vertices || []) removerVinculoVertice(circuito, vertice);
   circuito.grupos = circuito.grupos.filter((g) => g.id !== grupoId);
   // Remove referências de grupos pais
   for (const g of circuito.grupos) {
@@ -509,6 +632,72 @@ export function cabecalhoGrupoEm(circuito, x, y) {
   return null;
 }
 
+function verticeEm(circuito, x, y, tolerancia = 10) {
+  for (let i = circuito.grupos.length - 1; i >= 0; i--) {
+    const grupo = circuito.grupos[i];
+    const vertices = cantosDoGrupo(grupo);
+    for (let indice = 0; indice < vertices.length; indice++) {
+      if (Math.hypot(vertices[indice].x - x, vertices[indice].y - y) <= tolerancia) {
+        return { grupo, indice };
+      }
+    }
+  }
+  return null;
+}
+
+function indiceVerticeProximo(grupo, x, y, tolerancia) {
+  const vertices = cantosDoGrupo(grupo);
+  let indiceProximo = -1;
+  let menorDistancia = tolerancia;
+  for (let indice = 0; indice < vertices.length; indice++) {
+    const distancia = Math.hypot(vertices[indice].x - x, vertices[indice].y - y);
+    if (distancia <= menorDistancia) {
+      menorDistancia = distancia;
+      indiceProximo = indice;
+    }
+  }
+  return indiceProximo;
+}
+
+function garantirVertices(grupo) {
+  if (!grupo.vertices) grupo.vertices = cantosDoGrupo(grupo).map((ponto) => ({ ...ponto }));
+  return grupo.vertices;
+}
+
+function removerVinculoVertice(circuito, vertice) {
+  if (!vertice?.vinculoId) return;
+  const { vinculoId } = vertice;
+  delete vertice.vinculoId;
+  for (const grupo of circuito.grupos) {
+    for (const outro of grupo.vertices || []) {
+      if (outro.vinculoId === vinculoId) delete outro.vinculoId;
+    }
+  }
+}
+
+export function sincronizarVerticesVinculados(circuito, gruposOrigem) {
+  const idsOrigem = gruposOrigem ? new Set(gruposOrigem) : null;
+  const posicoes = new Map();
+  for (const grupo of circuito.grupos) {
+    if (idsOrigem && !idsOrigem.has(grupo.id)) continue;
+    for (const vertice of grupo.vertices || []) {
+      if (vertice.vinculoId) posicoes.set(vertice.vinculoId, { x: vertice.x, y: vertice.y });
+    }
+  }
+
+  const alterados = new Set();
+  for (const grupo of circuito.grupos) {
+    for (const vertice of grupo.vertices || []) {
+      const posicao = posicoes.get(vertice.vinculoId);
+      if (!posicao || (vertice.x === posicao.x && vertice.y === posicao.y)) continue;
+      vertice.x = posicao.x;
+      vertice.y = posicao.y;
+      alterados.add(grupo);
+    }
+  }
+  for (const grupo of alterados) atualizarRetanguloBase(grupo);
+}
+
 const tiposAgrupaveis = (comp) => {
   // Qualquer componente que não seja grupo entra
   return comp && comp.tipo !== 'GRUPO';
@@ -530,7 +719,7 @@ function moverMembro(id, dx, dy, movidos, circuito = estado?.circuito) {
     sub.x += dx;
     sub.y += dy;
     if (sub.vertices) {
-      sub.vertices = sub.vertices.map((v) => ({ x: v.x + dx, y: v.y + dy }));
+      sub.vertices = sub.vertices.map((v) => ({ ...v, x: v.x + dx, y: v.y + dy }));
     }
     sincronizarBounds(sub);
     for (const m of sub.membros) moverMembro(m, dx, dy, movidos, circuito);
@@ -559,13 +748,14 @@ export function moverGrupo(grupoOuCircuito, dxOuGrupoId, dyOuDx, dyOpcional) {
   grupo.x += dx;
   grupo.y += dy;
   if (grupo.vertices) {
-    grupo.vertices = grupo.vertices.map((v) => ({ x: v.x + dx, y: v.y + dy }));
+    grupo.vertices = grupo.vertices.map((v) => ({ ...v, x: v.x + dx, y: v.y + dy }));
   }
   sincronizarBounds(grupo);
 
   // Move APENAS os membros já registrados. Nenhuma aquisição.
   const movidos = new Set();
   for (const id of grupo.membros) moverMembro(id, dx, dy, movidos, circuito);
+  sincronizarVerticesVinculados(circuito, new Set([grupo.id, ...movidos]));
 
   // Move as dobras dos fios internos (ambos extremos membros)
   const membros = new Set([...grupo.membros, ...movidos]);
@@ -682,9 +872,9 @@ export function desenharGrupos(ctx, circuito, view, grupoSelecionadoId = null) {
     const cantos = cantosDoGrupo(grupo);
     const selecionado = grupo.id === grupoSelecionadoId;
     const pontosTela = cantos.map(tela);
-    const pos = geometria(grupo);
-    const nomeTela = tela({ x: pos.x, y: pos.y });
-    const larguraNome = Math.max(70, grupo.nome.length * 7 + 16) * view.zoom;
+    const caixaNome = caixaNomeGrupo(grupo);
+    const nomeTela = tela(caixaNome);
+    const larguraNome = caixaNome.largura * view.zoom;
 
     // 1) Desenha o preenchimento da área atual com o vazado das
     //    subáreas diretas
@@ -741,13 +931,14 @@ export function desenharGrupos(ctx, circuito, view, grupoSelecionadoId = null) {
     ctx.save();
     ctx.fillStyle = grupo.cor + 'dd';
     ctx.beginPath();
-    ctx.roundRect(nomeTela.x, nomeTela.y - 20 * view.zoom, larguraNome, 18 * view.zoom, [4, 4, 0, 0]);
+    ctx.roundRect(nomeTela.x, nomeTela.y, larguraNome, 18 * view.zoom, caixaNome.lado === 'topo' ? [4, 4, 0, 0] : [0, 0, 4, 4]);
     ctx.fill();
+    ctx.clip();
     ctx.fillStyle = '#ffffff';
     ctx.font = `600 ${10 * view.zoom}px system-ui, sans-serif`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(grupo.nome, nomeTela.x + 8 * view.zoom, nomeTela.y - 11 * view.zoom);
+    ctx.fillText(grupo.nome, nomeTela.x + 8 * view.zoom, nomeTela.y + 9 * view.zoom);
     ctx.restore();
 
     if (selecionado) {
@@ -808,10 +999,41 @@ export function configurarGrupos(canvas, estadoParam, aoMudar) {
   let selecaoIniciada = null; // { x1, y1, x2, y2 }
   let nomeEditando = null;    // { grupo, input }
   let arrastandoGrupo = null;
+  let arrastandoNome = null;
+  let verticeConexaoPendente = null;
 
   function telaParaMundo(e) {
     const rect = el.getBoundingClientRect();
     return canvas.telaParaMundo(e.clientX - rect.left, e.clientY - rect.top);
+  }
+
+  function moverNome(e) {
+    if (!arrastandoNome) return;
+    const mundo = telaParaMundo(e);
+    const { grupo, inicio, deslocamentoX } = arrastandoNome;
+    if (!arrastandoNome.moveu && Math.hypot(mundo.x - inicio.x, mundo.y - inicio.y) <= 2) return;
+    arrastandoNome.moveu = true;
+    const b = geometria(grupo);
+    const largura = caixaNomeGrupo(grupo).largura;
+    const disponivel = Math.max(0, b.w - largura);
+    const fracao = disponivel ? Math.max(0, Math.min(1, (mundo.x - deslocamentoX - b.x) / disponivel)) : 0;
+    grupo.posicaoNome = { fracao, lado: 'topo' };
+    const topo = caixaNomeGrupo(grupo).contato;
+    grupo.posicaoNome.lado = 'base';
+    const base = caixaNomeGrupo(grupo).contato;
+    grupo.posicaoNome.lado = Math.abs(mundo.y - topo) <= Math.abs(mundo.y - base) ? 'topo' : 'base';
+    aoMudar();
+  }
+
+  function finalizarNome(e) {
+    if (!arrastandoNome || e.button !== 2) return;
+    const moveu = arrastandoNome.moveu;
+    arrastandoNome = null;
+    window.removeEventListener('mousemove', moverNome);
+    window.removeEventListener('mouseup', finalizarNome);
+    el.style.cursor = 'default';
+    if (moveu) registrar(estado.circuito, 'mover-nome-area', true);
+    aoMudar();
   }
 
   function iniciarArrastoGrupo(grupo, inicio) {
@@ -823,6 +1045,19 @@ export function configurarGrupos(canvas, estadoParam, aoMudar) {
       ultimoY: inicio.y,
       moveu: false,
     };
+    const vinculos = new Set((grupo.vertices || []).map((vertice) => vertice.vinculoId).filter(Boolean));
+    const gruposVinculados = estado.circuito.grupos
+      .filter((item) => item.id !== grupo.id &&
+        (item.vertices || []).some((vertice) => vinculos.has(vertice.vinculoId)))
+      .map((item) => ({
+        id: item.id,
+        x: item.x,
+        y: item.y,
+        w: item.w,
+        h: item.h,
+        bounds: item.bounds ? { ...item.bounds } : null,
+        vertices: item.vertices ? item.vertices.map((vertice) => ({ ...vertice })) : null,
+      }));
     estado.arrastoInicial = {
       tipo: 'area',
       id: grupo.id,
@@ -832,6 +1067,7 @@ export function configurarGrupos(canvas, estadoParam, aoMudar) {
       h: grupo.h,
       bounds: grupo.bounds ? { ...grupo.bounds } : null,
       vertices: grupo.vertices ? grupo.vertices.map((v) => ({ ...v })) : null,
+      gruposVinculados,
       moveu: false,
     };
     el.style.cursor = 'grabbing';
@@ -877,25 +1113,46 @@ export function configurarGrupos(canvas, estadoParam, aoMudar) {
     }
   }
 
-  function iniciarRedimensionamento(grupo, alca) {
+  function iniciarRedimensionamento(grupo, alca, inicioCursor) {
     if (!grupo.vertices) grupo.vertices = cantosDoGrupo(grupo).map((ponto) => ({ ...ponto }));
+    const verticesOriginais = grupo.vertices.map((ponto) => ({ ...ponto }));
     const pontoInicial = alca.tipo === 'canto'
-      ? grupo.vertices[alca.indice]
-      : pontosMedios(grupo)[alca.indice];
+      ? verticesOriginais[alca.indice]
+      : pontosMedios({ ...grupo, vertices: verticesOriginais })[alca.indice];
+    const origemArrasto = inicioCursor || pontoInicial;
+    let eixoArrasto = null;
     let moveu = false;
-    const aoMover = (e) => {
+    const aplicarPosicao = (e) => {
       const mundo = telaParaMundo(e);
-      if (Math.hypot(mundo.x - pontoInicial.x, mundo.y - pontoInicial.y) > 0.5) moveu = true;
+      const referenciaMovimento = alca.tipo === 'lateral' ? origemArrasto : pontoInicial;
+      if (Math.hypot(mundo.x - referenciaMovimento.x, mundo.y - referenciaMovimento.y) > 0.5) moveu = true;
       if (!moveu) return;
       if (alca.tipo === 'canto') {
-        grupo.vertices[alca.indice] = { x: mundo.x, y: mundo.y };
+        const vertice = grupo.vertices[alca.indice];
+        const ajustado = ajustarVerticeAoAngulo(grupo, alca.indice, mundo);
+        grupo.vertices[alca.indice] = { ...vertice, x: ajustado.x, y: ajustado.y };
         atualizarRetanguloBase(grupo);
+        sincronizarVerticesVinculados(estado.circuito, [grupo.id]);
       } else {
-        redimensionarLateral(grupo, alca.indice, mundo.x, mundo.y);
+        if (!eixoArrasto) {
+          eixoArrasto = Math.abs(mundo.x - origemArrasto.x) >= Math.abs(mundo.y - origemArrasto.y)
+            ? 'x' : 'y';
+        }
+        grupo.vertices = verticesOriginais.map((ponto) => ({ ...ponto }));
+        redimensionarLateral(
+          grupo, alca.indice, mundo.x, mundo.y, origemArrasto, verticesOriginais, eixoArrasto
+        );
+        ajustarArestasVizinhas(grupo, alca.indice);
+        sincronizarVerticesVinculados(estado.circuito, [grupo.id]);
       }
+    };
+    const aoMover = (e) => {
+      aplicarPosicao(e);
+      if (!moveu) return;
       aoMudar();
     };
-    const aoSoltar = () => {
+    const aoSoltar = (e) => {
+      aplicarPosicao(e);
       window.removeEventListener('mousemove', aoMover);
       window.removeEventListener('mouseup', aoSoltar);
       el.style.cursor = 'default';
@@ -920,7 +1177,7 @@ export function configurarGrupos(canvas, estadoParam, aoMudar) {
       if (alca) {
         e.preventDefault();
         e.stopImmediatePropagation();
-        iniciarRedimensionamento(grupo, alca);
+        iniciarRedimensionamento(grupo, alca, mundo);
         return;
       }
     }
@@ -960,6 +1217,24 @@ export function configurarGrupos(canvas, estadoParam, aoMudar) {
   el.addEventListener('mousedown', (e) => {
     if (e.button !== 2) return;
     e.preventDefault();
+
+    const mundo = telaParaMundo(e);
+    if (estado.componenteNomeEm?.(mundo.x, mundo.y)) return;
+    const grupo = cabecalhoGrupoEm(estado.circuito, mundo.x, mundo.y);
+    if (grupo) {
+      const caixa = caixaNomeGrupo(grupo);
+      arrastandoNome = {
+        grupo, inicio: mundo, deslocamentoX: mundo.x - caixa.x,
+        posicaoInicial: grupo.posicaoNome ? { ...grupo.posicaoNome } : null,
+        moveu: false,
+      };
+      el.style.cursor = 'grabbing';
+      window.addEventListener('mousemove', moverNome);
+      window.addEventListener('mouseup', finalizarNome);
+      e.stopImmediatePropagation();
+      return;
+    }
+    if (componenteEm(estado.circuito, mundo.x, mundo.y)?.tipo === 'NO') return;
 
     const rect = el.getBoundingClientRect();
     const mx = e.clientX - rect.left;
@@ -1005,6 +1280,50 @@ export function configurarGrupos(canvas, estadoParam, aoMudar) {
     const rect = el.getBoundingClientRect();
     const mundo = canvas.telaParaMundo(e.clientX - rect.left, e.clientY - rect.top);
 
+    const alvoVertice = verticeEm(
+      estado.circuito, mundo.x, mundo.y, 8 / canvas.view.zoom
+    );
+    if (alvoVertice) {
+      e.preventDefault();
+      e.stopPropagation();
+      const { grupo, indice } = alvoVertice;
+      garantirVertices(grupo);
+      if (verticeConexaoPendente) {
+        const origem = estado.circuito.grupos.find(
+          (item) => item.id === verticeConexaoPendente.grupoId
+        );
+        const verticeOrigem = origem?.vertices?.[verticeConexaoPendente.indice];
+        const verticeDestino = grupo.vertices[indice];
+
+        if (origem && verticeOrigem && origem.id !== grupo.id &&
+            verticeOrigem.vinculoId && verticeOrigem.vinculoId === verticeDestino.vinculoId) {
+          removerVinculoVertice(estado.circuito, verticeOrigem);
+          registrar(estado.circuito, 'desconectar-vertices', true);
+          verticeConexaoPendente = null;
+          aoMudar();
+          return;
+        }
+
+        if (origem && verticeOrigem && origem.id !== grupo.id &&
+            !verticeOrigem.vinculoId && !verticeDestino.vinculoId) {
+          const vinculoId = `vinculo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          verticeOrigem.vinculoId = vinculoId;
+          verticeDestino.x = verticeOrigem.x;
+          verticeDestino.y = verticeOrigem.y;
+          verticeDestino.vinculoId = vinculoId;
+          atualizarRetanguloBase(origem);
+          atualizarRetanguloBase(grupo);
+          registrar(estado.circuito, 'conectar-vertices', true);
+          verticeConexaoPendente = null;
+          aoMudar();
+          return;
+        }
+      }
+
+      verticeConexaoPendente = { grupoId: grupo.id, indice };
+      return;
+    }
+
     const grupo = cabecalhoGrupoEm(estado.circuito, mundo.x, mundo.y);
     if (!grupo) return;
 
@@ -1015,10 +1334,10 @@ export function configurarGrupos(canvas, estadoParam, aoMudar) {
     if (nomeEditando) nomeEditando.remove();
 
     const rect = el.getBoundingClientRect();
-    const b = grupo.bounds || grupo;
+    const caixa = caixaNomeGrupo(grupo);
     const offX = canvas.view.offsetOrigemX || 0;
-    const x = b.x * canvas.view.zoom + canvas.view.panX + offX;
-    const y = b.y * canvas.view.zoom + canvas.view.panY;
+    const x = caixa.x * canvas.view.zoom + canvas.view.panX + offX;
+    const y = caixa.y * canvas.view.zoom + canvas.view.panY;
 
     const input = document.createElement('input');
     input.type = 'text';
@@ -1026,8 +1345,8 @@ export function configurarGrupos(canvas, estadoParam, aoMudar) {
     input.className = 'grupo-nome-input';
     input.style.position = 'absolute';
     input.style.left = `${x}px`;
-    input.style.top = `${y - 24}px`;
-    input.style.width = `${Math.max(120, b.w * canvas.view.zoom)}px`;
+    input.style.top = `${y}px`;
+    input.style.width = `${Math.max(120, caixa.largura * canvas.view.zoom)}px`;
     input.style.zIndex = '100';
 
     el.parentElement.appendChild(input);
@@ -1068,6 +1387,23 @@ export function configurarGrupos(canvas, estadoParam, aoMudar) {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
 
     if (e.key === 'Escape') {
+      if (verticeConexaoPendente) {
+        verticeConexaoPendente = null;
+        e.stopPropagation();
+        return;
+      }
+      if (arrastandoNome) {
+        const { grupo, posicaoInicial } = arrastandoNome;
+        if (posicaoInicial) grupo.posicaoNome = posicaoInicial;
+        else delete grupo.posicaoNome;
+        arrastandoNome = null;
+        window.removeEventListener('mousemove', moverNome);
+        window.removeEventListener('mouseup', finalizarNome);
+        el.style.cursor = 'default';
+        e.stopPropagation();
+        aoMudar();
+        return;
+      }
       if (estado.arrastoInicial?.tipo === 'area') {
         const a = estado.arrastoInicial;
         const grupo = estado.circuito.grupos.find((g) => g.id === a.id);
@@ -1078,6 +1414,16 @@ export function configurarGrupos(canvas, estadoParam, aoMudar) {
           grupo.h = a.h;
           if (a.bounds) grupo.bounds = { ...a.bounds };
           if (a.vertices) grupo.vertices = a.vertices.map((v) => ({ ...v }));
+        }
+        for (const info of a.gruposVinculados || []) {
+          const vinculado = estado.circuito.grupos.find((item) => item.id === info.id);
+          if (!vinculado) continue;
+          vinculado.x = info.x;
+          vinculado.y = info.y;
+          vinculado.w = info.w;
+          vinculado.h = info.h;
+          if (info.bounds) vinculado.bounds = { ...info.bounds };
+          if (info.vertices) vinculado.vertices = info.vertices.map((vertice) => ({ ...vertice }));
         }
         if (arrastandoGrupo) {
           arrastandoGrupo = null;
@@ -1121,6 +1467,24 @@ export function configurarGrupos(canvas, estadoParam, aoMudar) {
       );
       if (grupo) {
         e.preventDefault();
+        const indiceVertice = noContorno(grupo, mundo.x, mundo.y)
+          ? indiceVerticeProximo(grupo, mundo.x, mundo.y, 8 / canvas.view.zoom)
+          : -1;
+        if (indiceVertice >= 0) {
+          const vertices = garantirVertices(grupo);
+          removerVinculoVertice(estado.circuito, vertices[indiceVertice]);
+          removerVertice(grupo, indiceVertice);
+          if (grupo.vertices.length < 3) {
+            desfazerGrupo(estado.circuito, grupo.id);
+            if (estado.grupoSelecionadoId === grupo.id) estado.grupoSelecionadoId = null;
+            estado.selecionados = estado.selecionados.filter((id) => id !== grupo.id);
+          } else {
+            registrar(estado.circuito, 'remover-vertice', true);
+          }
+          aoMudar();
+          return;
+        }
+
         desfazerGrupo(estado.circuito, grupo.id);
         if (estado.grupoSelecionadoId === grupo.id) estado.grupoSelecionadoId = null;
         estado.selecionados = estado.selecionados.filter((id) => id !== grupo.id);

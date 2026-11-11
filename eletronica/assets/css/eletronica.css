@@ -314,6 +314,19 @@ html, body {
   z-index: 50;
 }
 
+.tooltip-terminal-led {
+  position: absolute;
+  z-index: 60;
+  padding: 4px 7px;
+  border-radius: 4px;
+  background: rgba(25, 25, 25, 0.92);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.2;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
 .popup-propriedades {
   position: absolute;
   pointer-events: auto;   /* o popup em si recebe eventos */
@@ -894,6 +907,23 @@ html, body {
   padding: 4px 0;
 }
 
+.popup-propriedades .painel-secao-simulacao {
+  margin: 20px 0 2px;
+  padding: 10px 10px 6px;
+  border: 1px solid var(--cor-borda);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.popup-propriedades .painel-secao-simulacao h4 {
+  margin: 0 0 8px;
+}
+
+.popup-propriedades .painel-secao-simulacao .painel-resultado {
+  margin: 0;
+  padding: 3px 0;
+}
+
 .painel-aviso {
   margin-top: 12px;
   padding: 10px 12px;
@@ -1280,6 +1310,16 @@ html, body {
   padding: 4px 0;
 }
 
+.comandos-secao {
+  padding-top: 5px;
+  border-bottom: 1px solid var(--cor-borda);
+  color: var(--cor-texto-sec);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .linha-comando {
   display: flex;
   align-items: center;
@@ -1314,6 +1354,11 @@ html, body {
 .comando-acao {
   color: var(--cor-texto);
   font-size: 0.8rem;
+}
+
+.popup-propriedades.popup-comandos:not(.minimizado) {
+  width: 336px;
+  max-width: calc(100vw - 32px);
 }
 
 @media (max-width: 1024px) {

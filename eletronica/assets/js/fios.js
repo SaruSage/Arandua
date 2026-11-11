@@ -10,12 +10,11 @@
  * - Clique num fio o seleciona; Delete remove o fio inteiro
  */
 
-import { CORES, posicaoPino } from './simbolos.js';
+import { CORES, posicaoPino, terminalLEDAlternativoEm } from './simbolos.js';
 import { registrar } from './historico.js';
 import { CATALOGO } from './catalogo.js';
 import { recalcularMembros } from './grupos.js';
 import { snap, TAMANHO_GRADE } from './canvas.js';
-import { componenteEm } from './circuito.js';
 
 export const CORES_FIO = [
   '#2b2b2b', '#e05a5a', '#e88a3a', '#e8c33a', '#8fbf3a',
@@ -234,13 +233,9 @@ export function dobraEm(circuito, x, y) {
 }
 
 /** Encontra o pino mais próximo do ponto. */
-export function pinoEm(circuito, x, y, iniciandoFio = false, permitirNoIniciando = false) {
+export function pinoEm(circuito, x, y) {
   for (let i = circuito.componentes.length - 1; i >= 0; i--) {
     const comp = circuito.componentes[i];
-    // Ao iniciar fio, o nó só responde se for explicitamente permitido (ex: Alt ou botão de puxar fio)
-    if (iniciandoFio && comp.tipo === 'NO' && !permitirNoIniciando) {
-      continue;
-    }
     const pinos = comp.pinos || CATALOGO[comp.tipo]?.pinos || [];
     const compComPinos = comp.pinos ? comp : { ...comp, pinos };
     for (const pino of pinos) {
@@ -407,9 +402,13 @@ export function desenharFios(ctx, circuito, view, fioSelecionadoId, dobraSelecio
     ctx.save();
     ctx.strokeStyle = fio.cor || CORES.traco;
     const espessuraBase = fio.espessura || 2;
-    ctx.lineWidth = (selecionado ? Math.max(espessuraBase + 1, 3) : espessuraBase) * view.zoom;
+    ctx.lineWidth = espessuraBase * view.zoom;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
+    if (selecionado) {
+      ctx.setLineDash([8 * view.zoom, 6 * view.zoom]);
+      ctx.lineDashOffset = -performance.now() * 0.025 * view.zoom;
+    }
     const pts = ptsMundo.map((p) => tela(p));
     desenharCaminhoArredondado(ctx, pts, RAIO_CURVA * view.zoom);
     ctx.restore();
@@ -443,6 +442,7 @@ export function desenharFioFantasma(ctx, view, origem, cursor, cor) {
   ctx.moveTo(origem.x * view.zoom + view.panX + offX, origem.y * view.zoom + view.panY);
   ctx.lineTo(cursor.x, cursor.y);
   ctx.setLineDash([6, 5]);
+  ctx.lineDashOffset = -performance.now() * 0.025;
   ctx.strokeStyle = cor || CORES.primaria;
   ctx.lineWidth = 2;
   ctx.stroke();
@@ -474,11 +474,53 @@ export function configurarFios(canvas, estado, aoMudar) {
   let fioSelecionadoId = null;
   let dobraSelecionada = null;  // { fio, indice }
   canvas.ultimoMouse = canvas.ultimoMouse || { x: 0, y: 0 };
+  estado.limparSelecaoFio = () => {
+    fioSelecionadoId = null;
+    dobraSelecionada = null;
+    estado.fioSelecionadoId = null;
+  };
 
   function telaParaMundo(e) {
     const rect = el.getBoundingClientRect();
     return canvas.telaParaMundo(e.clientX - rect.left, e.clientY - rect.top);
   }
+
+  const tooltipTerminal = document.createElement('div');
+  tooltipTerminal.className = 'tooltip-terminal-led';
+  tooltipTerminal.hidden = true;
+  el.parentElement.appendChild(tooltipTerminal);
+
+  el.addEventListener('mousemove', (e) => {
+    const mundo = telaParaMundo(e);
+    const tolerancia = 6 / (canvas.view.zoom || 1);
+    let terminal = null;
+
+    for (let i = estado.circuito.componentes.length - 1; i >= 0; i--) {
+      const comp = estado.circuito.componentes[i];
+      const pino = terminalLEDAlternativoEm(comp, mundo.x, mundo.y, tolerancia);
+      if (pino) {
+        terminal = pino;
+        break;
+      }
+    }
+
+    if (!terminal) {
+      tooltipTerminal.hidden = true;
+      return;
+    }
+
+    tooltipTerminal.textContent = terminal === 'p1' ? 'anodo' : 'catodo';
+    tooltipTerminal.hidden = false;
+    const hostRect = el.parentElement.getBoundingClientRect();
+    const left = e.clientX - hostRect.left + 12;
+    const top = e.clientY - hostRect.top + 12;
+    tooltipTerminal.style.left = `${Math.max(4, Math.min(left, hostRect.width - tooltipTerminal.offsetWidth - 4))}px`;
+    tooltipTerminal.style.top = `${Math.max(4, Math.min(top, hostRect.height - tooltipTerminal.offsetHeight - 4))}px`;
+  });
+
+  el.addEventListener('mouseleave', () => {
+    tooltipTerminal.hidden = true;
+  });
 
   function posicaoPinoPorId(ref) {
     if (!ref) return null;
@@ -550,16 +592,9 @@ export function configurarFios(canvas, estado, aoMudar) {
 
     const mundo = telaParaMundo(e);
 
-    // Se o clique foi sobre um nó e NÃO está segurando Alt para puxar fio,
-    // não intercepta em fios.js: deixa o selecao.js selecionar, abrir o popup
-    // e arrastar/mover o nó livremente com todos os seus fios conectados.
-    const compSobMouse = componenteEm(estado.circuito, mundo.x, mundo.y);
-    if (compSobMouse && compSobMouse.tipo === 'NO' && !e.altKey) {
-      return;
-    }
-
     // 1. Dobra sob o cursor → inicia arrasto
-    const dobra = dobraEm(estado.circuito, mundo.x, mundo.y);
+    const pinoNo = pinoEm(estado.circuito, mundo.x, mundo.y);
+    const dobra = pinoNo?.componente.tipo === 'NO' ? null : dobraEm(estado.circuito, mundo.x, mundo.y);
     if (dobra) {
       for (const id of estado.selecionados) {
         const g = estado.circuito.grupos.find((x) => x.id === id);
@@ -587,7 +622,7 @@ export function configurarFios(canvas, estado, aoMudar) {
     }
 
     // 2. Pino sob o cursor → inicia fio
-    const pino = pinoEm(estado.circuito, mundo.x, mundo.y, true, e.altKey);
+    const pino = pinoNo;
     if (pino) {
       for (const id of estado.selecionados) {
         const g = estado.circuito.grupos.find((x) => x.id === id);
@@ -806,11 +841,7 @@ export function configurarFios(canvas, estado, aoMudar) {
     // Cursor de crosshair quando sobre pino
     const pino = pinoEm(estado.circuito, mundo.x, mundo.y);
     if (pino && !estado.arrastandoComponente) {
-      if (pino.componente.tipo === 'NO') {
-        el.style.cursor = (fioEmConstrucao || e.altKey) ? 'crosshair' : 'grab';
-      } else {
-        el.style.cursor = 'crosshair';
-      }
+      el.style.cursor = 'crosshair';
     }
   });
 
@@ -820,7 +851,12 @@ export function configurarFios(canvas, estado, aoMudar) {
       const mundo = telaParaMundo(e);
       const pino = pinoEm(estado.circuito, mundo.x, mundo.y);
 
-      if (pino) {
+      if (pino && pino.componente.tipo === 'NO' &&
+          pino.componente.id === fioEmConstrucao.origem.componente &&
+          Math.hypot(mundo.x - fioEmConstrucao.posicaoOrigem.x, mundo.y - fioEmConstrucao.posicaoOrigem.y) < RAIO_PINO) {
+        estado.selecionados = [pino.componente.id];
+        estado.abrirPopupEntidade?.('comp', pino.componente.id);
+      } else if (pino) {
         criarFio(
           estado.circuito,
           fioEmConstrucao.origem,
