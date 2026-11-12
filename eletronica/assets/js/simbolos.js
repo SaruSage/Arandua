@@ -1103,6 +1103,43 @@ export function desenharGND(ctx, comp, x, y, w, h) {
   ctx.stroke();
 }
 
+export function desenharBARRAMENTO(ctx, comp, x, y, w, h) {
+  preparar(ctx);
+  const pinos = comp.pinos || [];
+  const xCorpo = x + 22;
+  const xTronco = x + w / 2 + 10;
+  const yPrimeiro = y + h / 2 + (pinos[0]?.y || 0);
+  const yUltimo = y + h / 2 + (pinos[pinos.length - 1]?.y || 0);
+
+  ctx.beginPath();
+  ctx.rect(xCorpo, y + 4, w - 24, h - 8);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  if (pinos.length > 1) {
+    ctx.moveTo(xTronco, yPrimeiro);
+    ctx.lineTo(xTronco, yUltimo);
+  }
+  for (const pino of pinos) {
+    const px = x + w / 2 + pino.x;
+    const py = y + h / 2 + pino.y;
+    ctx.moveTo(px, py);
+    ctx.lineTo(xTronco, py);
+  }
+  ctx.stroke();
+
+  ctx.font = '600 8px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = CORES.tracoFino;
+  for (const pino of pinos) {
+    const px = x + w / 2 + pino.x;
+    const py = y + h / 2 + pino.y;
+    ctx.fillText(pino.nome, px, py + 7);
+  }
+}
+
 /**
  * Chave SPST (normalmente aberta).
  *
@@ -1578,6 +1615,7 @@ export function desenharNO(ctx, comp, x, y, w, h) {
 export const DESENHADORES = {
   NO: desenharNO,
   GND: desenharGND,
+  BARRAMENTO: desenharBARRAMENTO,
   RESISTOR: desenharRESISTOR,
   FUSIVEL: desenharFUSIVEL,
   POTENCIOMETRO: desenharPOTENCIOMETRO,

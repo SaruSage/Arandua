@@ -14,7 +14,7 @@
  * }
  */
 
-import { CATALOGO, obterDimensoesComponente } from './catalogo.js';
+import { CATALOGO, obterDimensoesComponente, obterPinosComponente } from './catalogo.js';
 import { calcularBounds } from './grupos.js';
 
 const CHAVE_LOCALSTORAGE = 'eletronica:circuito-autosave';
@@ -188,7 +188,7 @@ export function reconstruir(dados) {
       rotacao: comp.rotacao || 0,
       ...(comp.nomeCustom ? { nomeCustom: String(comp.nomeCustom).slice(0, 15) } : {}),
       propriedades: { ...def.padrao, ...comp.propriedades },
-      pinos: def.pinos.map((p) => ({ ...p })),
+      pinos: obterPinosComponente(comp.tipo, { ...def.padrao, ...comp.propriedades }),
       dimensoes: obterDimensoesComponente(comp.tipo, { ...def.padrao, ...comp.propriedades }),
       estado: {},
     };

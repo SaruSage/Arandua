@@ -15,6 +15,7 @@
  * - 'chave-controlada' → chave acionada pelo nível lógico do pino de controle
  * - 'logica'      → porta lógica (simulada em tensão)
  * - 'composto'    → sub-circuito interno (amp-op, display, CI)
+ * - 'barramento'  → conjunto configurável de pinos
  */
 export const CATALOGO = {
   /* ===== PASSIVOS LINEARES ===== */
@@ -123,7 +124,7 @@ export const CATALOGO = {
   NO: {
     nome: 'Nó',
     rotulo: 'Nó',
-    categoria: 'Passivos',
+    categoria: 'Conexões',
     modelo: 'no',
     pinos: [
       { id: 'p', x: 0, y: 0, nome: '' },
@@ -143,6 +144,33 @@ export const CATALOGO = {
       { id: 'p', x: 0, y: -26, nome: '' },
     ],
     dimensoes: { w: 48, h: 64 },
+    semMontagem: true,
+  },
+
+  BARRAMENTO: {
+    rotulo: 'Barramento',
+    categoria: 'Conexões',
+    modelo: 'barramento',
+    pinos: [
+      { id: 'p1', x: -21, y: -36, nome: '1' },
+      { id: 'p2', x: -21, y: -12, nome: '2' },
+      { id: 'p3', x: -21, y: 12, nome: '3' },
+      { id: 'p4', x: -21, y: 36, nome: '4' },
+    ],
+    propriedades: {
+      quantidadePinos: {
+        tipo: 'select',
+        valor: 4,
+        opcoes: Array.from({ length: 13 }, (_, indice) => indice + 4),
+        rotulo: 'Quantidade de pinos',
+      },
+      conectadoInternamente: {
+        tipo: 'booleano',
+        valor: false,
+        rotulo: 'Conectados internamente',
+      },
+    },
+    dimensoes: { w: 48, h: 112 },
     semMontagem: true,
   },
 
@@ -546,6 +574,7 @@ export const CATALOGO = {
 export const CATEGORIAS = [
   'Fontes',
   'Passivos',
+  'Conexões',
   'Sensores',
   'Semicondutores',
   'Lógica',
@@ -556,7 +585,33 @@ export function obterDimensoesComponente(tipo, propriedades = {}) {
   if (tipo === 'LED' && propriedades.estilo === 'Alternativo') {
     return { w: 40, h: 48 };
   }
+  if (tipo === 'BARRAMENTO') {
+    const quantidade = normalizarQuantidadePinos(propriedades.quantidadePinos);
+    return { w: 48, h: (quantidade - 1) * 24 + 40 };
+  }
   return CATALOGO[tipo]?.dimensoes || { w: 80, h: 60 };
+}
+
+function normalizarQuantidadePinos(valor) {
+  const quantidade = Number(valor);
+  return Number.isInteger(quantidade)
+    ? Math.max(4, Math.min(16, quantidade))
+    : 4;
+}
+
+export function obterPinosComponente(tipo, propriedades = {}) {
+  if (tipo === 'BARRAMENTO') {
+    const quantidade = normalizarQuantidadePinos(propriedades.quantidadePinos);
+    const espacamento = 24;
+    const inicioY = -((quantidade - 1) * espacamento) / 2;
+    return Array.from({ length: quantidade }, (_, indice) => ({
+      id: `p${indice + 1}`,
+      x: -21,
+      y: inicioY + indice * espacamento,
+      nome: String(indice + 1),
+    }));
+  }
+  return (CATALOGO[tipo]?.pinos || []).map((pino) => ({ ...pino }));
 }
 
 /** Retorna os itens de uma categoria. */
@@ -584,6 +639,6 @@ export function criarInstancia(tipo, x = 0, y = 0) {
     dimensoes: obterDimensoesComponente(tipo, propriedades),
     rotacao: 0,
     propriedades,
-    pinos: def.pinos.map((p) => ({ ...p })),
+    pinos: obterPinosComponente(tipo, propriedades),
   };
 }

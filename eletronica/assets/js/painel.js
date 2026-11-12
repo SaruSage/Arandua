@@ -4,7 +4,7 @@
  * botão "Ver montagem" para componentes compostos.
  */
 
-import { CATALOGO, obterDimensoesComponente } from './catalogo.js';
+import { CATALOGO, obterDimensoesComponente, obterPinosComponente } from './catalogo.js';
 import { rotacionarComponente } from './circuito.js';
 import { registrar } from './historico.js';
 import { CORES_FIO, removerFio } from './fios.js';
@@ -56,6 +56,16 @@ function formatarValor(valor, unidade) {
   if (unidade === 'V') return `${valor.toFixed(2)} V`;
   if (unidade === 'Hz') return `${valor.toFixed(1)} Hz`;
   return `${valor}${unidade ? ' ' + unidade : ''}`;
+}
+
+function atualizarBarramento(comp, circuito) {
+  comp.pinos = obterPinosComponente(comp.tipo, comp.propriedades);
+  comp.dimensoes = obterDimensoesComponente(comp.tipo, comp.propriedades);
+  const pinosValidos = new Set(comp.pinos.map((pino) => pino.id));
+  circuito.fios = circuito.fios.filter((fio) => (
+    (fio.origem.componente !== comp.id || pinosValidos.has(fio.origem.pino))
+    && (fio.destino.componente !== comp.id || pinosValidos.has(fio.destino.pino))
+  ));
 }
 
 /** Cria um campo de entrada para uma propriedade. */
@@ -158,6 +168,12 @@ function criarCampo(chave, spec, comp, aoMudar, circuito) {
     });
 
     campo.appendChild(wrapper);
+    if (comp.tipo === 'BARRAMENTO' && chave === 'conectadoInternamente') {
+      const descricao = document.createElement('div');
+      descricao.className = 'popup-descricao';
+      descricao.textContent = 'Sim: todos os pinos formam o mesmo nó elétrico e compartilham tensão e sinal. Não: cada pino é independente e se conecta apenas pelos fios.';
+      campo.appendChild(descricao);
+    }
     return campo;
   } else if (spec.tipo === 'select') {
     input = document.createElement('select');
@@ -169,13 +185,18 @@ function criarCampo(chave, spec, comp, aoMudar, circuito) {
       input.appendChild(opt);
     }
     input.addEventListener('change', () => {
-      comp.propriedades[chave] = input.value;
+      comp.propriedades[chave] = comp.tipo === 'BARRAMENTO' && chave === 'quantidadePinos'
+        ? Number(input.value)
+        : input.value;
       if (comp.tipo === 'LED' && chave === 'estilo') {
         const dimensoesAnteriores = comp.dimensoes || CATALOGO.LED.dimensoes;
         const novasDimensoes = obterDimensoesComponente(comp.tipo, comp.propriedades);
         comp.x += (dimensoesAnteriores.w - novasDimensoes.w) / 2;
         comp.y += (dimensoesAnteriores.h - novasDimensoes.h) / 2;
         comp.dimensoes = novasDimensoes;
+      }
+      if (comp.tipo === 'BARRAMENTO' && chave === 'quantidadePinos') {
+        atualizarBarramento(comp, circuito);
       }
       registrar(circuito, 'propriedade');
       aoMudar();

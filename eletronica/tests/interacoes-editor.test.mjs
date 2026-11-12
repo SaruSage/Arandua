@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { CATALOGO } from '../assets/js/catalogo.js';
 import { adicionarComponente, criarCircuito } from '../assets/js/circuito.js';
 import { configurarFios, desenharFios } from '../assets/js/fios.js';
-import { caixaNomeGrupo, configurarGrupos, noNome } from '../assets/js/grupos.js';
+import { boundsDosFilhos, caixaNomeGrupo, configurarGrupos, noNome } from '../assets/js/grupos.js';
 import { desfazer, inicializar, refazer } from '../assets/js/historico.js';
 import { reconstruir, serializar } from '../assets/js/persistencia.js';
 import { configurarInteracao } from '../assets/js/selecao.js';
@@ -60,6 +60,24 @@ function editor(circuito) {
 function evento(ponto, button) {
   return { clientX: ponto.x, clientY: ponto.y, button };
 }
+
+test('a área inclui dobras de fios que conectam componentes membros', () => {
+  const circuito = criarCircuito();
+  const a = adicionarComponente(circuito, 'NO', 50, 50);
+  const b = adicionarComponente(circuito, 'NO', 150, 50);
+  circuito.fios.push({
+    id: 'fio-distante',
+    origem: { componente: a.id, pino: 'p' },
+    destino: { componente: b.id, pino: 'p' },
+    dobras: [{ x: 420, y: 380 }],
+  });
+
+  const bounds = boundsDosFilhos(circuito, [a.id, b.id]);
+  assert.ok(bounds.x <= 420);
+  assert.ok(bounds.x + bounds.w >= 420);
+  assert.ok(bounds.y <= 380);
+  assert.ok(bounds.y + bounds.h >= 380);
+});
 
 test('nó cria fios com a esquerda e move com a direita sem iniciar seleção retangular', () => {
   const anterior = globalThis.window;

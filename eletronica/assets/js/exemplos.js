@@ -881,10 +881,8 @@ export function carregarExemploCircuito(exemploId, estado, aoFinalizar, avisarTo
   // Registra no histórico de undo
   registrar(circuito, 'carregar-exemplo', true);
 
-  // Inicia simulação imediatamente para o usuário ver tudo funcionando
-  if (typeof estado.iniciarSimulacao === 'function' && !estado.simulando) {
-    estado.iniciarSimulacao();
-  } else if (typeof estado.recalcular === 'function') {
+  // Atualiza apenas uma simulação que já foi iniciada pelo botão.
+  if (estado.simulando && typeof estado.recalcular === 'function') {
     estado.recalcular();
   }
 

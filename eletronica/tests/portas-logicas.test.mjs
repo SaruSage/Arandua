@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { CATALOGO } from '../assets/js/catalogo.js';
+import { CATALOGO, obterDimensoesComponente, obterPinosComponente } from '../assets/js/catalogo.js';
 import { adicionarComponente, criarCircuito } from '../assets/js/circuito.js';
 import {
   analisarSelecaoParaConstruir,
@@ -382,6 +382,64 @@ test('fonte positiva fornece tensão em relação a todos os símbolos GND', () 
   assert.equal(resultado.tensoes[`${componentes.gnd1.id}:p`], 0);
   assert.equal(resultado.tensoes[`${componentes.gnd2.id}:p`], 0);
   assert.equal(componentes.led.estado.aceso, true);
+});
+
+test('barramento padrão tem quatro pinos e permite configurar até dezesseis', () => {
+  const barramento = adicionarComponente(criarCircuito(), 'BARRAMENTO', 0, 0);
+  assert.equal(barramento.pinos.length, 4);
+  assert.equal(barramento.propriedades.conectadoInternamente, false);
+
+  const pinosMaximos = obterPinosComponente('BARRAMENTO', { quantidadePinos: 16 });
+  assert.equal(pinosMaximos.length, 16);
+  assert.equal(pinosMaximos[15].id, 'p16');
+  assert.deepEqual(obterDimensoesComponente('BARRAMENTO', { quantidadePinos: 16 }), { w: 48, h: 400 });
+});
+
+test('barramento só une os pinos quando a opção interna está ativada', () => {
+  const circuito = criarCircuito();
+  const bateria = adicionarComponente(circuito, 'BATERIA', 0, 0);
+  const barramento = adicionarComponente(circuito, 'BARRAMENTO', 120, 0);
+  circuito.fios.push({
+    id: 'fio-fonte-barramento',
+    origem: { componente: bateria.id, pino: 'p1' },
+    destino: { componente: barramento.id, pino: 'p1' },
+    dobras: [],
+  });
+
+  const resultadoIndependente = simular(circuito);
+  assert.equal(resultadoIndependente.tensoes[`${barramento.id}:p1`], 5);
+  assert.equal(resultadoIndependente.tensoes[`${barramento.id}:p4`], null);
+
+  barramento.propriedades.conectadoInternamente = true;
+  const resultadoConectado = simular(circuito);
+  assert.equal(resultadoConectado.tensoes[`${barramento.id}:p4`], 5);
+});
+
+test('circuito sem fonte não atribui tensões arbitrárias nem energiza componentes', () => {
+  const circuito = criarCircuito();
+  const porta = adicionarComponente(circuito, 'NOT', 0, 0);
+  const led = adicionarComponente(circuito, 'LED', 120, 0);
+
+  const resultado = simular(circuito);
+
+  assert.equal(resultado.avisos.some((aviso) => aviso.includes('referência de terra arbitrária')), false);
+  assert.equal(porta.estado.saida, null);
+  assert.ok(porta.pinos.every((pino) => pino.valor === null));
+  assert.ok(led.pinos.every((pino) => pino.valor === null));
+  assert.equal(led.estado.aceso, false);
+});
+
+test('componentes em uma ilha sem alimentação não são energizados por uma fonte isolada', () => {
+  const circuito = criarCircuito();
+  const bateria = adicionarComponente(circuito, 'BATERIA', 0, 0);
+  const porta = adicionarComponente(circuito, 'NOT', 120, 0);
+
+  const resultado = simular(circuito);
+
+  assert.equal(resultado.tensoes[`${bateria.id}:p1`], 5);
+  assert.equal(resultado.tensoes[`${bateria.id}:p2`], 0);
+  assert.equal(porta.estado.saida, null);
+  assert.ok(porta.pinos.every((pino) => pino.valor === null));
 });
 
 test('Construir reconhece circuitos de exemplo completos pelas ligações e topologia', () => {
@@ -905,7 +963,26 @@ test('exemplos independentes acrescentados juntos convergem e preservam os compo
   }
 });
 
-test('clicar em uma entrada do exemplo OR acende e apaga o LED conforme a tabela-verdade', () => {
+test('carregar um exemplo não inicia a simulação', () => {
+  const circuito = criarCircuito();
+  inicializar(circuito);
+  const estado = {
+    circuito,
+    selecionados: [],
+    simulando: false,
+    iniciarSimulacao() {
+      this.simulando = true;
+    },
+    recalcular() {
+      assert.fail('não deve recalcular antes de iniciar pelo botão');
+    },
+  };
+
+  assert.equal(carregarExemploCircuito('and-basica', estado, () => {}, () => {}), true);
+  assert.equal(estado.simulando, false);
+});
+
+test('mover componentes e clicar em chaves não inicia a simulação', () => {
   const documentoAnterior = globalThis.document;
   const janelaAnterior = globalThis.window;
   const listeners = {};
@@ -928,6 +1005,7 @@ test('clicar em uma entrada do exemplo OR acende e apaga o LED conforme a tabela
   const exemplo = EXEMPLOS_CIRCUITOS.find((item) => item.id === 'or-basica');
   const { circuito, componentes } = criarCircuitoDeExemplo(exemplo);
   const led = componentes.led;
+  let recalculos = 0;
   const estado = {
     circuito,
     selecionados: [],
@@ -937,6 +1015,7 @@ test('clicar em uma entrada do exemplo OR acende e apaga o LED conforme a tabela
       this.recalcular();
     },
     recalcular() {
+      recalculos++;
       const resultado = simular(circuito);
       assertComportamentoComponentes(circuito, resultado, `OR/UI: ${componentes.swA.propriedades.fechada ? 1 : 0}${componentes.swB.propriedades.fechada ? 1 : 0}`);
       assert.equal(resultado.convergiu, true);
@@ -963,8 +1042,31 @@ test('clicar em uma entrada do exemplo OR acende e apaga o LED conforme a tabela
       listeners.mouseup({ button: 0 });
     };
 
+    const pontoLed = {
+      x: led.x + led.dimensoes.w / 2,
+      y: led.y + led.dimensoes.h / 2,
+    };
+    listeners.mousedown({
+      button: 0,
+      clientX: pontoLed.x,
+      clientY: pontoLed.y,
+      preventDefault() {},
+    });
+    listeners.mousemove({
+      button: 0,
+      clientX: pontoLed.x + 32,
+      clientY: pontoLed.y + 32,
+    });
+    listeners.mouseup({ button: 0 });
+    assert.equal(estado.simulando, false);
+    assert.equal(recalculos, 0);
+
     clicarChave(componentes.swA);
     assert.equal(componentes.swA.propriedades.fechada, true);
+    assert.equal(estado.simulando, false);
+    assert.equal(recalculos, 0);
+
+    estado.iniciarSimulacao();
     assert.equal(estado.simulando, true);
     assert.equal(led.estado.aceso, true);
 

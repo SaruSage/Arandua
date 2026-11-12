@@ -47,6 +47,22 @@ export function boundsDoComponente(comp) {
   };
 }
 
+function coletarComponentesMembros(circuito, membros, componentes = new Set(), gruposVisitados = new Set()) {
+  for (const id of membros) {
+    const comp = circuito.componentes.find((c) => c.id === id);
+    if (comp) {
+      componentes.add(comp.id);
+      continue;
+    }
+
+    const grupo = circuito.grupos.find((g) => g.id === id);
+    if (!grupo || gruposVisitados.has(grupo.id)) continue;
+    gruposVisitados.add(grupo.id);
+    coletarComponentesMembros(circuito, grupo.membros || [], componentes, gruposVisitados);
+  }
+  return componentes;
+}
+
 export function boundsDosFilhos(circuito, membros) {
   let minX = Infinity, minY = Infinity;
   let maxX = -Infinity, maxY = -Infinity;
@@ -71,6 +87,23 @@ export function boundsDosFilhos(circuito, membros) {
       minY = Math.min(minY, b.y);
       maxX = Math.max(maxX, b.x + b.w);
       maxY = Math.max(maxY, b.y + b.h);
+      encontrou = true;
+    }
+  }
+
+  const componentesMembros = coletarComponentesMembros(circuito, membros);
+  for (const fio of circuito.fios || []) {
+    if (
+      !componentesMembros.has(fio.origem?.componente)
+      || !componentesMembros.has(fio.destino?.componente)
+    ) continue;
+
+    for (const dobra of fio.dobras || []) {
+      if (!Number.isFinite(dobra.x) || !Number.isFinite(dobra.y)) continue;
+      minX = Math.min(minX, dobra.x);
+      minY = Math.min(minY, dobra.y);
+      maxX = Math.max(maxX, dobra.x);
+      maxY = Math.max(maxY, dobra.y);
       encontrou = true;
     }
   }

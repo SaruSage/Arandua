@@ -3,7 +3,13 @@
  * Monta a interface, paleta, canvas e painel.
  */
 
-import { CATALOGO, CATEGORIAS, itensDaCategoria, obterDimensoesComponente } from './catalogo.js';
+import {
+  CATALOGO,
+  CATEGORIAS,
+  itensDaCategoria,
+  obterDimensoesComponente,
+  obterPinosComponente,
+} from './catalogo.js';
 import {
   criarCircuito,
   adicionarComponente,
@@ -466,7 +472,6 @@ function colarGrupo(mouse) {
 
   // Cria os componentes
   for (const c of t.componentes) {
-    const def = CATALOGO[c.tipo];
     const novoId = `comp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     mapaIds.set(c.idOriginal, novoId);
     novosIds.push(novoId);
@@ -478,7 +483,7 @@ function colarGrupo(mouse) {
       y: c.y + dy,
       rotacao: c.rotacao,
       propriedades: { ...c.propriedades },
-      pinos: def.pinos.map((p) => ({ ...p })),
+      pinos: obterPinosComponente(c.tipo, c.propriedades),
       dimensoes: obterDimensoesComponente(c.tipo, c.propriedades),
       estado: {},
     });
@@ -592,7 +597,6 @@ function colarComponentes(mouse) {
   const novosIds = [];
 
   for (const c of t.componentes) {
-    const def = CATALOGO[c.tipo];
     const novoId = `comp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     mapaIds.set(c.idOriginal, novoId);
     novosIds.push(novoId);
@@ -604,7 +608,7 @@ function colarComponentes(mouse) {
       y: c.y + DESLOCAMENTO,
       rotacao: c.rotacao,
       propriedades: { ...c.propriedades },
-      pinos: def.pinos.map((p) => ({ ...p })),
+      pinos: obterPinosComponente(c.tipo, c.propriedades),
       dimensoes: obterDimensoesComponente(c.tipo, c.propriedades),
       estado: {},
     };
@@ -1185,7 +1189,7 @@ async function desenharMiniatura(canvasMini, tipo) {
     x: 0, y: 0,
     rotacao: 0,
     propriedades: {},
-    pinos: CATALOGO[tipo].pinos.map((p) => ({ ...p })),
+    pinos: obterPinosComponente(tipo, {}),
     dimensoes: dim,
   };
 

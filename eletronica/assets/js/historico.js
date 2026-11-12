@@ -8,7 +8,7 @@
  * - Redo é limpo quando uma nova ação é registrada
  */
 
-import { obterDimensoesComponente } from './catalogo.js';
+import { obterDimensoesComponente, obterPinosComponente } from './catalogo.js';
 
 const LIMITE = 50;
 const JANELA_AGRUPAMENTO_MS = 300;
@@ -73,7 +73,7 @@ function reconstruir(snap, CATALOGO) {
       rotacao: c.rotacao || 0,
       ...(c.nomeCustom ? { nomeCustom: c.nomeCustom } : {}),
       propriedades: { ...def.padrao, ...c.propriedades },
-      pinos: def.pinos.map((p) => ({ ...p })),
+      pinos: obterPinosComponente(c.tipo, { ...def.padrao, ...c.propriedades }),
       dimensoes: obterDimensoesComponente(c.tipo, { ...def.padrao, ...c.propriedades }),
       estado: {},
     };

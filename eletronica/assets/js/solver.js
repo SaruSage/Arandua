@@ -43,6 +43,18 @@ function ehFonteDeAlimentacao(comp) {
   return ['BATERIA', 'FONTE_AC', 'FONTE_POSITIVA'].includes(comp.tipo);
 }
 
+function componenteDependeDeAlimentacao(comp, modelo = CATALOGO[comp.tipo]?.modelo) {
+  return modelo === 'logica'
+    || (modelo === 'composto' && ['AMP_OP', 'CI_GENERICO'].includes(comp.tipo))
+    || ['TRANSISTOR_NPN', 'TRANSISTOR_PNP'].includes(comp.tipo);
+}
+
+function componenteAlimentado(comp, pinoParaNo, nosAlimentados) {
+  return (comp.pinos || []).some((pino) => (
+    nosAlimentados[pinoParaNo.get(`${comp.id}:${pino.id}`)] === true
+  ));
+}
+
 function chaveFechada(comp) {
   return comp.tipo === 'BOTAO'
     ? comp.propriedades?.pressionado === true
@@ -120,6 +132,15 @@ function construirNos(circuito) {
     );
   }
 
+  for (const comp of componentes) {
+    if (comp.tipo !== 'BARRAMENTO' || comp.propriedades?.conectadoInternamente !== true) continue;
+    const primeiroPino = comp.pinos[0];
+    if (!primeiroPino) continue;
+    for (const pino of comp.pinos.slice(1)) {
+      unir(`${comp.id}:${primeiroPino.id}`, `${comp.id}:${pino.id}`);
+    }
+  }
+
   const chaveTerraGlobal = '__GND_GLOBAL__';
   encontrar(chaveTerraGlobal);
   for (const comp of componentes) {
@@ -173,7 +194,11 @@ function construirNos(circuito) {
   };
 
   for (const comp of componentes) {
-    if (comp.tipo === 'TRANSFORMADOR') {
+    if (comp.tipo === 'BARRAMENTO') {
+      if (comp.propriedades?.conectadoInternamente === true) {
+        unirIlhas(comp.pinos.map((pino) => pinoParaNo.get(`${comp.id}:${pino.id}`)));
+      }
+    } else if (comp.tipo === 'TRANSFORMADOR') {
       for (const pinos of [['p1', 'p2'], ['s1', 's2']]) {
         unirIlhas(pinos.map((pino) => pinoParaNo.get(`${comp.id}:${pino}`)));
       }
@@ -223,8 +248,10 @@ function construirNos(circuito) {
     }
   }
   const noTerraPorNo = nos.map((no) => nosTerraPorRaiz.get(encontrarIlha(no.id)));
+  const raizesAlimentadas = new Set(fontesPorRaiz.keys());
+  const nosAlimentados = nos.map((no) => raizesAlimentadas.has(encontrarIlha(no.id)));
 
-  return { nos, pinoParaNo, noTerraPorNo, noTerraGlobal, semFonte: fontes.length === 0 };
+  return { nos, pinoParaNo, noTerraPorNo, noTerraGlobal, nosAlimentados };
 }
 
 /* ===== UTILITÁRIOS MATRICIAIS ===== */
@@ -401,6 +428,7 @@ function montarSistema(
   pinoParaNo,
   tensoesAnteriores,
   noTerraPorNo,
+  nosAlimentados,
   avisos,
   noTerraGlobal
 ) {
@@ -421,6 +449,10 @@ function montarSistema(
   for (const comp of componentes) {
     const def = CATALOGO[comp.tipo];
     const modelo = def.modelo;
+    if (
+      componenteDependeDeAlimentacao(comp, modelo)
+      && !componenteAlimentado(comp, pinoParaNo, nosAlimentados)
+    ) continue;
     const vAnt = tensoesAnteriores[comp.id] || 0;
 
     /* ---- LINEARES ---- */
@@ -761,12 +793,11 @@ export function simular(circuito) {
       correntes: {},
       convergiu: true,
       erro: null,
-      avisos: ['Circuito sem fonte: referência de terra arbitrária'],
+      avisos: [],
     };
   }
 
-  const { nos, pinoParaNo, noTerraPorNo, noTerraGlobal, semFonte } = construirNos(circuito);
-  if (semFonte) avisos.push('Circuito sem fonte: referência de terra arbitrária');
+  const { nos, pinoParaNo, noTerraPorNo, noTerraGlobal, nosAlimentados } = construirNos(circuito);
 
   let tensoesAnteriores = {};
   let V = null;
@@ -781,6 +812,7 @@ export function simular(circuito) {
       pinoParaNo,
       tensoesAnteriores,
       noTerraPorNo,
+      nosAlimentados,
       avisos,
       noTerraGlobal
     );
@@ -856,7 +888,7 @@ export function simular(circuito) {
     }
   }
 
-  let resultado = finalizar(circuito, nos, pinoParaNo, V, convergiu, avisos);
+  let resultado = finalizar(circuito, nos, pinoParaNo, V, convergiu, avisos, nosAlimentados);
 
   // Verifica queima de fusíveis (APENAS com excesso real, margem de 1%)
   let queimouAlgum = false;
@@ -892,6 +924,7 @@ export function simular(circuito) {
         pinoParaNo,
         tensoesPos,
         noTerraPorNo,
+        nosAlimentados,
         avisosPos,
         noTerraGlobal
       );
@@ -933,25 +966,38 @@ export function simular(circuito) {
       }
       if (maxDiffRel < 0.05 || maxDiffAbs < 0.01) convPos = true;
     }
-    resultado = finalizar(circuito, nos, pinoParaNo, Vpos, convPos, [...avisosPos, ...avisosQueima]);
+    resultado = finalizar(
+      circuito,
+      nos,
+      pinoParaNo,
+      Vpos,
+      convPos,
+      [...avisosPos, ...avisosQueima],
+      nosAlimentados
+    );
     resultado.queimouFusivel = true;
   }
 
   return resultado;
 }
 
-function finalizar(circuito, nos, pinoParaNo, V, convergiu, avisos) {
+function finalizar(circuito, nos, pinoParaNo, V, convergiu, avisos, nosAlimentados) {
   const tensoes = {};
   const componentes = componentesPorId(circuito);
   for (const comp of componentes) {
     for (const pino of comp.pinos) {
       const n = pinoParaNo.get(`${comp.id}:${pino.id}`);
-      tensoes[`${comp.id}:${pino.id}`] = V[n] ?? 0;
+      tensoes[`${comp.id}:${pino.id}`] = nosAlimentados[n] ? V[n] ?? 0 : null;
     }
   }
 
   const correntes = {};
   for (const comp of componentes) {
+    if (!componenteAlimentado(comp, pinoParaNo, nosAlimentados)) {
+      correntes[comp.id] = 0;
+      continue;
+    }
+
     const def = CATALOGO[comp.tipo];
     if (def.modelo === 'linear' && comp.pinos.length >= 2) {
       const n1 = pinoParaNo.get(`${comp.id}:${comp.pinos[0].id}`);
@@ -998,6 +1044,29 @@ function finalizar(circuito, nos, pinoParaNo, V, convergiu, avisos) {
   // Estados visuais e níveis lógicos dos pinos
   for (const comp of componentes) {
     const def = CATALOGO[comp.tipo];
+    if (!componenteAlimentado(comp, pinoParaNo, nosAlimentados)) {
+      for (const pino of comp.pinos || []) pino.valor = null;
+      if (def?.modelo === 'logica') {
+        comp.estado = { ...comp.estado, saida: null };
+      }
+      if (comp.tipo === 'LED') {
+        comp.estado = {
+          ...comp.estado,
+          corrente: 0,
+          intensidade: 0,
+          aceso: false,
+          sobrecorrente: false,
+        };
+      }
+      if (def?.modelo === 'chave-controlada') {
+        comp.estado = { ...comp.estado, condutora: false };
+      }
+      if (comp.tipo === 'DISPLAY_7SEG') {
+        comp.estado = { ...comp.estado, segmentos: Array(7).fill(0) };
+      }
+      continue;
+    }
+
     if (def?.modelo === 'logica') {
       const entradas = comp.pinos
         .filter((p) => p.id !== 'y')

@@ -2,7 +2,7 @@
  * montagem.js — Motor de montagem paramétrica com suporte a construção industrial e didática.
  */
 
-import { CATALOGO, obterDimensoesComponente } from './catalogo.js';
+import { CATALOGO, obterDimensoesComponente, obterPinosComponente } from './catalogo.js';
 import { adicionarComponente, removerComponente } from './circuito.js';
 import { registrar } from './historico.js';
 import { recalcularMembros, atualizarTodosBounds, boundsDoComponente } from './grupos.js';
@@ -977,14 +977,13 @@ function desenharPreviaEsquema(ctx, w, h, tipoPorta) {
 
   // Componentes
   for (const p of esq.pecas) {
-    const def = CATALOGO[p.tipo];
     const comp = {
       tipo: p.tipo,
       x: 0,
       y: 0,
       rotacao: p.rotacao,
       propriedades: p.propriedades ? { ...p.propriedades } : {},
-      pinos: def.pinos.map((pino) => ({ ...pino })),
+      pinos: obterPinosComponente(p.tipo, p.propriedades),
       dimensoes: obterDimensoesComponente(p.tipo, p.propriedades),
     };
     const t = tela({ x: p.x, y: p.y });

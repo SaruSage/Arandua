@@ -6,7 +6,7 @@
  */
 
 import { posicaoPino } from './simbolos.js';
-import { obterDimensoesComponente } from './catalogo.js';
+import { obterDimensoesComponente, obterPinosComponente } from './catalogo.js';
 
 /**
  * Estrutura de uma montagem:
@@ -429,8 +429,8 @@ export function desenharMontagem(ctx, montagem, desenharComponente, CATALOGO) {
     const compD = montagem.componentes[fio.para.comp];
     if (!compO || !compD) continue;
 
-    const pO = posicaoPino({ ...compO, pinos: CATALOGO[compO.tipo].pinos, dimensoes: obterDimensoesComponente(compO.tipo, compO.propriedades), rotacao: compO.rotacao || 0 }, fio.de.pino);
-    const pD = posicaoPino({ ...compD, pinos: CATALOGO[compD.tipo].pinos, dimensoes: obterDimensoesComponente(compD.tipo, compD.propriedades), rotacao: compD.rotacao || 0 }, fio.para.pino);
+    const pO = posicaoPino({ ...compO, pinos: obterPinosComponente(compO.tipo, compO.propriedades), dimensoes: obterDimensoesComponente(compO.tipo, compO.propriedades), rotacao: compO.rotacao || 0 }, fio.de.pino);
+    const pD = posicaoPino({ ...compD, pinos: obterPinosComponente(compD.tipo, compD.propriedades), dimensoes: obterDimensoesComponente(compD.tipo, compD.propriedades), rotacao: compD.rotacao || 0 }, fio.para.pino);
     if (!pO || !pD) continue;
     const x1 = pO.x;
     const y1 = pO.y;
@@ -456,7 +456,7 @@ export function desenharMontagem(ctx, montagem, desenharComponente, CATALOGO) {
       y: comp.y,
       rotacao: comp.rotacao || 0,
       propriedades: comp.propriedades || {},
-      pinos: def.pinos.map((p) => ({ ...p })),
+      pinos: obterPinosComponente(comp.tipo, comp.propriedades),
       dimensoes: dim,
       estado: {},
     };

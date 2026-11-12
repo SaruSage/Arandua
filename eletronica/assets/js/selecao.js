@@ -21,11 +21,7 @@ export function configurarInteracao(canvas, estado, aoMudar) {
   const el = canvas.elemento;
   const renderizarTudo = aoMudar;
   const recalcular = () => {
-    if (!estado.simulando) {
-      estado.iniciarSimulacao?.();
-      return;
-    }
-    estado.recalcular?.();
+    if (estado.simulando) estado.recalcular?.();
   };
   let arrastando = null;
   let arrastandoNomeComponente = null;
