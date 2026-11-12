@@ -1176,6 +1176,73 @@ html, body {
   white-space: nowrap;
 }
 
+.btn-estilo-realista {
+  display: inline-flex;
+  flex: 0 0 32px;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #1687d9;
+  border-radius: 50%;
+  background: #1687d9;
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.btn-estilo-realista:hover {
+  background: #0872c2;
+  border-color: #0872c2;
+  box-shadow: 0 2px 7px rgba(0, 76, 140, 0.32);
+  transform: translateY(-1px);
+}
+
+.btn-estilo-realista.ativo {
+  background: #075da4;
+  border-color: #075da4;
+}
+
+.btn-estilo-realista svg {
+  width: 20px;
+  height: 20px;
+  overflow: visible;
+}
+
+.btn-estilo-realista .icone-circulo-vazio,
+.btn-estilo-realista .icone-circulo-cheio {
+  transition: transform 0.28s cubic-bezier(0.2, 0.75, 0.25, 1);
+}
+
+.btn-estilo-realista .icone-circulo-vazio {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+
+.btn-estilo-realista .icone-circulo-cheio {
+  fill: currentColor;
+  stroke: currentColor;
+  stroke-width: 1.4;
+}
+
+.btn-estilo-realista.ativo .icone-circulo-vazio {
+  transform: translateX(7px);
+}
+
+.btn-estilo-realista.ativo .icone-circulo-cheio {
+  transform: translateX(-7px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-estilo-realista,
+  .btn-estilo-realista .icone-circulo-vazio,
+  .btn-estilo-realista .icone-circulo-cheio {
+    transition-duration: 0.01ms;
+  }
+}
+
 .cabecalho-btn-exemplos:hover {
   background: #00822f;
   border-color: #00822f;

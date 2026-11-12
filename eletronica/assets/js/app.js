@@ -10,6 +10,7 @@ import {
   obterDimensoesComponente,
   obterPinosComponente,
 } from './catalogo.js';
+import { ARTES_REALISTAS, carregarArtesRealistas } from './visual.js';
 import {
   criarCircuito,
   adicionarComponente,
@@ -39,7 +40,11 @@ import {
 import { abrirModalExemplos } from './exemplos.js';
 import { simular, tensaoEm, correnteEm } from './solver.js';
 import { obterMontagem, desenharMontagem } from './montagens.js';
-import { desenharComponente } from './simbolos.js';
+import {
+  desenharComponente,
+  definirProgressoEstiloRealista,
+  obterProgressoEstiloRealista,
+} from './simbolos.js';
 import { configurarGrupos, juntarSelecionados, desfazerGrupo, atualizarTodosBounds, recalcularMembros, pontoDentroDoGrupo, grupoDentroDeGrupo, CORES_GRUPO } from './grupos.js';
 import { exportarPNG } from './exportar.js';
 import {
@@ -182,10 +187,15 @@ const estado = {
 let canvas = null;
 let elPainel = null;
 let areaTransferencia = null;
+let timerDanoCapacitor = null;
 
 function pararSimulacao() {
   estado.simulando = false;
   estado.resultado = null;
+  if (timerDanoCapacitor !== null) {
+    clearInterval(timerDanoCapacitor);
+    timerDanoCapacitor = null;
+  }
 
   // Limpa o estado de todos os componentes
   for (const comp of estado.circuito.componentes) {
@@ -235,6 +245,11 @@ function iniciarSimulacao() {
 
   mostrarAvisoSimulando();
   recalcular();
+  if (estado.circuito.componentes.some((comp) => comp.tipo === 'CAPACITOR')) {
+    timerDanoCapacitor = setInterval(() => {
+      if (estado.simulando) recalcular();
+    }, 250);
+  }
   renderizarPainel();
 }
 
@@ -253,6 +268,12 @@ function mostrarAvisoSimulando() {
 function recalcular() {
   if (!estado.simulando) return;
 
+  const statusCapacitorAnterior = new Map(
+    estado.circuito.componentes
+      .filter((comp) => comp.tipo === 'CAPACITOR')
+      .map((comp) => [comp.id, comp.estado?.statusDano || 'integro'])
+  );
+  let statusCapacitorAlterado = false;
   try {
     const resultado = simular(estado.circuito);
     estado.resultado = resultado;
@@ -267,6 +288,10 @@ function recalcular() {
         }
       }
     }
+    statusCapacitorAlterado = estado.circuito.componentes.some((comp) => (
+      comp.tipo === 'CAPACITOR'
+      && statusCapacitorAnterior.get(comp.id) !== (comp.estado?.statusDano || 'integro')
+    ));
   } catch (e) {
     // Circuito inválido durante a edição: mantém o último resultado
     console.warn('Simulação falhou durante edição:', e);
@@ -302,7 +327,7 @@ function recalcular() {
     estado.grupoSelecionadoId
   );
 
-  if (estado.resultado?.queimouFusivel) {
+  if (estado.resultado?.queimouFusivel || statusCapacitorAlterado) {
     renderizarPainel(true);
   }
 }
@@ -709,6 +734,13 @@ function montarInterface() {
           <button type="button" class="btn-toolbar" id="btn-refazer" title="Refazer (Ctrl+Y)">↷</button>
         </div>
         <div class="menu-container">
+          <button type="button" id="btn-estilo-realista" class="btn-estilo-realista"
+                  title="Ativar design realista" aria-label="Ativar design realista" aria-pressed="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle class="icone-circulo-vazio" cx="8.5" cy="12" r="6.25"/>
+              <circle class="icone-circulo-cheio" cx="15.5" cy="12" r="6.25"/>
+            </svg>
+          </button>
           <button type="button" id="btn-exemplos" class="cabecalho-btn cabecalho-btn-exemplos" title="Exemplos de Portas Lógicas e Somadores">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
@@ -857,6 +889,36 @@ function montarInterface() {
         renderizarTudo();
         atualizarBotoesHistorico();
       });
+    });
+  }
+
+  const btnEstiloRealista = document.getElementById('btn-estilo-realista');
+  if (btnEstiloRealista) {
+    btnEstiloRealista.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      menuDropdown?.classList.add('oculto');
+      const ativo = btnEstiloRealista.getAttribute('aria-pressed') !== 'true';
+      if (ativo) {
+        btnEstiloRealista.disabled = true;
+        try {
+          await carregarArtesRealistas();
+        } catch (erro) {
+          console.error(erro);
+          mostrarToastConstruir(erro.message);
+          btnEstiloRealista.disabled = false;
+          return;
+        }
+        btnEstiloRealista.disabled = false;
+      }
+      btnEstiloRealista.setAttribute('aria-pressed', String(ativo));
+      btnEstiloRealista.classList.toggle('ativo', ativo);
+      btnEstiloRealista.title = ativo ? 'Ativar design técnico' : 'Ativar design realista';
+      btnEstiloRealista.setAttribute('aria-label', btnEstiloRealista.title);
+      const circuloSuperior = btnEstiloRealista.querySelector(
+        ativo ? '.icone-circulo-vazio' : '.icone-circulo-cheio'
+      );
+      btnEstiloRealista.querySelector('svg').appendChild(circuloSuperior);
+      animarEstiloRealista(ativo);
     });
   }
 
@@ -1139,6 +1201,7 @@ function montarPaleta(container) {
 
       const miniatura = document.createElement('canvas');
       miniatura.className = 'paleta-miniatura';
+      miniatura.dataset.tipo = item.tipo;
       botao.appendChild(miniatura);
 
       const label = document.createElement('span');
@@ -1158,7 +1221,7 @@ function montarPaleta(container) {
           canvas.elemento.getBoundingClientRect().width / 2,
           canvas.elemento.getBoundingClientRect().height / 2
         );
-        const dim = CATALOGO[item.tipo].dimensoes;
+        const dim = obterDimensoesComponente(item.tipo);
         estado.adicionar(item.tipo, centro.x - dim.w / 2, centro.y - dim.h / 2);
       });
 
@@ -1170,7 +1233,7 @@ function montarPaleta(container) {
   }
 }
 
-async function desenharMiniatura(canvasMini, tipo) {
+function desenharMiniatura(canvasMini, tipo) {
   const ctx = canvasMini.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const largura = 64;
@@ -1182,14 +1245,18 @@ async function desenharMiniatura(canvasMini, tipo) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, largura, altura);
 
-  const dim = CATALOGO[tipo].dimensoes;
+  const propriedades = Object.fromEntries(
+    Object.entries(CATALOGO[tipo]?.propriedades || {})
+      .map(([chave, definicao]) => [chave, definicao.valor])
+  );
+  const dim = obterDimensoesComponente(tipo, propriedades);
   const escala = Math.min((largura - 20) / dim.w, (altura - 14) / dim.h);
   const compFake = {
     tipo,
     x: 0, y: 0,
     rotacao: 0,
-    propriedades: {},
-    pinos: obterPinosComponente(tipo, {}),
+    propriedades,
+    pinos: obterPinosComponente(tipo, propriedades),
     dimensoes: dim,
   };
 
@@ -1267,6 +1334,66 @@ function renderizarTudo() {
   agendarAutosave(estado);
   atualizarBotoesHistorico();
   atualizarBotaoConstruir();
+}
+
+let animacaoEstiloRealista = null;
+function animarEstiloRealista(ativo) {
+  if (animacaoEstiloRealista !== null) cancelAnimationFrame(animacaoEstiloRealista);
+  const inicial = obterProgressoEstiloRealista();
+  const alvo = ativo ? 1 : 0;
+  const duracao = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 320;
+  let inicio = null;
+
+  const atualizar = (agora) => {
+    if (inicio === null) inicio = agora;
+    const progresso = duracao === 0 ? 1 : Math.min(1, (agora - inicio) / duracao);
+    const suavizado = progresso * progresso * (3 - 2 * progresso);
+    definirProgressoEstiloRealista(inicial + (alvo - inicial) * suavizado);
+    atualizarGeometriaEstilo(estado.circuito);
+
+    if (canvas) {
+      canvas.render(
+        estado.circuito,
+        estado.selecionados,
+        estado.fioSelecionadoId,
+        null,
+        estado.fioFantasma,
+        estado.selecaoRetangular,
+        estado.grupoSelecionadoId
+      );
+    }
+    document.querySelectorAll('.paleta-miniatura[data-tipo]').forEach((miniatura) => {
+      desenharMiniatura(miniatura, miniatura.dataset.tipo);
+    });
+
+    if (progresso < 1) {
+      animacaoEstiloRealista = requestAnimationFrame(atualizar);
+    } else {
+      animacaoEstiloRealista = null;
+    }
+  };
+
+  animacaoEstiloRealista = requestAnimationFrame(atualizar);
+}
+
+function atualizarGeometriaEstilo(circuito) {
+  for (const comp of circuito.componentes) {
+    if (!ARTES_REALISTAS[comp.tipo]) continue;
+    const dimensoesAtuais = comp.dimensoes || CATALOGO[comp.tipo].dimensoes;
+    const dimensoesNovas = obterDimensoesComponente(comp.tipo, comp.propriedades);
+    const centroX = comp.x + dimensoesAtuais.w / 2;
+    const centroY = comp.y + dimensoesAtuais.h / 2;
+    comp.x = centroX - dimensoesNovas.w / 2;
+    comp.y = centroY - dimensoesNovas.h / 2;
+    comp.dimensoes = dimensoesNovas;
+
+    const pinosAtuais = comp.pinos || [];
+    comp.pinos = obterPinosComponente(comp.tipo, comp.propriedades).map((pino) => ({
+      ...pinosAtuais.find((atual) => atual.id === pino.id),
+      ...pino,
+    }));
+  }
+  atualizarTodosBounds(circuito);
 }
 
 let limpezasPopups = [];

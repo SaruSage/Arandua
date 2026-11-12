@@ -10,6 +10,15 @@
  */
 
 import { CATALOGO, obterDimensoesComponente } from './catalogo.js';
+import {
+  ARTES_REALISTAS,
+  definirProgressoEstiloRealista,
+  obterArteRealista,
+  obterArteRealistaQueimada,
+  obterProgressoEstiloRealista,
+} from './visual.js';
+
+export { definirProgressoEstiloRealista, obterProgressoEstiloRealista };
 
 export const CORES = {
   traco: '#2b2b2b',
@@ -41,6 +50,9 @@ function preparar(ctx) {
 }
 
 function dimensoesDoComponente(comp) {
+  if (ARTES_REALISTAS[comp.tipo] && obterProgressoEstiloRealista() > 0) {
+    return obterDimensoesComponente(comp.tipo, comp.propriedades);
+  }
   if (comp.tipo === 'LED' && comp.propriedades?.estilo === 'Alternativo') {
     return obterDimensoesComponente(comp.tipo, comp.propriedades);
   }
@@ -55,6 +67,75 @@ function corComOpacidade(cor, opacidade) {
   const g = parseInt(valor.slice(2, 4), 16);
   const b = parseInt(valor.slice(4, 6), 16);
   return `rgba(${r}, ${g}, ${b}, ${opacidade})`;
+}
+
+function matizDaCor(cor) {
+  const hex = /^#([0-9a-f]{6})$/i.exec(cor || '');
+  if (!hex) return 0;
+  const [r, g, b] = [0, 2, 4].map((inicio) => parseInt(hex[1].slice(inicio, inicio + 2), 16) / 255);
+  const maior = Math.max(r, g, b);
+  const menor = Math.min(r, g, b);
+  const diferenca = maior - menor;
+  if (diferenca === 0) return 0;
+  let matiz;
+  if (maior === r) matiz = ((g - b) / diferenca) % 6;
+  else if (maior === g) matiz = (b - r) / diferenca + 2;
+  else matiz = (r - g) / diferenca + 4;
+  return ((matiz * 60) + 360) % 360;
+}
+
+function faixasResistor(ohms) {
+  const valor = Number(ohms);
+  if (!Number.isFinite(valor) || valor <= 0) return null;
+  const digitos = ['#000000', '#964b00', '#ff0000', '#ff7f00', '#ffff00', '#008000', '#0000ff', '#800080', '#808080', '#ffffff'];
+  const multiplicadores = {
+    '-2': '#c0c0c0',
+    '-1': '#d4af37',
+    ...Object.fromEntries(digitos.map((cor, expoente) => [String(expoente), cor])),
+  };
+  let expoente = Math.floor(Math.log10(valor)) - 1;
+  let significativo = Math.round(valor / (10 ** expoente));
+  if (significativo >= 100) {
+    significativo = Math.round(significativo / 10);
+    expoente += 1;
+  }
+  if (significativo < 10) significativo *= 10;
+  const primeiro = Math.floor(significativo / 10);
+  const segundo = significativo % 10;
+  const multiplicador = multiplicadores[String(expoente)];
+  if (!multiplicador || !digitos[primeiro] || !digitos[segundo]) return null;
+  return [digitos[primeiro], digitos[segundo], multiplicador, '#c9a227'];
+}
+
+function desenharFaixasResistor(ctx, comp, dim, imagem) {
+  const faixas = faixasResistor(comp.propriedades?.resistencia);
+  if (!faixas) return;
+
+  ctx.save();
+  ctx.scale(dim.w / imagem.width, dim.h / imagem.height);
+  ctx.beginPath();
+  ctx.moveTo(131, 122);
+  ctx.bezierCurveTo(95, 122, 88, 147, 96, 177);
+  ctx.bezierCurveTo(100, 193, 103, 205, 103, 228);
+  ctx.bezierCurveTo(103, 251, 100, 264, 96, 280);
+  ctx.bezierCurveTo(88, 310, 95, 335, 131, 335);
+  ctx.bezierCurveTo(167, 335, 174, 310, 166, 280);
+  ctx.bezierCurveTo(162, 264, 159, 251, 159, 228);
+  ctx.bezierCurveTo(159, 205, 162, 193, 166, 177);
+  ctx.bezierCurveTo(174, 147, 167, 122, 131, 122);
+  ctx.closePath();
+  ctx.clip();
+
+  const posicoesY = [154, 180, 206, 292];
+  const alturas = [14, 14, 14, 14];
+  for (let indice = 0; indice < faixas.length; indice++) {
+    ctx.fillStyle = faixas[indice];
+    ctx.fillRect(88, posicoesY[indice], 86, alturas[indice]);
+    ctx.strokeStyle = indice === faixas.length - 1 ? '#704400' : 'rgba(55, 39, 20, 0.72)';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(88.75, posicoesY[indice] + 0.75, 84.5, alturas[indice] - 1.5);
+  }
+  ctx.restore();
 }
 
 function misturarCor(cor, corDestino, proporcao) {
@@ -1620,6 +1701,7 @@ export const DESENHADORES = {
   FUSIVEL: desenharFUSIVEL,
   POTENCIOMETRO: desenharPOTENCIOMETRO,
   CAPACITOR: desenharCAPACITOR,
+  CAPACITOR_NAO_POLARIZADO: desenharCAPACITOR,
   INDUTOR: desenharINDUTOR,
   TRANSFORMADOR: desenharTRANSFORMADOR,
   LDR: desenharLDR,
@@ -1648,16 +1730,15 @@ export const DESENHADORES = {
   CI_GENERICO: desenharCI_GENERICO,
 };
 
-/**
- * Desenha apenas os círculos dos pinos e seus rótulos.
- * As hastes são desenhadas por cada componente, onde devem terminar.
- */
-function desenharPinosDoComponente(ctx, comp, dim) {
+function desenharPinosDoComponente(ctx, comp, dim, contextoVisual = {}) {
   const centroX = dim.w / 2;
   const centroY = dim.h / 2;
 
   const pinosBase = comp.pinos || CATALOGO[comp.tipo]?.pinos || [];
-  const estiloAlternativo = comp.tipo === 'LED' && comp.propriedades?.estilo === 'Alternativo';
+  const estiloRealista = ARTES_REALISTAS[comp.tipo] && obterProgressoEstiloRealista() > 0;
+  const estiloAlternativo = !estiloRealista
+    && comp.tipo === 'LED'
+    && comp.propriedades?.estilo === 'Alternativo';
   const pinos = estiloAlternativo
     ? pinosBase.map((pino) => ({ ...pino, ...pinoLEDAlternativo(pino) }))
     : pinosBase;
@@ -1665,6 +1746,44 @@ function desenharPinosDoComponente(ctx, comp, dim) {
   for (const pino of pinos) {
     const px = centroX + pino.x;
     const py = centroY + pino.y;
+
+    if (estiloRealista) {
+      ctx.save();
+      ctx.globalAlpha *= obterProgressoEstiloRealista();
+      const cores = [...new Set(contextoVisual.coresConexao?.[pino.id] || [])];
+      cores.forEach((cor, indice) => {
+        const deslocamento = cores.length > 1 ? (indice - (cores.length - 1) / 2) * 1.53 : 0;
+        ctx.beginPath();
+        ctx.arc(px + deslocamento, py, cores.length > 1 ? 1.4 : 2.13, 0, Math.PI * 2);
+        ctx.fillStyle = cor;
+        ctx.fill();
+        ctx.lineWidth = 0.47;
+        ctx.strokeStyle = '#4b5358';
+        ctx.stroke();
+      });
+
+      if (contextoVisual.pinoEmHover?.componenteId === comp.id
+        && contextoVisual.pinoEmHover?.pinoId === pino.id) {
+        const nome = pino.nome || pino.id;
+        ctx.font = '600 8px system-ui, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        const textoLargura = ctx.measureText(nome).width;
+        const caixaX = px + 7;
+        const caixaY = py - 7;
+        ctx.beginPath();
+        ctx.roundRect(caixaX, caixaY, textoLargura + 8, 14, 4);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = '#738087';
+        ctx.stroke();
+        ctx.fillStyle = '#273238';
+        ctx.fillText(nome, caixaX + 4, py);
+      }
+      ctx.restore();
+      continue;
+    }
 
     if (estiloAlternativo) {
       ctx.save();
@@ -1686,10 +1805,49 @@ function desenharPinosDoComponente(ctx, comp, dim) {
   }
 }
 
+function desenharIndicadorDanoCapacitor(ctx, comp, dim) {
+  const dano = Math.max(0, Math.min(1, Number(comp.propriedades?.danoPolaridade) || 0));
+  if (dano <= 0) return;
+
+  const cx = dim.w / 2;
+  const cy = dim.h * 0.56;
+  const raio = 5 + dano * 9;
+  const brilho = ctx.createRadialGradient(cx, cy, 1, cx, cy, raio);
+  brilho.addColorStop(0, `rgba(255, 66, 24, ${0.22 + dano * 0.5})`);
+  brilho.addColorStop(1, 'rgba(255, 66, 24, 0)');
+  ctx.save();
+  ctx.fillStyle = brilho;
+  ctx.beginPath();
+  ctx.arc(cx, cy, raio, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (comp.estado?.vazando || comp.propriedades?.rompido) {
+    ctx.beginPath();
+    ctx.moveTo(cx - 8, cy + 6);
+    ctx.quadraticCurveTo(cx - 11, cy + 13, cx - 8, cy + 16);
+    ctx.quadraticCurveTo(cx - 4, cy + 13, cx - 8, cy + 6);
+    ctx.fillStyle = comp.propriedades?.rompido ? '#d83a28' : '#9d6a35';
+    ctx.fill();
+  }
+
+  if (comp.propriedades?.rompido) {
+    ctx.beginPath();
+    ctx.moveTo(cx - 5, cy - 8);
+    ctx.lineTo(cx - 1, cy - 3);
+    ctx.lineTo(cx - 4, cy + 1);
+    ctx.lineTo(cx + 2, cy + 5);
+    ctx.lineTo(cx + 5, cy + 10);
+    ctx.strokeStyle = '#171a1c';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 /**
  * Desenha um componente completo com transformação uniforme.
  */
-export function desenharComponente(ctx, comp, telaX, telaY, escala) {
+export function desenharComponente(ctx, comp, telaX, telaY, escala, contextoVisual) {
   const dim = dimensoesDoComponente(comp);
   const cx = dim.w / 2;
   const cy = dim.h / 2;
@@ -1701,20 +1859,52 @@ export function desenharComponente(ctx, comp, telaX, telaY, escala) {
   ctx.translate(-cx, -cy);
 
   const desenhador = DESENHADORES[comp.tipo];
-  if (desenhador) {
-    desenhador(ctx, comp, 0, 0, dim.w, dim.h);
-  } else {
-    preparar(ctx);
-    ctx.beginPath();
-    ctx.rect(0, 0, dim.w, dim.h);
-    ctx.fill();
-    ctx.stroke();
-    desenharRotulo(ctx, comp.tipo, cx, cy, 9);
+  const arteRealista = ARTES_REALISTAS[comp.tipo];
+  const progresso = arteRealista ? obterProgressoEstiloRealista() : 0;
+  const imagemRealista = arteRealista
+    ? comp.tipo === 'FUSIVEL' && comp.propriedades?.queimado === true
+      ? obterArteRealistaQueimada(comp.tipo)
+      : obterArteRealista(comp.tipo, comp.propriedades)
+    : null;
+  if (!arteRealista || progresso < 1 || !imagemRealista) {
+    ctx.save();
+    ctx.globalAlpha *= arteRealista && imagemRealista ? 1 - progresso : 1;
+    if (desenhador) desenhador(ctx, comp, 0, 0, dim.w, dim.h);
+    else {
+      preparar(ctx);
+      ctx.beginPath();
+      ctx.rect(0, 0, dim.w, dim.h);
+      ctx.fill();
+      ctx.stroke();
+      desenharRotulo(ctx, comp.tipo, cx, cy, 9);
+    }
+    ctx.restore();
+  }
+  if (arteRealista && progresso > 0) {
+    ctx.save();
+    ctx.globalAlpha *= progresso;
+    if (imagemRealista) {
+      if (comp.tipo === 'LED') {
+        desenharBrilhoLED(
+          ctx,
+          cx,
+          cy - 13,
+          comp.propriedades?.cor || '#ff3b30',
+          Math.max(0, Math.min(1, Number(comp.estado?.intensidade) || 0))
+        );
+        ctx.filter = `hue-rotate(${matizDaCor(comp.propriedades?.cor)}deg)`;
+      }
+      ctx.drawImage(imagemRealista, 0, 0, dim.w, dim.h);
+      ctx.filter = 'none';
+      if (comp.tipo === 'RESISTOR') desenharFaixasResistor(ctx, comp, dim, imagemRealista);
+      if (comp.tipo === 'CAPACITOR') desenharIndicadorDanoCapacitor(ctx, comp, dim);
+    }
+    ctx.restore();
   }
 
   // O nó já desenha o próprio ponto (ele é o pino)
   if (comp.tipo !== 'NO') {
-    desenharPinosDoComponente(ctx, comp, dim);
+    desenharPinosDoComponente(ctx, comp, dim, contextoVisual);
   }
 
   ctx.restore();
@@ -1731,7 +1921,9 @@ export function posicaoPino(comp, pinoOuId) {
     : pinos.find((p) => p.id === pinoOuId);
   if (!pino) return null;
 
-  if (comp.tipo === 'LED' && comp.propriedades?.estilo === 'Alternativo') {
+  if (comp.tipo === 'LED'
+    && comp.propriedades?.estilo === 'Alternativo'
+    && obterProgressoEstiloRealista() === 0) {
     pino = { ...pino, ...pinoLEDAlternativo(pino) };
   }
 
@@ -1763,7 +1955,9 @@ function distanciaPontoSegmento(px, py, ax, ay, bx, by) {
 }
 
 export function terminalLEDAlternativoEm(comp, x, y, tolerancia = 5) {
-  if (comp.tipo !== 'LED' || comp.propriedades?.estilo !== 'Alternativo') return null;
+  if (obterProgressoEstiloRealista() > 0
+    || comp.tipo !== 'LED'
+    || comp.propriedades?.estilo !== 'Alternativo') return null;
   const dim = dimensoesDoComponente(comp);
   const cx = comp.x + dim.w / 2;
   const cy = comp.y + dim.h / 2;

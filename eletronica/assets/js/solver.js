@@ -133,6 +133,12 @@ function construirNos(circuito) {
   }
 
   for (const comp of componentes) {
+    if (!['CHAVE', 'BOTAO'].includes(comp.tipo)) continue;
+    unir(`${comp.id}:p1`, `${comp.id}:p1b`);
+    unir(`${comp.id}:p2`, `${comp.id}:p2b`);
+  }
+
+  for (const comp of componentes) {
     if (comp.tipo !== 'BARRAMENTO' || comp.propriedades?.conectadoInternamente !== true) continue;
     const primeiroPino = comp.pinos[0];
     if (!primeiroPino) continue;
@@ -488,17 +494,55 @@ function montarSistema(
         if (noA !== undefined && noB !== undefined && noA !== noB) {
           adicionarCondutancia(G, noA, noB, condutancia);
         }
-      } else if (['POTENCIOMETRO', 'LDR', 'TERMISTOR'].includes(comp.tipo)) {
+      } else if (comp.tipo === 'POTENCIOMETRO') {
+        const noA = pinoParaNo.get(`${comp.id}:p1`);
+        const noB = pinoParaNo.get(`${comp.id}:p2`);
+        const noCursor = pinoParaNo.get(`${comp.id}:p3`);
+        const cursorConectado = circuito.fios.some((fio) => (
+          (fio.origem.componente === comp.id && fio.origem.pino === 'p3')
+          || (fio.destino.componente === comp.id && fio.destino.pino === 'p3')
+        ));
+        if (cursorConectado) {
+          const resistenciaConfigurada = Number(comp.propriedades?.resistencia);
+          const total = Number.isFinite(resistenciaConfigurada) && resistenciaConfigurada > 0
+            ? resistenciaConfigurada
+            : 10000;
+          const posicaoConfigurada = Number(comp.propriedades?.posicao);
+          const posicao = Number.isFinite(posicaoConfigurada)
+            ? Math.max(0, Math.min(1, posicaoConfigurada))
+            : 0.5;
+          const rA = Math.max(total * (1 - posicao), 1);
+          const rB = Math.max(total * posicao, 1);
+          adicionarCondutancia(G, noA, noCursor, 1 / rA);
+          adicionarCondutancia(G, noCursor, noB, 1 / rB);
+        } else {
+          const r = calcularResistencia(comp);
+          adicionarCondutancia(G, noA, noB, 1 / Math.max(r, 1e-9));
+        }
+      } else if (['LDR', 'TERMISTOR'].includes(comp.tipo)) {
         const r = calcularResistencia(comp);
         adicionarCondutancia(G, pinoParaNo.get(`${comp.id}:p1`), pinoParaNo.get(`${comp.id}:p2`), 1 / Math.max(r, 1e-9));
-      } else if (comp.tipo === 'CAPACITOR') {
-        const c = comp.propriedades.capacitancia;
-        const dt = 1e-4;
-        const g = Math.max(c / dt, G_MIN);
+      } else if (comp.tipo === 'CAPACITOR' || comp.tipo === 'CAPACITOR_NAO_POLARIZADO') {
         const n1 = pinoParaNo.get(`${comp.id}:p1`);
         const n2 = pinoParaNo.get(`${comp.id}:p2`);
+        if (comp.tipo === 'CAPACITOR' && comp.propriedades?.rompido === true) {
+          adicionarCondutancia(G, n1, n2, 100);
+          continue;
+        }
+
+        const dano = comp.tipo === 'CAPACITOR'
+          ? Math.max(0, Math.min(1, Number(comp.propriedades?.danoPolaridade) || 0))
+          : 0;
+        const c = Number(comp.propriedades.capacitancia) * Math.max(0.15, 1 - dano * 0.7);
+        const dt = 1e-4;
+        const g = Math.max(c / dt, G_MIN);
         adicionarCondutancia(G, n1, n2, g);
         adicionarFonteCorrente(I, n1, n2, g * vAnt);
+        if (comp.tipo === 'CAPACITOR') {
+          const tensaoReversa = Math.max(0, -vAnt);
+          const fuga = Math.min(0.1, dano * 0.02 + tensaoReversa * 0.001);
+          if (fuga > 0) adicionarCondutancia(G, n1, n2, fuga);
+        }
       } else if (comp.tipo === 'INDUTOR') {
         const l = comp.propriedades.indutancia;
         const dt = 1e-4;
@@ -889,6 +933,7 @@ export function simular(circuito) {
   }
 
   let resultado = finalizar(circuito, nos, pinoParaNo, V, convergiu, avisos, nosAlimentados);
+  atualizarEstadoCapacitoresPolarizados(circuito, resultado);
 
   // Verifica queima de fusíveis (APENAS com excesso real, margem de 1%)
   let queimouAlgum = false;
@@ -999,7 +1044,21 @@ function finalizar(circuito, nos, pinoParaNo, V, convergiu, avisos, nosAlimentad
     }
 
     const def = CATALOGO[comp.tipo];
-    if (def.modelo === 'linear' && comp.pinos.length >= 2) {
+    if (comp.tipo === 'CAPACITOR' || comp.tipo === 'CAPACITOR_NAO_POLARIZADO') {
+      const n1 = pinoParaNo.get(`${comp.id}:p1`);
+      const n2 = pinoParaNo.get(`${comp.id}:p2`);
+      const tensao = (V[n1] ?? 0) - (V[n2] ?? 0);
+      if (comp.tipo === 'CAPACITOR' && comp.propriedades?.rompido === true) {
+        correntes[comp.id] = tensao * 100;
+      } else if (comp.tipo === 'CAPACITOR') {
+        const dano = Math.max(0, Math.min(1, Number(comp.propriedades?.danoPolaridade) || 0));
+        const reversa = Math.max(0, -tensao);
+        const fuga = Math.min(0.1, dano * 0.02 + reversa * 0.001);
+        correntes[comp.id] = tensao * fuga;
+      } else {
+        correntes[comp.id] = 0;
+      }
+    } else if (def.modelo === 'linear' && comp.pinos.length >= 2) {
       const n1 = pinoParaNo.get(`${comp.id}:${comp.pinos[0].id}`);
       const n2 = pinoParaNo.get(`${comp.id}:${comp.pinos[1].id}`);
       const v = (V[n1] ?? 0) - (V[n2] ?? 0);
@@ -1146,6 +1205,68 @@ function finalizar(circuito, nos, pinoParaNo, V, convergiu, avisos, nosAlimentad
     erro: convergiu ? null : 'O circuito não convergiu. Verifique as conexões e os valores.',
     avisos,
   };
+}
+
+function atualizarEstadoCapacitoresPolarizados(circuito, resultado) {
+  const agora = Date.now();
+  for (const comp of circuito.componentes) {
+    if (comp.tipo !== 'CAPACITOR') continue;
+    const tensaoPositiva = resultado.tensoes[`${comp.id}:p1`];
+    const tensaoNegativa = resultado.tensoes[`${comp.id}:p2`];
+    if (tensaoPositiva == null || tensaoNegativa == null) continue;
+
+    const reversa = Math.max(0, tensaoNegativa - tensaoPositiva);
+    const estadoAnterior = comp.estado || {};
+    const instanteAnterior = Number(estadoAnterior.instantePolaridade) || agora;
+    const intervalo = Math.max(0, Math.min(1, (agora - instanteAnterior) / 1000));
+    let dano = Math.max(0, Math.min(1, Number(comp.propriedades.danoPolaridade) || 0));
+    const fuga = comp.propriedades.rompido
+      ? reversa * 100
+      : reversa * Math.min(0.1, dano * 0.02 + reversa * 0.001);
+
+    if (reversa > 0.05 && intervalo > 0) {
+      if (reversa < 1) {
+        dano = Math.min(0.35, dano + intervalo * reversa * 0.003);
+      } else {
+        dano = Math.min(1, dano + intervalo * ((reversa - 0.8) ** 2) / 1200);
+      }
+    }
+
+    comp.propriedades.danoPolaridade = dano;
+    if (dano >= 1) comp.propriedades.rompido = true;
+    comp.estado = {
+      ...estadoAnterior,
+      instantePolaridade: agora,
+      tensaoReversa: reversa,
+      danoPolaridade: dano,
+      aquecendo: reversa > 0.05,
+      correnteFuga: fuga,
+      temperaturaInternaC: 25 + reversa * 8 + dano * 120,
+      pressaoInternaRelativa: Math.min(100, reversa * 2 + dano * 100),
+      vazando: dano >= 0.45,
+      rompido: comp.propriedades.rompido === true,
+      statusDano: comp.propriedades.rompido
+        ? 'rompido'
+        : dano >= 0.45
+          ? 'vazando'
+          : dano >= 0.15
+            ? 'danificado'
+            : reversa > 0.05
+              ? 'invertido'
+              : 'integro',
+    };
+
+    if (reversa > 0.05) {
+      resultado.avisos.push(
+        `Polaridade invertida no capacitor: ${reversa.toFixed(2)} V reversos.`
+      );
+    }
+    if (comp.estado.rompido) {
+      resultado.avisos.push('Capacitor polarizado rompido por inversão de polaridade; o componente está em curto.');
+    } else if (dano >= 0.15) {
+      resultado.avisos.push('O capacitor polarizado sofreu dano: capacitância reduzida e fuga elevada.');
+    }
+  }
 }
 
 export function tensaoEm(resultado, compId, pinoId) {

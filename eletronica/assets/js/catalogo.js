@@ -4,6 +4,8 @@
  * como o solver deve tratá-lo.
  */
 
+import { ARTES_REALISTAS, obterProgressoEstiloRealista } from './visual.js';
+
 /**
  * Tipos de modelo de simulação:
  * - 'linear'      → resolve com lei de Ohm
@@ -62,6 +64,7 @@ export const CATALOGO = {
     pinos: [
       { id: 'p1', x: -32, y: 0, nome: 'A' },
       { id: 'p2', x: 32, y: 0, nome: 'B' },
+      { id: 'p3', x: 0, y: -22, nome: 'Cursor' },
     ],
     propriedades: {
       resistencia: { tipo: 'numero', valor: 10000, min: 1, max: 1e6, unidade: 'Ω', rotulo: 'Resistência total' },
@@ -71,12 +74,31 @@ export const CATALOGO = {
   },
 
   CAPACITOR: {
-    rotulo: 'Capacitor',
+    rotulo: 'Capacitor polarizado',
     categoria: 'Passivos',
     modelo: 'linear',
+    padrao: {
+      danoPolaridade: 0,
+      rompido: false,
+    },
     pinos: [
       { id: 'p1', x: -18, y: 0, nome: '+' },
       { id: 'p2', x: 18, y: 0, nome: '−' },
+    ],
+    propriedades: {
+      capacitancia: { tipo: 'numero', valor: 1e-6, min: 1e-12, max: 1, unidade: 'F', rotulo: 'Capacitância' },
+      tensaoInicial: { tipo: 'numero', valor: 0, min: -100, max: 100, unidade: 'V', rotulo: 'Tensão inicial' },
+    },
+    dimensoes: { w: 36, h: 30 },
+  },
+
+  CAPACITOR_NAO_POLARIZADO: {
+    rotulo: 'Capacitor não polarizado',
+    categoria: 'Passivos',
+    modelo: 'linear',
+    pinos: [
+      { id: 'p1', x: -18, y: 0, nome: '1' },
+      { id: 'p2', x: 18, y: 0, nome: '2' },
     ],
     propriedades: {
       capacitancia: { tipo: 'numero', valor: 1e-6, min: 1e-12, max: 1, unidade: 'F', rotulo: 'Capacitância' },
@@ -337,7 +359,9 @@ export const CATALOGO = {
     modelo: 'chave',
     pinos: [
       { id: 'p1', x: -24, y: 0, nome: 'A' },
+      { id: 'p1b', x: -24, y: 0, nome: '' },
       { id: 'p2', x: 24, y: 0, nome: 'B' },
+      { id: 'p2b', x: 24, y: 0, nome: '' },
     ],
     propriedades: {
       fechada: { tipo: 'booleano', valor: false, rotulo: 'Fechada' },
@@ -351,7 +375,9 @@ export const CATALOGO = {
     modelo: 'chave-controlada',
     pinos: [
       { id: 'p1', x: -24, y: 0, nome: 'A' },
+      { id: 'p1b', x: -24, y: 0, nome: '' },
       { id: 'p2', x: 24, y: 0, nome: 'B' },
+      { id: 'p2b', x: 24, y: 0, nome: '' },
       { id: 'controle', x: 0, y: -18, nome: 'C' },
     ],
     dimensoes: { w: 48, h: 38 },
@@ -582,14 +608,29 @@ export const CATEGORIAS = [
 ];
 
 export function obterDimensoesComponente(tipo, propriedades = {}) {
+  let dimensoes;
   if (tipo === 'LED' && propriedades.estilo === 'Alternativo') {
-    return { w: 40, h: 48 };
-  }
-  if (tipo === 'BARRAMENTO') {
+    dimensoes = { w: 40, h: 48 };
+  } else if (tipo === 'BARRAMENTO') {
     const quantidade = normalizarQuantidadePinos(propriedades.quantidadePinos);
-    return { w: 48, h: (quantidade - 1) * 24 + 40 };
+    dimensoes = { w: 48, h: (quantidade - 1) * 24 + 40 };
+  } else {
+    dimensoes = CATALOGO[tipo]?.dimensoes || { w: 80, h: 60 };
   }
-  return CATALOGO[tipo]?.dimensoes || { w: 80, h: 60 };
+
+  const arte = ARTES_REALISTAS[tipo];
+  const progresso = obterProgressoEstiloRealista();
+  if (!arte || progresso <= 0) return dimensoes;
+  const dimensoesArte = tipo === 'BARRAMENTO'
+    ? {
+      w: arte.largura,
+      h: arte.largura * (541 + (normalizarQuantidadePinos(propriedades.quantidadePinos) - 4) * 118) / 177,
+    }
+    : { w: arte.largura, h: arte.altura };
+  return {
+    w: dimensoes.w + (dimensoesArte.w - dimensoes.w) * progresso,
+    h: dimensoes.h + (dimensoesArte.h - dimensoes.h) * progresso,
+  };
 }
 
 function normalizarQuantidadePinos(valor) {
@@ -600,18 +641,64 @@ function normalizarQuantidadePinos(valor) {
 }
 
 export function obterPinosComponente(tipo, propriedades = {}) {
+  let pinos;
   if (tipo === 'BARRAMENTO') {
     const quantidade = normalizarQuantidadePinos(propriedades.quantidadePinos);
     const espacamento = 24;
     const inicioY = -((quantidade - 1) * espacamento) / 2;
-    return Array.from({ length: quantidade }, (_, indice) => ({
+    pinos = Array.from({ length: quantidade }, (_, indice) => ({
       id: `p${indice + 1}`,
       x: -21,
       y: inicioY + indice * espacamento,
       nome: String(indice + 1),
     }));
+  } else {
+    pinos = (CATALOGO[tipo]?.pinos || []).map((pino) => ({ ...pino }));
   }
-  return (CATALOGO[tipo]?.pinos || []).map((pino) => ({ ...pino }));
+
+  const arte = ARTES_REALISTAS[tipo];
+  const progresso = obterProgressoEstiloRealista();
+  if (!arte || progresso <= 0) {
+    if (tipo === 'LED' && propriedades.estilo === 'Alternativo') {
+      return pinos.map((pino) => pino.id === 'p1'
+        ? { ...pino, x: -6, y: 23 }
+        : pino.id === 'p2'
+          ? { ...pino, x: 8, y: 18 }
+          : pino);
+    }
+    return pinos;
+  }
+
+  if (tipo === 'BARRAMENTO') {
+    const quantidade = normalizarQuantidadePinos(propriedades.quantidadePinos);
+    const alturaArte = 541 + (quantidade - 4) * 118;
+    const alturaRealista = arte.largura * alturaArte / 177;
+    return pinos.map((pino, indice) => {
+      const alvo = {
+        x: 64.5 / 177 * arte.largura - arte.largura / 2,
+        y: (97 + indice * 118) / 177 * arte.largura - alturaRealista / 2,
+      };
+      return {
+        ...pino,
+        x: pino.x + (alvo.x - pino.x) * progresso,
+        y: pino.y + (alvo.y - pino.y) * progresso,
+      };
+    });
+  }
+
+  return pinos.map((pino) => {
+    const alvo = arte.pinos[pino.id];
+    if (!alvo) return pino;
+    const base = tipo === 'LED' && propriedades.estilo === 'Alternativo'
+      ? pino.id === 'p1' ? { x: -6, y: 23 } : { x: 8, y: 18 }
+      : pino;
+    return {
+      ...pino,
+      x: base.x + (alvo.x - base.x) * progresso,
+      y: base.y + (alvo.y - base.y) * progresso,
+      nome: progresso >= 0.5 ? alvo.nome : pino.nome,
+    };
+  });
 }
 
 /** Retorna os itens de uma categoria. */

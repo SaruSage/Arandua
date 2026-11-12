@@ -194,6 +194,10 @@ function criarCampo(chave, spec, comp, aoMudar, circuito) {
         comp.x += (dimensoesAnteriores.w - novasDimensoes.w) / 2;
         comp.y += (dimensoesAnteriores.h - novasDimensoes.h) / 2;
         comp.dimensoes = novasDimensoes;
+        comp.pinos = obterPinosComponente(comp.tipo, comp.propriedades).map((pino) => ({
+          ...comp.pinos?.find((atual) => atual.id === pino.id),
+          ...pino,
+        }));
       }
       if (comp.tipo === 'BARRAMENTO' && chave === 'quantidadePinos') {
         atualizarBarramento(comp, circuito);
@@ -416,6 +420,27 @@ export function montarPropriedadesComponente(container, comp, estado, aoMudar, a
           if (typeof estado.recalcular === 'function') estado.recalcular();
         });
         secaoProps.appendChild(btn);
+      }
+    }
+    if (comp.tipo === 'CAPACITOR') {
+      const status = document.createElement('div');
+      status.className = 'prop-status';
+      const situacao = comp.estado?.statusDano || 'integro';
+      const statusCapacitor = {
+        integro: ['Íntegro', '#53b588'],
+        invertido: ['Polaridade invertida: fuga e aquecimento', '#d28a24'],
+        danificado: ['Dano parcial: capacitância reduzida e ESR elevada', '#d28a24'],
+        vazando: ['Vazamento de eletrólito', '#c45b2a'],
+        rompido: ['Rompido: curto-circuito', '#c0392b'],
+      }[situacao];
+      status.textContent = `● ${statusCapacitor[0]}`;
+      status.style.color = statusCapacitor[1];
+      secaoProps.appendChild(status);
+      if (comp.estado?.aquecendo || Number(comp.propriedades.danoPolaridade) > 0) {
+        const detalhe = document.createElement('div');
+        detalhe.className = 'popup-descricao';
+        detalhe.textContent = `Fuga: ${(Number(comp.estado?.correnteFuga) * 1000).toFixed(2)} mA · Temperatura: ${Number(comp.estado?.temperaturaInternaC || 25).toFixed(1)} °C · Pressão interna relativa: ${Number(comp.estado?.pressaoInternaRelativa || 0).toFixed(0)}%`;
+        secaoProps.appendChild(detalhe);
       }
     }
 

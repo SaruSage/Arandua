@@ -16,6 +16,11 @@ import { configurarInteracao } from '../assets/js/selecao.js';
 import { pontosDoFio } from '../assets/js/fios.js';
 import { rotearFios } from '../assets/js/roteamento.js';
 import { simular } from '../assets/js/solver.js';
+import {
+  ARTES_REALISTAS,
+  definirProgressoEstiloRealista,
+  obterProgressoEstiloRealista,
+} from '../assets/js/visual.js';
 
 function criarCircuitoDeExemplo(exemplo, entradas = {}) {
   const circuito = criarCircuito();
@@ -111,8 +116,12 @@ function assertComportamentoComponentes(circuito, resultado, contexto) {
     const def = CATALOGO[componente.tipo];
     assert.ok(def, `${contexto}: tipo desconhecido ${componente.tipo}`);
     for (const pino of componente.pinos) {
+      const tensao = resultado.tensoes[`${componente.id}:${pino.id}`];
+      const pinoFlutuanteDeChaveAberta = componente.tipo === 'CHAVE'
+        && componente.propriedades.fechada !== true
+        && tensao === null;
       assert.ok(
-        Number.isFinite(resultado.tensoes[`${componente.id}:${pino.id}`]),
+        Number.isFinite(tensao) || pinoFlutuanteDeChaveAberta,
         `${contexto}: tensão inválida em ${componente.tipo} ${componente.id}.${pino.id}`
       );
     }
@@ -395,6 +404,38 @@ test('barramento padrão tem quatro pinos e permite configurar até dezesseis', 
   assert.deepEqual(obterDimensoesComponente('BARRAMENTO', { quantidadePinos: 16 }), { w: 48, h: 400 });
 });
 
+test('dimensões realistas são válidas para todas as artes', () => {
+  const progressoAnterior = obterProgressoEstiloRealista();
+  definirProgressoEstiloRealista(1);
+  try {
+    for (const tipo of Object.keys(ARTES_REALISTAS)) {
+      const definicao = CATALOGO[tipo];
+      const propriedades = {
+        ...Object.fromEntries(
+          Object.entries(definicao.propriedades || {})
+            .map(([chave, propriedade]) => [chave, propriedade.valor])
+        ),
+        ...definicao.padrao,
+      };
+      const dimensoes = obterDimensoesComponente(tipo, propriedades);
+      assert.ok(Number.isFinite(dimensoes.w) && dimensoes.w > 0, `${tipo}: largura inválida`);
+      assert.ok(Number.isFinite(dimensoes.h) && dimensoes.h > 0, `${tipo}: altura inválida`);
+    }
+
+    const quantidadePinos = 16;
+    const dimensoesBarramento = obterDimensoesComponente('BARRAMENTO', { quantidadePinos });
+    const pinosBarramento = obterPinosComponente('BARRAMENTO', { quantidadePinos });
+    const alturaArteBarramento = 541 + (quantidadePinos - 4) * 118;
+    for (const [indice, pino] of pinosBarramento.entries()) {
+      const yEsperado = (97 + indice * 118) / alturaArteBarramento * dimensoesBarramento.h
+        - dimensoesBarramento.h / 2;
+      assert.ok(Math.abs(pino.y - yEsperado) < 0.5, `Barramento: pino ${pino.id} desalinhado`);
+    }
+  } finally {
+    definirProgressoEstiloRealista(progressoAnterior);
+  }
+});
+
 test('barramento só une os pinos quando a opção interna está ativada', () => {
   const circuito = criarCircuito();
   const bateria = adicionarComponente(circuito, 'BATERIA', 0, 0);
@@ -406,13 +447,14 @@ test('barramento só une os pinos quando a opção interna está ativada', () =>
     dobras: [],
   });
 
+  const tensaoEsperada = bateria.propriedades.tensao;
   const resultadoIndependente = simular(circuito);
-  assert.equal(resultadoIndependente.tensoes[`${barramento.id}:p1`], 5);
+  assert.equal(resultadoIndependente.tensoes[`${barramento.id}:p1`], tensaoEsperada);
   assert.equal(resultadoIndependente.tensoes[`${barramento.id}:p4`], null);
 
   barramento.propriedades.conectadoInternamente = true;
   const resultadoConectado = simular(circuito);
-  assert.equal(resultadoConectado.tensoes[`${barramento.id}:p4`], 5);
+  assert.equal(resultadoConectado.tensoes[`${barramento.id}:p4`], tensaoEsperada);
 });
 
 test('circuito sem fonte não atribui tensões arbitrárias nem energiza componentes', () => {
@@ -436,7 +478,7 @@ test('componentes em uma ilha sem alimentação não são energizados por uma fo
 
   const resultado = simular(circuito);
 
-  assert.equal(resultado.tensoes[`${bateria.id}:p1`], 5);
+  assert.equal(resultado.tensoes[`${bateria.id}:p1`], bateria.propriedades.tensao);
   assert.equal(resultado.tensoes[`${bateria.id}:p2`], 0);
   assert.equal(porta.estado.saida, null);
   assert.ok(porta.pinos.every((pino) => pino.valor === null));

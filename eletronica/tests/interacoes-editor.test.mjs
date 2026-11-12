@@ -1,14 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { CATALOGO } from '../assets/js/catalogo.js';
-import { adicionarComponente, criarCircuito } from '../assets/js/circuito.js';
+import { CATALOGO, obterDimensoesComponente, obterPinosComponente } from '../assets/js/catalogo.js';
+import { adicionarComponente, componenteEm, criarCircuito } from '../assets/js/circuito.js';
 import { configurarFios, desenharFios } from '../assets/js/fios.js';
 import { boundsDosFilhos, caixaNomeGrupo, configurarGrupos, noNome } from '../assets/js/grupos.js';
 import { desfazer, inicializar, refazer } from '../assets/js/historico.js';
 import { reconstruir, serializar } from '../assets/js/persistencia.js';
 import { configurarInteracao } from '../assets/js/selecao.js';
-import { posicaoPino } from '../assets/js/simbolos.js';
+import {
+  definirProgressoEstiloRealista,
+  obterProgressoEstiloRealista,
+  posicaoPino,
+} from '../assets/js/simbolos.js';
 
 function alvo() {
   const listeners = new Map();
@@ -40,8 +44,19 @@ function alvo() {
   };
 }
 
+function documentoDeTeste() {
+  return {
+    getElementById: () => null,
+    createElement: () => ({ style: {}, hidden: false }),
+  };
+}
+
 function editor(circuito) {
   const elemento = alvo();
+  elemento.parentElement = {
+    appendChild() {},
+    getBoundingClientRect() { return { left: 0, top: 0, width: 500, height: 500 }; },
+  };
   const janela = alvo();
   const canvas = {
     elemento, view: { zoom: 1, panX: 0, panY: 0 },
@@ -61,6 +76,28 @@ function evento(ponto, button) {
   return { clientX: ponto.x, clientY: ponto.y, button };
 }
 
+test('artes realistas alinham terminais e rótulos de NPN e PNP', () => {
+  const progressoAnterior = obterProgressoEstiloRealista();
+  definirProgressoEstiloRealista(1);
+  try {
+    const npn = Object.fromEntries(obterPinosComponente('TRANSISTOR_NPN').map((pino) => [pino.id, pino]));
+    const pnp = Object.fromEntries(obterPinosComponente('TRANSISTOR_PNP').map((pino) => [pino.id, pino]));
+
+    assert.deepEqual([npn.c.nome, npn.b.nome, npn.e.nome], ['C', 'B', 'E']);
+    assert.ok(npn.c.x < npn.b.x && npn.b.x < npn.e.x);
+    assert.deepEqual([pnp.e.nome, pnp.b.nome, pnp.c.nome], ['E', 'B', 'C']);
+    assert.ok(pnp.e.x < pnp.b.x && pnp.b.x < pnp.c.x);
+
+    const dimensoesNpn = obterDimensoesComponente('TRANSISTOR_NPN');
+    const dimensoesPnp = obterDimensoesComponente('TRANSISTOR_PNP');
+    assert.ok(Math.abs(dimensoesNpn.h - dimensoesPnp.h) < 0.001);
+    assert.ok(Math.abs(npn.c.y - npn.b.y) < 1);
+    assert.ok(Math.abs(pnp.e.y - pnp.b.y) < 1);
+  } finally {
+    definirProgressoEstiloRealista(progressoAnterior);
+  }
+});
+
 test('a área inclui dobras de fios que conectam componentes membros', () => {
   const circuito = criarCircuito();
   const a = adicionarComponente(circuito, 'NO', 50, 50);
@@ -79,11 +116,45 @@ test('a área inclui dobras de fios que conectam componentes membros', () => {
   assert.ok(bounds.y + bounds.h >= 380);
 });
 
+test('componente rotacionado é selecionável em todo o corpo e nos pinos', () => {
+  const janelaAnterior = globalThis.window;
+  const documentoAnterior = globalThis.document;
+  try {
+    globalThis.document = documentoDeTeste();
+    const circuito = criarCircuito();
+    const bateria = adicionarComponente(circuito, 'BATERIA', 100, 100);
+    bateria.dimensoes = { w: 48, h: 88 };
+    bateria.rotacao = 90;
+
+    const fonte = adicionarComponente(circuito, 'FONTE_POSITIVA', 240, 100);
+    fonte.pinos = [{ id: 'p', x: 90, y: 0, nome: '+' }];
+    const pinoFonte = { x: 240 + 36 + 90, y: 100 + 24 };
+    assert.equal(componenteEm(circuito, 84, 144)?.id, bateria.id);
+    assert.equal(componenteEm(circuito, pinoFonte.x, pinoFonte.y)?.id, fonte.id);
+
+    const { elemento, estado } = editor(circuito);
+    elemento.emitir('mousedown', evento({ x: 84, y: 144 }, 0));
+    assert.deepEqual(estado.selecionados, [bateria.id]);
+    elemento.emitir('mousemove', evento({ x: 104, y: 144 }, 0));
+    elemento.emitir('mouseup', evento({ x: 104, y: 144 }, 0));
+    assert.equal(bateria.x, 120);
+
+    elemento.emitir('mousedown', evento(pinoFonte, 2));
+    assert.deepEqual(estado.selecionados, [fonte.id]);
+    elemento.emitir('mousemove', evento({ x: pinoFonte.x + 20, y: pinoFonte.y }, 2));
+    elemento.emitir('mouseup', evento({ x: pinoFonte.x + 20, y: pinoFonte.y }, 2));
+    assert.equal(fonte.x, 260);
+  } finally {
+    globalThis.window = janelaAnterior;
+    globalThis.document = documentoAnterior;
+  }
+});
+
 test('nó cria fios com a esquerda e move com a direita sem iniciar seleção retangular', () => {
   const anterior = globalThis.window;
   const documentoAnterior = globalThis.document;
   try {
-    globalThis.document = { getElementById: () => null };
+    globalThis.document = documentoDeTeste();
     const circuito = criarCircuito();
     const no = adicionarComponente(circuito, 'NO', 50, 50);
     const outro = adicionarComponente(circuito, 'NO', 150, 50);
@@ -122,7 +193,7 @@ test('nome da área percorre topo e base, respeita limites e é salvo no histór
   const anterior = globalThis.window;
   const documentoAnterior = globalThis.document;
   try {
-    globalThis.document = { getElementById: () => null };
+    globalThis.document = documentoDeTeste();
     const circuito = criarCircuito();
     const grupo = { id: 'g', nome: 'Área', cor: '#53b588', membros: [], x: 20, y: 40, w: 200, h: 100 };
     circuito.grupos.push(grupo);

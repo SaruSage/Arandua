@@ -45,27 +45,37 @@ export function buscarComponente(circuito, id) {
   return circuito.componentes.find((c) => c.id === id) || null;
 }
 
-/** Retorna o componente cujo corpo contém o ponto. */
+/** Retorna o componente cujo corpo ou pino contém o ponto. */
 export function componenteEm(circuito, x, y) {
   for (let i = circuito.componentes.length - 1; i >= 0; i--) {
     const c = circuito.componentes[i];
+    const dim = c.tipo === 'LED' && c.propriedades?.estilo === 'Alternativo'
+      ? obterDimensoesComponente(c.tipo, c.propriedades)
+      : c.dimensoes || CATALOGO[c.tipo]?.dimensoes || { w: 64, h: 30 };
+    const cx = c.x + dim.w / 2;
+    const cy = c.y + dim.h / 2;
+    const rad = ((c.rotacao || 0) * Math.PI) / 180;
+    const dx = x - cx;
+    const dy = y - cy;
+    const localX = dx * Math.cos(rad) + dy * Math.sin(rad);
+    const localY = -dx * Math.sin(rad) + dy * Math.cos(rad);
+
     if (c.tipo === 'NO') {
-      const dim = CATALOGO[c.tipo]?.dimensoes || { w: 20, h: 20 };
-      const cx = c.x + dim.w / 2;
-      const cy = c.y + dim.h / 2;
       if (Math.hypot(x - cx, y - cy) <= 12) {
         return c;
       }
-      continue;
-    }
-    const dim = c.tipo === 'LED' && c.propriedades?.estilo === 'Alternativo'
-      ? obterDimensoesComponente(c.tipo, c.propriedades)
-      : c.dimensoes || CATALOGO[c.tipo].dimensoes;
-    if (
-      x >= c.x - 10 && x <= c.x + dim.w + 10 &&
-      y >= c.y - 10 && y <= c.y + dim.h + 10
+    } else if (
+      Math.abs(localX) <= dim.w / 2 + 10
+      && Math.abs(localY) <= dim.h / 2 + 10
     ) {
       return c;
+    }
+
+    const pinos = c.pinos || CATALOGO[c.tipo]?.pinos || [];
+    for (const pino of pinos) {
+      const pinoX = cx + pino.x * Math.cos(rad) - pino.y * Math.sin(rad);
+      const pinoY = cy + pino.x * Math.sin(rad) + pino.y * Math.cos(rad);
+      if (Math.hypot(x - pinoX, y - pinoY) <= 10) return c;
     }
   }
   return null;

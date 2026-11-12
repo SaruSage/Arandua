@@ -5,7 +5,7 @@
  * branco, e baixa como .png.
  */
 
-import { CATALOGO } from './catalogo.js';
+import { CATALOGO, obterDimensoesComponente } from './catalogo.js';
 import { desenharComponente } from './simbolos.js';
 import { desenharGrupos } from './grupos.js';
 
@@ -21,7 +21,7 @@ function calcularBounds(circuito) {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
   for (const comp of circuito.componentes) {
-    const dim = CATALOGO[comp.tipo].dimensoes;
+    const dim = comp.dimensoes || obterDimensoesComponente(comp.tipo, comp.propriedades);
     minX = Math.min(minX, comp.x);
     minY = Math.min(minY, comp.y);
     maxX = Math.max(maxX, comp.x + dim.w);
@@ -100,8 +100,22 @@ export function renderizarParaCanvas(circuito) {
   ctx.restore();
 
   // Componentes
+  const coresPorComponente = new Map();
+  for (const fio of circuito.fios) {
+    for (const ponta of [fio.origem, fio.destino]) {
+      if (!coresPorComponente.has(ponta.componente)) {
+        coresPorComponente.set(ponta.componente, {});
+      }
+      const coresPorPino = coresPorComponente.get(ponta.componente);
+      const cores = coresPorPino[ponta.pino] || (coresPorPino[ponta.pino] = []);
+      const cor = fio.cor || '#2b2b2b';
+      if (!cores.includes(cor)) cores.push(cor);
+    }
+  }
   for (const comp of circuito.componentes) {
-    desenharComponente(ctx, comp, comp.x, comp.y, 1);
+    desenharComponente(ctx, comp, comp.x, comp.y, 1, {
+      coresConexao: coresPorComponente.get(comp.id),
+    });
   }
 
   ctx.restore();

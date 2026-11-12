@@ -5,8 +5,9 @@
 
 import { desenharComponente, CORES } from './simbolos.js';
 import { CATALOGO } from './catalogo.js';
-import { desenharFios, desenharFioFantasma } from './fios.js';
+import { desenharFios, desenharFioFantasma, pinoEm } from './fios.js';
 import { desenharGrupos, desenharSelecaoRetangular, boundsDoComponente } from './grupos.js';
+import { obterProgressoEstiloRealista } from './visual.js';
 
 export const GRADE_BASE = 40;        // espaçamento base em unidades de mundo
 export const SUBDIVISOES = 4;        // cada célula tem 4x4 subdivisões
@@ -159,6 +160,21 @@ export function criarCanvas(elemento, estado) {
     if (typeof estado !== 'undefined' && estado) {
       estado.ultimoMouse = mundo;
     }
+
+    if (obterProgressoEstiloRealista() > 0 && ultimoRenderArgs) {
+      const encontrado = pinoEm(ultimoRenderArgs[0], mundo.x, mundo.y);
+      const proximo = encontrado
+        ? { componenteId: encontrado.componente.id, pinoId: encontrado.pino.id }
+        : null;
+      if (proximo?.componenteId !== pinoEmHover?.componenteId
+        || proximo?.pinoId !== pinoEmHover?.pinoId) {
+        pinoEmHover = proximo;
+        render(...ultimoRenderArgs);
+      }
+    } else if (pinoEmHover) {
+      pinoEmHover = null;
+      if (ultimoRenderArgs) render(...ultimoRenderArgs);
+    }
   });
 
   function redimensionar() {
@@ -277,22 +293,31 @@ export function criarCanvas(elemento, estado) {
 
   function desenharSelecao(comp) {
     const dim = comp.dimensoes || CATALOGO[comp.tipo].dimensoes;
-    const tela = mundoParaTela(comp.x, comp.y);
-    const w = dim.w * view.zoom;
-    const h = dim.h * view.zoom;
+    const centro = mundoParaTela(comp.x + dim.w / 2, comp.y + dim.h / 2);
 
     ctx.save();
     ctx.strokeStyle = CORES.primaria;
     ctx.lineWidth = 1.5;
     ctx.setLineDash([5, 4]);
     if (comp.tipo === 'NO') {
-      const cx = tela.x + w / 2;
-      const cy = tela.y + h / 2;
       ctx.beginPath();
-      ctx.arc(cx, cy, 8 * view.zoom, 0, Math.PI * 2);
+      ctx.arc(centro.x, centro.y, 8 * view.zoom, 0, Math.PI * 2);
       ctx.stroke();
     } else {
-      ctx.strokeRect(tela.x - 8, tela.y - 8, w + 16, h + 16);
+      const pinos = comp.pinos || CATALOGO[comp.tipo]?.pinos || [];
+      const minX = Math.min(-dim.w / 2, ...pinos.map((pino) => pino.x));
+      const minY = Math.min(-dim.h / 2, ...pinos.map((pino) => pino.y));
+      const maxX = Math.max(dim.w / 2, ...pinos.map((pino) => pino.x));
+      const maxY = Math.max(dim.h / 2, ...pinos.map((pino) => pino.y));
+      const margem = 8;
+      ctx.translate(centro.x, centro.y);
+      ctx.rotate(((comp.rotacao || 0) * Math.PI) / 180);
+      ctx.strokeRect(
+        minX * view.zoom - margem,
+        minY * view.zoom - margem,
+        (maxX - minX) * view.zoom + margem * 2,
+        (maxY - minY) * view.zoom + margem * 2
+      );
     }
     ctx.restore();
   }
@@ -325,6 +350,7 @@ export function criarCanvas(elemento, estado) {
   let construirAnimacao = null;
   let animacaoRafId = null;
   let ultimoRenderArgs = null;
+  let pinoEmHover = null;
 
   function calcularBoundingBoxComponentes(componentes) {
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -473,9 +499,24 @@ export function criarCanvas(elemento, estado) {
     desenharGuias(ctx);
 
     // Componentes
+    const coresPorComponente = new Map();
+    for (const fio of circuito.fios) {
+      for (const ponta of [fio.origem, fio.destino]) {
+        if (!coresPorComponente.has(ponta.componente)) {
+          coresPorComponente.set(ponta.componente, {});
+        }
+        const coresPorPino = coresPorComponente.get(ponta.componente);
+        const cores = coresPorPino[ponta.pino] || (coresPorPino[ponta.pino] = []);
+        const cor = fio.cor || CORES.traco;
+        if (!cores.includes(cor)) cores.push(cor);
+      }
+    }
     for (const comp of circuito.componentes) {
       const tela = mundoParaTela(comp.x, comp.y);
-      desenharComponente(ctx, comp, tela.x, tela.y, view.zoom);
+      desenharComponente(ctx, comp, tela.x, tela.y, view.zoom, {
+        coresConexao: coresPorComponente.get(comp.id),
+        pinoEmHover,
+      });
       desenharNomeComponente(ctx, comp, view);
     }
 

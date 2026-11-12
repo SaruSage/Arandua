@@ -3,7 +3,7 @@
  */
 
 import { componenteEm, moverComponente, rotacionarComponente } from './circuito.js';
-import { CATALOGO } from './catalogo.js';
+import { CATALOGO, obterDimensoesComponente } from './catalogo.js';
 import { registrar } from './historico.js';
 import { recalcularMembros, pontoDentroDoGrupo, sincronizarVerticesVinculados } from './grupos.js';
 import {
@@ -263,7 +263,7 @@ export function configurarInteracao(canvas, estado, aoMudar) {
     }
 
     const comp = componenteEm(estado.circuito, mundo.x, mundo.y);
-    if (e.button !== 0 && !(e.button === 2 && comp?.tipo === 'NO')) return;
+    if (e.button !== 0 && !(e.button === 2 && comp)) return;
 
     if (comp) {
       if (e.button === 2) estado.limparSelecaoFio?.();
@@ -650,7 +650,7 @@ export function configurarInteracao(canvas, estado, aoMudar) {
     if (!tipo) return;
     const rect = el.getBoundingClientRect();
     const mundo = canvas.telaParaMundo(e.clientX - rect.left, e.clientY - rect.top);
-    const dim = CATALOGO[tipo].dimensoes;
+    const dim = obterDimensoesComponente(tipo);
     estado.adicionar(tipo, mundo.x - dim.w / 2, mundo.y - dim.h / 2);
   });
 
