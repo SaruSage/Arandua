@@ -3,7 +3,12 @@
  * Não desenha nada; só guarda e manipula dados.
  */
 
-import { criarInstancia, CATALOGO, obterDimensoesComponente } from './catalogo.js';
+import {
+  criarInstancia,
+  CATALOGO,
+  obterAreaSelecaoPersonalizada,
+  obterDimensoesComponente,
+} from './catalogo.js';
 
 export function criarCircuito() {
   return {
@@ -64,11 +69,16 @@ export function componenteEm(circuito, x, y) {
       if (Math.hypot(x - cx, y - cy) <= 12) {
         return c;
       }
-    } else if (
-      Math.abs(localX) <= dim.w / 2 + 10
-      && Math.abs(localY) <= dim.h / 2 + 10
-    ) {
-      return c;
+    } else {
+      const area = obterAreaSelecaoPersonalizada(c.tipo);
+      const minX = area ? area.x - dim.w / 2 : -dim.w / 2;
+      const maxX = area ? area.x + area.largura - dim.w / 2 : dim.w / 2;
+      const minY = area ? area.y - dim.h / 2 : -dim.h / 2;
+      const maxY = area ? area.y + area.altura - dim.h / 2 : dim.h / 2;
+      if (localX >= minX - 10 && localX <= maxX + 10
+        && localY >= minY - 10 && localY <= maxY + 10) {
+        return c;
+      }
     }
 
     const pinos = c.pinos || CATALOGO[c.tipo]?.pinos || [];

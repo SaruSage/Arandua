@@ -38,6 +38,19 @@ import {
   executarTrazerAoProjeto,
 } from './montagem.js';
 import { abrirModalExemplos } from './exemplos.js';
+import { abrirEstudioComponentes } from './studio-componentes.js';
+import { copiarDesignsLocais, criarDesignInicial, definirDesignsPublicados } from './designs-componentes.js';
+import { abrirConta } from './conta.js';
+import { abrirProjetosNuvem } from './projetos-nuvem.js';
+import {
+  firebaseConfigurado,
+  iniciarNuvem,
+  listarVersoesDesign,
+  observarAutenticacao,
+  observarDesigns,
+  publicarDesign,
+  verificarAdministrador,
+} from './nuvem.js';
 import { simular, tensaoEm, correnteEm } from './solver.js';
 import { obterMontagem, desenharMontagem } from './montagens.js';
 import {
@@ -55,6 +68,7 @@ import {
   carregarLocal,
   temAutosave,
   limparLocal,
+  serializar,
 } from './persistencia.js';
 import {
   registrar,
@@ -185,6 +199,12 @@ const estado = {
 };
 
 let canvas = null;
+let usuarioAtual = null;
+let administradorAtual = false;
+let projetoAtual = null;
+let designsNuvem = {};
+let interfaceMontada = false;
+let autenticacaoSequencia = 0;
 let elPainel = null;
 let areaTransferencia = null;
 let timerDanoCapacitor = null;
@@ -728,6 +748,7 @@ function montarInterface() {
         </div>
         <div class="cabecalho-acoes">
           <button type="button" class="btn-simular" id="btn-simular">Simular</button>
+          <button type="button" class="cabecalho-btn" id="btn-projetos-nuvem">Salvar Projeto</button>
           <button type="button" class="btn-juntar" id="btn-juntar">Criar área</button>
           <button id="btn-construir" class="cabecalho-btn cabecalho-btn-construir" type="button" disabled>Construir</button>
           <button type="button" class="btn-toolbar" id="btn-desfazer" title="Desfazer (Ctrl+Z)">↶</button>
@@ -756,6 +777,9 @@ function montarInterface() {
             </svg>
           </button>
           <div id="menu-dropdown" class="menu-dropdown oculto">
+            <button type="button" id="btn-conta">Conta</button>
+            <button type="button" id="btn-estudio-componentes" hidden>Estúdio de componentes</button>
+            <button type="button" id="btn-importar-designs" hidden>Importar designs locais</button>
             <button type="button" id="btn-comandos" class="menu-item">Comandos</button>
             <button type="button" id="btn-salvar">Salvar</button>
             <button type="button" id="btn-abrir">Abrir</button>
@@ -967,6 +991,66 @@ function montarInterface() {
     abrirPopupEntidade('comandos', 'lista');
   });
 
+  document.getElementById('btn-conta').addEventListener('click', () => {
+    menuDropdown.classList.add('oculto');
+    abrirConta(usuarioAtual);
+  });
+
+  document.getElementById('btn-projetos-nuvem').addEventListener('click', async () => {
+    if (!usuarioAtual) {
+      alert('Entre na sua conta para salvar e abrir projetos na nuvem.');
+      abrirConta(usuarioAtual);
+      return;
+    }
+    await abrirProjetosNuvem(
+      () => serializar(estado),
+      (dados) => carregarDadosCircuito(dados),
+      projetoAtual,
+      (projeto) => { projetoAtual = projeto; },
+      usuarioAtual.uid
+    );
+  });
+
+  document.getElementById('btn-importar-designs').addEventListener('click', async () => {
+    menuDropdown.classList.add('oculto');
+    if (!administradorAtual) return;
+    try {
+      const locais = copiarDesignsLocais();
+      const tipos = Object.keys(locais).filter((tipo) => CATALOGO[tipo]);
+      if (!tipos.length) {
+        alert('Não há designs locais para importar neste navegador.');
+        return;
+      }
+      if (!confirm(`Publicar ${tipos.length} design(s) local(is)? Os designs publicados desses componentes serão substituídos.`)) return;
+      for (const tipo of tipos) {
+        const inicial = criarDesignInicial(tipo, CATALOGO[tipo], CATALOGO[tipo].pinos);
+        await publicarDesign(tipo, locais[tipo], designsNuvem[tipo]?.versao || 0, inicial);
+      }
+      alert('Designs locais publicados. Os originais continuam neste navegador.');
+    } catch (erro) {
+      console.error('Não foi possível importar todos os designs:', erro);
+      alert(`A importação foi interrompida. Designs anteriores à falha podem ter sido publicados: ${erro.message}`);
+    }
+  });
+
+  document.getElementById('btn-estudio-componentes').addEventListener('click', async () => {
+    menuDropdown.classList.add('oculto');
+    if (!administradorAtual) {
+      mostrarToastConstruir('O estúdio está disponível apenas para administradores.');
+      return;
+    }
+    try {
+      await abrirEstudioComponentes(null, {
+        obterVersao: (tipo) => designsNuvem[tipo]?.versao || 0,
+        listarVersoes: listarVersoesDesign,
+        publicar: publicarDesign,
+      });
+    } catch (erro) {
+      console.error('Não foi possível abrir o estúdio de componentes:', erro);
+      mostrarToastConstruir(erro.message);
+    }
+  });
+
   document.getElementById('btn-salvar').addEventListener('click', () => {
     menuDropdown.classList.add('oculto');
     baixarArquivo(estado, 'circuito.json');
@@ -979,20 +1063,8 @@ function montarInterface() {
       alert(resultado.erro);
       return;
     }
-    const { circuito, view } = reconstruir(resultado.dados);
-    estado.circuito = circuito;
-    estado.selecionados = [];
-    estado.fioSelecionadoId = null;
-    estado.grupoSelecionadoId = null;
-    estado.resultado = null;
-    if (canvas.view) {
-      canvas.view.zoom = view.zoom;
-      canvas.view.panX = view.panX;
-      canvas.view.panY = view.panY;
-    }
-    limparHistorico();
-    inicializar(estado.circuito);
-    renderizarTudo();
+    carregarDadosCircuito(resultado.dados);
+    projetoAtual = null;
   });
 
   document.getElementById('btn-exportar').addEventListener('click', () => {
@@ -1056,6 +1128,7 @@ function montarInterface() {
   });
 
   window.addEventListener('keydown', (e) => {
+    if (document.querySelector('.studio-overlay, dialog[open]')) return;
     if (e.target instanceof HTMLElement && (e.target.isContentEditable || ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName))) return;
     const tecla = e.key.toLowerCase();
 
@@ -2062,4 +2135,138 @@ function abrirMontagem(comp) {
   abrirPopupEntidade('montagem', comp.id);
 }
 
-montarInterface();
+function carregarDadosCircuito(dados) {
+  if (estado.simulando) pararSimulacao();
+  const { circuito, view } = reconstruir(dados);
+  estado.circuito = circuito;
+  estado.selecionados = [];
+  estado.fioSelecionadoId = null;
+  estado.grupoSelecionadoId = null;
+  estado.resultado = null;
+  estado.popups = {};
+  estado.popupAtivo = null;
+  canvas.view.zoom = view.zoom;
+  canvas.view.panX = view.panX;
+  canvas.view.panY = view.panY;
+  limparHistorico();
+  inicializar(estado.circuito);
+  renderizarTudo();
+  renderizarPopups(true);
+  agendarAutosave(estado);
+}
+
+function atualizarDesignsNuvem(publicados) {
+  const designs = Object.fromEntries(Object.entries(publicados).map(([tipo, item]) => [tipo, item.design]));
+  definirDesignsPublicados(designs);
+  const anteriores = designsNuvem;
+  designsNuvem = publicados;
+  if (!interfaceMontada) return;
+  const tiposAlterados = new Set([...Object.keys(anteriores), ...Object.keys(publicados)]
+    .filter((tipo) => JSON.stringify(anteriores[tipo]) !== JSON.stringify(publicados[tipo])));
+  if (!tiposAlterados.size) return;
+  if (estado.simulando) pararSimulacao();
+  for (const comp of estado.circuito.componentes.filter((item) => tiposAlterados.has(item.tipo))) {
+    const dimensoesAnteriores = comp.dimensoes || CATALOGO[comp.tipo].dimensoes;
+    const centroX = comp.x + dimensoesAnteriores.w / 2;
+    const centroY = comp.y + dimensoesAnteriores.h / 2;
+    comp.dimensoes = obterDimensoesComponente(comp.tipo, comp.propriedades);
+    comp.pinos = obterPinosComponente(comp.tipo, comp.propriedades);
+    comp.x = centroX - comp.dimensoes.w / 2;
+    comp.y = centroY - comp.dimensoes.h / 2;
+  }
+  document.querySelectorAll('.paleta-miniatura[data-tipo]').forEach((miniatura) => {
+    if (tiposAlterados.has(miniatura.dataset.tipo)) desenharMiniatura(miniatura, miniatura.dataset.tipo);
+  });
+  renderizarTudo();
+  agendarAutosave(estado);
+}
+
+function atualizarAcesso() {
+  if (!interfaceMontada) return;
+  document.getElementById('btn-estudio-componentes').hidden = !administradorAtual;
+  document.getElementById('btn-importar-designs').hidden = !administradorAtual;
+  document.getElementById('btn-conta').textContent = usuarioAtual ? 'Minha conta' : 'Entrar / criar conta';
+}
+
+async function iniciarAplicativo() {
+  let aviso = '';
+  if (firebaseConfigurado()) {
+    definirDesignsPublicados({});
+    try {
+      await iniciarNuvem();
+      await new Promise((resolve) => {
+        let concluido = false;
+        const timer = setTimeout(() => {
+          if (!concluido) {
+            concluido = true;
+            aviso = 'Ainda não foi possível carregar os designs da nuvem.';
+            resolve();
+          }
+        }, 10000);
+        const concluir = () => {
+          if (!concluido) {
+            concluido = true;
+            clearTimeout(timer);
+            resolve();
+          }
+        };
+        observarDesigns((publicados) => {
+          try {
+            atualizarDesignsNuvem(publicados);
+          } catch (erro) {
+            console.error('Designs publicados inválidos:', erro);
+            aviso = `Não foi possível aplicar os designs: ${erro.message}`;
+            if (interfaceMontada) alert(aviso);
+          }
+          concluir();
+        }, (erro) => {
+          console.error('Erro ao carregar designs publicados:', erro);
+          aviso = `Não foi possível carregar os designs da nuvem: ${erro.message}`;
+          if (interfaceMontada) alert(aviso);
+          concluir();
+        }).catch((erro) => {
+          console.error('Erro ao observar designs:', erro);
+          aviso = `Não foi possível acessar os designs: ${erro.message}`;
+          concluir();
+        });
+      });
+      await observarAutenticacao(async (usuario) => {
+        const sequencia = ++autenticacaoSequencia;
+        if (usuarioAtual?.uid !== usuario?.uid) {
+          projetoAtual = null;
+          document.querySelectorAll('.projetos-dialogo[open]').forEach((dialogo) => dialogo.close());
+          const fecharEstudio = document.querySelector('.studio-overlay .studio-fechar');
+          if (fecharEstudio) {
+            fecharEstudio.click();
+            alert('A conta mudou. O estúdio foi fechado e alterações não salvas foram descartadas.');
+          }
+        }
+        usuarioAtual = usuario;
+        administradorAtual = false;
+        atualizarAcesso();
+        if (!usuario) return;
+        try {
+          const admin = await verificarAdministrador(usuario);
+          if (sequencia !== autenticacaoSequencia) return;
+          administradorAtual = admin;
+          atualizarAcesso();
+        } catch (erro) {
+          console.error('Não foi possível verificar o acesso de administrador:', erro);
+          if (sequencia === autenticacaoSequencia) alert(`Não foi possível verificar o acesso de administrador: ${erro.message}`);
+        }
+      });
+    } catch (erro) {
+      console.error('Não foi possível iniciar o Firebase:', erro);
+      aviso = `Não foi possível conectar ao Firebase: ${erro.message}`;
+    }
+  }
+  montarInterface();
+  interfaceMontada = true;
+  atualizarAcesso();
+  if (aviso) alert(aviso);
+}
+
+iniciarAplicativo().catch((erro) => {
+  console.error('Não foi possível iniciar o simulador:', erro);
+  document.getElementById('app').textContent = `Não foi possível iniciar o simulador: ${erro.message}`;
+});

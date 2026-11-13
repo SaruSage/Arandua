@@ -1,5 +1,15 @@
 const progressoEstiloRealista = { valor: 0 };
 const GROSSURA_PINO = 3;
+export const RAIO_CONEXAO_REALISTA = 2.13;
+export const RELACAO_FURO_BARRAMENTO = 4 / 3;
+export const RAIO_BORDA_FURO_BARRAMENTO = 1.28;
+export const ESPACAMENTO_FUROS_BARRAMENTO = 12;
+export const MARGEM_FUROS_BARRAMENTO = (
+  RAIO_CONEXAO_REALISTA * RELACAO_FURO_BARRAMENTO * RAIO_BORDA_FURO_BARRAMENTO
+) + 3;
+export const LARGURA_BARRAMENTO_REALISTA = 2 * (
+  RAIO_CONEXAO_REALISTA * RELACAO_FURO_BARRAMENTO * RAIO_BORDA_FURO_BARRAMENTO
+);
 
 const PINOS_CHAVE = {
   p1: { x: -7.5, y: -14.7, nome: 'A' },
@@ -195,30 +205,50 @@ export const ARTES_REALISTAS = {
       { x1: 399.5, y1: 312, x2: 399.5, y2: 472, cor: '#000000', apagar: { x: 389, y: 312, w: 21, h: 163 } },
     ],
   },
+  TRANSFORMADOR_TOMADA: {
+    arquivo: 'transformador.png',
+    largura: 128,
+    altura: 128 * 505 / 435,
+    pinos: {
+      p0: { x: -50.32, y: 64.58, nome: '0 V' },
+      p127: { x: -45.02, y: 64.58, nome: '127 V' },
+      p220: { x: -39.72, y: 64.58, nome: '220 V' },
+      s12a: { x: 43.43, y: 64.58, nome: '12 V' },
+      s0: { x: 48.48, y: 64.58, nome: '0 V' },
+      s12b: { x: 53.57, y: 64.58, nome: '12 V' },
+    },
+    terminais: [
+      { x1: 46.5, y1: 312, x2: 46.5, y2: 472, cor: '#aa4512', apagar: { x: 37, y: 312, w: 19, h: 163 } },
+      { x1: 64.5, y1: 312, x2: 64.5, y2: 472, cor: '#aa4512', apagar: { x: 55, y: 312, w: 19, h: 163 } },
+      { x1: 82.5, y1: 312, x2: 82.5, y2: 472, cor: '#aa4512', apagar: { x: 73, y: 312, w: 19, h: 163 } },
+      { x1: 365, y1: 312, x2: 365, y2: 472, cor: '#000000', apagar: { x: 355, y: 312, w: 20, h: 163 } },
+      { x1: 382.25, y1: 312, x2: 382.25, y2: 472, cor: '#000000', apagar: { x: 372, y: 312, w: 20, h: 163 } },
+      { x1: 399.5, y1: 312, x2: 399.5, y2: 472, cor: '#000000', apagar: { x: 389, y: 312, w: 21, h: 163 } },
+    ],
+  },
   TRANSISTOR_NPN: {
     arquivo: 'transistor-npn.png',
-    largura: 64,
-    altura: 64 * 612 / 530,
+    largura: 64 * 5 / 7,
+    altura: 64 * 5 / 7 * 612 / 530,
     pinos: {
-      c: { x: -18.17, y: 31.64, nome: 'C' },
-      b: { x: -0.3, y: 31.4, nome: 'B' },
-      e: { x: 17.69, y: 31.04, nome: 'E' },
+      c: { x: -18.17 * 5 / 7, y: 31.64 * 5 / 7, nome: 'C' },
+      b: { x: -0.3 * 5 / 7, y: 31.4 * 5 / 7, nome: 'B' },
+      e: { x: 17.69 * 5 / 7, y: 31.04 * 5 / 7, nome: 'E' },
     },
   },
   TRANSISTOR_PNP: {
     arquivo: 'transistor-pnp.png',
-    largura: 64 * 500 / 530,
-    altura: 64 * 612 / 530,
+    largura: 64 * 5 / 7 * 500 / 530,
+    altura: 64 * 5 / 7 * 612 / 530,
     pinos: {
-      e: { x: -16.84, y: 32.72, nome: 'E' },
-      b: { x: 1.03, y: 32.48, nome: 'B' },
-      c: { x: 19.01, y: 32.11, nome: 'C' },
+      e: { x: -16.84 * 5 / 7, y: 32.72 * 5 / 7, nome: 'E' },
+      b: { x: 1.03 * 5 / 7, y: 32.48 * 5 / 7, nome: 'B' },
+      c: { x: 19.01 * 5 / 7, y: 32.11 * 5 / 7, nome: 'C' },
     },
   },
   BARRAMENTO: {
-    arquivo: 'barramento.png',
-    largura: 36,
-    altura: 36 * 541 / 177,
+    largura: LARGURA_BARRAMENTO_REALISTA,
+    altura: 2 * MARGEM_FUROS_BARRAMENTO + 3 * ESPACAMENTO_FUROS_BARRAMENTO,
     pinos: {},
   },
 };
@@ -354,6 +384,11 @@ export function carregarArtesRealistas() {
           resolve();
           return;
         }
+        if (tipo === 'BARRAMENTO') {
+          artesBarramentoPorQuantidade.set(4, criarArteBarramento(4));
+          resolve();
+          return;
+        }
 
         const imagem = new Image();
         imagem.onload = () => {
@@ -410,28 +445,45 @@ export function carregarArtesRealistas() {
 }
 
 function criarArteBarramento(quantidade) {
+  const arte = ARTES_REALISTAS.BARRAMENTO;
   const tela = document.createElement('canvas');
-  tela.width = 177;
-  tela.height = 541 + (quantidade - 4) * 118;
+  tela.width = 193;
+  const larguraPorPixel = arte.largura / tela.width;
+  const alturaMundo = 2 * MARGEM_FUROS_BARRAMENTO
+    + (quantidade - 1) * ESPACAMENTO_FUROS_BARRAMENTO;
+  tela.height = Math.round(alturaMundo / larguraPorPixel);
   const contexto = tela.getContext('2d');
   if (!contexto) throw new Error('Não foi possível preparar a arte realista do barramento.');
 
+  const espessuraBorda = 6;
   contexto.beginPath();
-  contexto.roundRect(21, 21, 118, tela.height - 32, 22);
-  contexto.fillStyle = '#d1d1d1';
+  contexto.roundRect(
+    espessuraBorda / 2,
+    espessuraBorda / 2,
+    tela.width - espessuraBorda,
+    tela.height - espessuraBorda,
+    24
+  );
+  contexto.fillStyle = '#d2d2d2';
   contexto.fill();
-  contexto.lineWidth = 6;
+  contexto.lineWidth = espessuraBorda;
   contexto.strokeStyle = '#adadad';
   contexto.stroke();
 
+  const raioPreto = RAIO_CONEXAO_REALISTA
+    * RELACAO_FURO_BARRAMENTO
+    * tela.width / arte.largura;
+  const raioAro = raioPreto * RAIO_BORDA_FURO_BARRAMENTO;
+  const centroInicialY = MARGEM_FUROS_BARRAMENTO * tela.width / arte.largura;
+  const passoY = ESPACAMENTO_FUROS_BARRAMENTO * tela.width / arte.largura;
   for (let indice = 0; indice < quantidade; indice++) {
-    const y = 97 + indice * 118;
+    const y = centroInicialY + indice * passoY;
     contexto.beginPath();
-    contexto.arc(64.5, y, 31, 0, Math.PI * 2);
-    contexto.fillStyle = '#808080';
+    contexto.arc(tela.width / 2, y, raioAro, 0, Math.PI * 2);
+    contexto.fillStyle = '#858585';
     contexto.fill();
     contexto.beginPath();
-    contexto.arc(64.5, y, 25, 0, Math.PI * 2);
+    contexto.arc(tela.width / 2, y, raioPreto, 0, Math.PI * 2);
     contexto.fillStyle = '#000000';
     contexto.fill();
   }
@@ -444,7 +496,6 @@ export function obterArteRealista(tipo, propriedades = {}) {
     const quantidade = Number.isInteger(quantidadeInformada)
       ? Math.max(4, Math.min(16, quantidadeInformada))
       : 4;
-    if (quantidade === 4) return artesCarregadas.get(tipo) || null;
     if (!artesBarramentoPorQuantidade.has(quantidade)) {
       artesBarramentoPorQuantidade.set(quantidade, criarArteBarramento(quantidade));
     }

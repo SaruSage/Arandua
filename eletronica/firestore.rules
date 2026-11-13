@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function administrador() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/administradores/$(request.auth.uid));
+    }
+    function designValido() {
+      return request.resource.data.keys().hasOnly(['design', 'versao', 'atualizadoPor', 'atualizadoEm'])
+        && request.resource.data.design is string
+        && request.resource.data.design.size() <= 800000
+        && request.resource.data.versao is int
+        && request.resource.data.versao > 0
+        && request.resource.data.atualizadoPor == request.auth.uid
+        && request.resource.data.atualizadoEm == request.time;
+    }
+    match /administradores/{uid} {
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow list, write: if false;
+    }
+    match /usuarios/{uid}/projetos/{projeto} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      function projetoValido() {
+        return request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['nome', 'dados', 'versao', 'atualizadoEm'])
+        && request.resource.data.nome is string
+        && request.resource.data.nome.size() > 0 && request.resource.data.nome.size() <= 120
+        && request.resource.data.dados is string && request.resource.data.dados.size() <= 800000
+        && request.resource.data.versao is int
+        && request.resource.data.atualizadoEm == request.time;
+      }
+      allow create: if projetoValido() && request.resource.data.versao == 1;
+      allow update: if projetoValido() && request.resource.data.versao == resource.data.versao + 1;
+    }
+    match /designs/{tipo} {
+      allow read: if true;
+      allow create, update: if administrador() && designValido();
+      allow delete: if false;
+      match /versoes/{versao} {
+        allow read: if administrador();
+        allow create: if administrador() && designValido();
+        allow update, delete: if false;
+      }
+    }
+  }
+}

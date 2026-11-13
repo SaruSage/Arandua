@@ -208,6 +208,8 @@ function construirNos(circuito) {
       for (const pinos of [['p1', 'p2'], ['s1', 's2']]) {
         unirIlhas(pinos.map((pino) => pinoParaNo.get(`${comp.id}:${pino}`)));
       }
+    } else if (comp.tipo === 'TRANSFORMADOR_TOMADA') {
+      unirIlhas(comp.pinos.map((pino) => pinoParaNo.get(`${comp.id}:${pino.id}`)));
     } else if (
       CATALOGO[comp.tipo].modelo === 'chave'
       && ['CHAVE', 'CHAVE_SIMPLES', 'BOTAO'].includes(comp.tipo)
@@ -444,13 +446,18 @@ function montarSistema(
     (c) => CATALOGO[c.tipo].modelo === 'fonte' || CATALOGO[c.tipo].modelo === 'fonte-positiva'
   );
   const numFontes = fontesTensao.length;
-  const tamanho = numNos + numFontes;
+  const transformadoresTomada = componentes.filter((comp) => comp.tipo === 'TRANSFORMADOR_TOMADA');
+  const tamanho = numNos + numFontes + transformadoresTomada.length * 5;
 
   const G = Array.from({ length: tamanho }, () => new Array(tamanho).fill(0));
   const I = new Array(tamanho).fill(0);
 
   const indiceFonte = new Map();
   fontesTensao.forEach((f, i) => indiceFonte.set(f.id, numNos + i));
+  const indiceTransformador = new Map();
+  transformadoresTomada.forEach((comp, i) => {
+    indiceTransformador.set(comp.id, numNos + numFontes + i * 5);
+  });
 
   for (const comp of componentes) {
     const def = CATALOGO[comp.tipo];
@@ -567,6 +574,27 @@ function montarSistema(
         // Acoplamento: corrente no secundário proporcional ao primário
         const vPrim = vAnt;
         adicionarFonteCorrente(I, s1, s2, rel * vPrim * 0.5);
+      } else if (comp.tipo === 'TRANSFORMADOR_TOMADA') {
+        const baseIndice = indiceTransformador.get(comp.id);
+        const espiras = [
+          ['p127', 'p0', Number(comp.propriedades?.espirasP0P127) || 635],
+          ['p220', 'p127', Number(comp.propriedades?.espirasP127P220) || 465],
+          ['s12a', 's0', Number(comp.propriedades?.espirasMeiaSecundaria) || 60],
+          ['s0', 's12b', Number(comp.propriedades?.espirasMeiaSecundaria) || 60],
+        ];
+        const indiceFluxo = baseIndice + 4;
+        espiras.forEach(([pinoA, pinoB, quantidade], indice) => {
+          const noA = pinoParaNo.get(`${comp.id}:${pinoA}`);
+          const noB = pinoParaNo.get(`${comp.id}:${pinoB}`);
+          const indiceCorrente = baseIndice + indice;
+          const n = Math.max(1, quantidade);
+          G[noA][indiceCorrente] += 1;
+          G[noB][indiceCorrente] -= 1;
+          G[indiceCorrente][noA] += 1;
+          G[indiceCorrente][noB] -= 1;
+          G[indiceCorrente][indiceFluxo] -= n;
+          G[indiceFluxo][indiceCorrente] += n;
+        });
       }
     }
 
@@ -1037,6 +1065,18 @@ function finalizar(circuito, nos, pinoParaNo, V, convergiu, avisos, nosAlimentad
   }
 
   const correntes = {};
+  const fontesTensao = componentes.filter(
+    (comp) => CATALOGO[comp.tipo].modelo === 'fonte' || CATALOGO[comp.tipo].modelo === 'fonte-positiva'
+  );
+  const indiceCorrenteTransformador = new Map();
+  componentes
+    .filter((comp) => comp.tipo === 'TRANSFORMADOR_TOMADA')
+    .forEach((comp, indice) => {
+      indiceCorrenteTransformador.set(
+        comp.id,
+        nos.length + fontesTensao.length + indice * 5
+      );
+    });
   for (const comp of componentes) {
     if (!componenteAlimentado(comp, pinoParaNo, nosAlimentados)) {
       correntes[comp.id] = 0;
@@ -1044,7 +1084,9 @@ function finalizar(circuito, nos, pinoParaNo, V, convergiu, avisos, nosAlimentad
     }
 
     const def = CATALOGO[comp.tipo];
-    if (comp.tipo === 'CAPACITOR' || comp.tipo === 'CAPACITOR_NAO_POLARIZADO') {
+    if (comp.tipo === 'TRANSFORMADOR_TOMADA') {
+      correntes[comp.id] = V[indiceCorrenteTransformador.get(comp.id)] ?? 0;
+    } else if (comp.tipo === 'CAPACITOR' || comp.tipo === 'CAPACITOR_NAO_POLARIZADO') {
       const n1 = pinoParaNo.get(`${comp.id}:p1`);
       const n2 = pinoParaNo.get(`${comp.id}:p2`);
       const tensao = (V[n1] ?? 0) - (V[n2] ?? 0);

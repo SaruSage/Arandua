@@ -11,11 +11,17 @@
 
 import { CATALOGO, obterDimensoesComponente } from './catalogo.js';
 import {
+  desenharDesignPersonalizado,
+  obterDesignPersonalizado,
+} from './designs-componentes.js';
+import {
   ARTES_REALISTAS,
   definirProgressoEstiloRealista,
   obterArteRealista,
   obterArteRealistaQueimada,
   obterProgressoEstiloRealista,
+  MARGEM_FUROS_BARRAMENTO,
+  RAIO_CONEXAO_REALISTA,
 } from './visual.js';
 
 export { definirProgressoEstiloRealista, obterProgressoEstiloRealista };
@@ -678,6 +684,51 @@ export function desenharTRANSFORMADOR(ctx, comp, x, y, w, h) {
   ctx.stroke();
 }
 
+export function desenharTRANSFORMADOR_TOMADA(ctx, comp, x, y, w, h) {
+  preparar(ctx);
+  const cy = y + h / 2;
+  const xPrimario = x + w * 0.34;
+  const xSecundario = x + w * 0.66;
+  const topo = cy - 40;
+  const meio = cy;
+  const base = cy + 40;
+
+  ctx.beginPath();
+  ctx.moveTo(x + w / 2 - 3, topo - 5);
+  ctx.lineTo(x + w / 2 - 3, base + 5);
+  ctx.moveTo(x + w / 2 + 3, topo - 5);
+  ctx.lineTo(x + w / 2 + 3, base + 5);
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = CORES.traco;
+  ctx.stroke();
+
+  const desenharMeiaBobina = (centroX, yInicio, sentido) => {
+    const quantidade = 4;
+    const passo = (meio - topo) / quantidade;
+    const raio = passo / 2;
+    ctx.beginPath();
+    ctx.moveTo(centroX, yInicio);
+    for (let indice = 0; indice < quantidade; indice++) {
+      const yArco = yInicio + passo * indice + raio;
+      ctx.arc(centroX, yArco, raio, -Math.PI / 2, Math.PI / 2, sentido);
+    }
+    ctx.stroke();
+  };
+  desenharMeiaBobina(xPrimario, topo, true);
+  desenharMeiaBobina(xPrimario, meio, true);
+  desenharMeiaBobina(xSecundario, topo, false);
+  desenharMeiaBobina(xSecundario, meio, false);
+
+  ctx.beginPath();
+  for (const yy of [topo, meio, base]) {
+    ctx.moveTo(x, yy);
+    ctx.lineTo(xPrimario, yy);
+    ctx.moveTo(xSecundario, yy);
+    ctx.lineTo(x + w, yy);
+  }
+  ctx.stroke();
+}
+
 /* ===== SENSORES ===== */
 
 export function desenharLDR(ctx, comp, x, y, w, h) {
@@ -846,7 +897,12 @@ export function desenharTRANSISTOR_NPN(ctx, comp, x, y, w, h) {
   preparar(ctx);
   const cx = x + w / 2;
   const cy = y + h / 2;
-  const raio = Math.min(w, h) * 0.40;
+  const escala = Math.min(w, h) / (72 * 5 / 7);
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(escala * 0.75, escala * 0.75);
+  ctx.translate(-cx, -cy);
+  const raio = 72 * 0.40;
   const R = raio;
 
   // Ângulos das linhas internas onde encontram a circunferência
@@ -917,6 +973,7 @@ export function desenharTRANSISTOR_NPN(ctx, comp, x, y, w, h) {
   // Traços externos dos pinos: da borda exata (pB, pC, pE) até cada pino
   const comprimentoPinoB = 40 - R;
   const comprimentoPinoCE = 32 * Math.SQRT2 - R;
+  ctx.lineWidth = 2 / (escala * 0.75);
 
   ctx.beginPath();
   ctx.moveTo(pB.x, pB.y);
@@ -934,6 +991,7 @@ export function desenharTRANSISTOR_NPN(ctx, comp, x, y, w, h) {
   ctx.lineTo(pE.x + comprimentoPinoCE * Math.cos(anguloEmissor),
              pE.y + comprimentoPinoCE * Math.sin(anguloEmissor));
   ctx.stroke();
+  ctx.lineWidth = 2;
 
   // Seta do emissor (NPN: aponta para fora, na direção da linha)
   const dirX = pE.x - emiInicioX;
@@ -945,6 +1003,7 @@ export function desenharTRANSISTOR_NPN(ctx, comp, x, y, w, h) {
   const setaX = emiInicioX + ux * dist * 0.62;
   const setaY = emiInicioY + uy * dist * 0.62;
   desenharSeta(ctx, setaX, setaY, ux, uy, 8);
+  ctx.restore();
 }
 
 /**
@@ -956,7 +1015,12 @@ export function desenharTRANSISTOR_PNP(ctx, comp, x, y, w, h) {
   preparar(ctx);
   const cx = x + w / 2;
   const cy = y + h / 2;
-  const raio = Math.min(w, h) * 0.40;
+  const escala = Math.min(w, h) / (72 * 5 / 7);
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(escala * 0.75, escala * 0.75);
+  ctx.translate(-cx, -cy);
+  const raio = 72 * 0.40;
   const R = raio;
 
   const anguloBase    = Math.PI;        // 180° (esquerda)
@@ -1024,6 +1088,7 @@ export function desenharTRANSISTOR_PNP(ctx, comp, x, y, w, h) {
   // Traços externos dos pinos: da borda exata (pB, pC, pE) até cada pino
   const comprimentoPinoB = 40 - R;
   const comprimentoPinoCE = 32 * Math.SQRT2 - R;
+  ctx.lineWidth = 2 / (escala * 0.75);
 
   ctx.beginPath();
   ctx.moveTo(pB.x, pB.y);
@@ -1041,6 +1106,7 @@ export function desenharTRANSISTOR_PNP(ctx, comp, x, y, w, h) {
   ctx.lineTo(pE.x + comprimentoPinoCE * Math.cos(anguloEmissor),
              pE.y + comprimentoPinoCE * Math.sin(anguloEmissor));
   ctx.stroke();
+  ctx.lineWidth = 2;
 
   // Seta do emissor (PNP: aponta para dentro)
   const dirX = emiInicioX - pE.x;
@@ -1052,6 +1118,7 @@ export function desenharTRANSISTOR_PNP(ctx, comp, x, y, w, h) {
   const setaX = pE.x + ux * dist * 0.38;
   const setaY = pE.y + uy * dist * 0.38;
   desenharSeta(ctx, setaX, setaY, ux, uy, 8);
+  ctx.restore();
 }
 
 /* ===== FONTES E CHAVES ===== */
@@ -1187,38 +1254,23 @@ export function desenharGND(ctx, comp, x, y, w, h) {
 export function desenharBARRAMENTO(ctx, comp, x, y, w, h) {
   preparar(ctx);
   const pinos = comp.pinos || [];
-  const xCorpo = x + 22;
-  const xTronco = x + w / 2 + 10;
+  const centroX = x + w / 2;
   const yPrimeiro = y + h / 2 + (pinos[0]?.y || 0);
   const yUltimo = y + h / 2 + (pinos[pinos.length - 1]?.y || 0);
+  const raioBorda = w / 2;
 
   ctx.beginPath();
-  ctx.rect(xCorpo, y + 4, w - 24, h - 8);
+  ctx.rect(centroX - raioBorda, y + h / 2 + (pinos[0]?.y || 0) - MARGEM_FUROS_BARRAMENTO, w, h);
   ctx.fill();
   ctx.stroke();
 
   ctx.beginPath();
   if (pinos.length > 1) {
-    ctx.moveTo(xTronco, yPrimeiro);
-    ctx.lineTo(xTronco, yUltimo);
-  }
-  for (const pino of pinos) {
-    const px = x + w / 2 + pino.x;
-    const py = y + h / 2 + pino.y;
-    ctx.moveTo(px, py);
-    ctx.lineTo(xTronco, py);
+    ctx.moveTo(centroX, yPrimeiro);
+    ctx.lineTo(centroX, yUltimo);
   }
   ctx.stroke();
 
-  ctx.font = '600 8px system-ui, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  ctx.fillStyle = CORES.tracoFino;
-  for (const pino of pinos) {
-    const px = x + w / 2 + pino.x;
-    const py = y + h / 2 + pino.y;
-    ctx.fillText(pino.nome, px, py + 7);
-  }
 }
 
 /**
@@ -1704,6 +1756,7 @@ export const DESENHADORES = {
   CAPACITOR_NAO_POLARIZADO: desenharCAPACITOR,
   INDUTOR: desenharINDUTOR,
   TRANSFORMADOR: desenharTRANSFORMADOR,
+  TRANSFORMADOR_TOMADA: desenharTRANSFORMADOR_TOMADA,
   LDR: desenharLDR,
   TERMISTOR: desenharTERMISTOR,
   FOTODIODO: desenharFOTODIODO,
@@ -1754,7 +1807,7 @@ function desenharPinosDoComponente(ctx, comp, dim, contextoVisual = {}) {
       cores.forEach((cor, indice) => {
         const deslocamento = cores.length > 1 ? (indice - (cores.length - 1) / 2) * 1.53 : 0;
         ctx.beginPath();
-        ctx.arc(px + deslocamento, py, cores.length > 1 ? 1.4 : 2.13, 0, Math.PI * 2);
+        ctx.arc(px + deslocamento, py, cores.length > 1 ? 1.4 : RAIO_CONEXAO_REALISTA, 0, Math.PI * 2);
         ctx.fillStyle = cor;
         ctx.fill();
         ctx.lineWidth = 0.47;
@@ -1859,16 +1912,17 @@ export function desenharComponente(ctx, comp, telaX, telaY, escala, contextoVisu
   ctx.translate(-cx, -cy);
 
   const desenhador = DESENHADORES[comp.tipo];
-  const arteRealista = ARTES_REALISTAS[comp.tipo];
+  const designPersonalizado = obterDesignPersonalizado(comp.tipo);
+  const arteRealista = ARTES_REALISTAS[comp.tipo] || designPersonalizado;
   const progresso = arteRealista ? obterProgressoEstiloRealista() : 0;
   const imagemRealista = arteRealista
     ? comp.tipo === 'FUSIVEL' && comp.propriedades?.queimado === true
       ? obterArteRealistaQueimada(comp.tipo)
       : obterArteRealista(comp.tipo, comp.propriedades)
     : null;
-  if (!arteRealista || progresso < 1 || !imagemRealista) {
+  if (!arteRealista || progresso < 1 || (!imagemRealista && !designPersonalizado)) {
     ctx.save();
-    ctx.globalAlpha *= arteRealista && imagemRealista ? 1 - progresso : 1;
+    ctx.globalAlpha *= arteRealista && (imagemRealista || designPersonalizado) ? 1 - progresso : 1;
     if (desenhador) desenhador(ctx, comp, 0, 0, dim.w, dim.h);
     else {
       preparar(ctx);
@@ -1883,7 +1937,7 @@ export function desenharComponente(ctx, comp, telaX, telaY, escala, contextoVisu
   if (arteRealista && progresso > 0) {
     ctx.save();
     ctx.globalAlpha *= progresso;
-    if (imagemRealista) {
+    if (imagemRealista || designPersonalizado) {
       if (comp.tipo === 'LED') {
         desenharBrilhoLED(
           ctx,
@@ -1894,9 +1948,13 @@ export function desenharComponente(ctx, comp, telaX, telaY, escala, contextoVisu
         );
         ctx.filter = `hue-rotate(${matizDaCor(comp.propriedades?.cor)}deg)`;
       }
-      ctx.drawImage(imagemRealista, 0, 0, dim.w, dim.h);
+      if (designPersonalizado) {
+        desenharDesignPersonalizado(ctx, comp.tipo, designPersonalizado);
+      } else {
+        ctx.drawImage(imagemRealista, 0, 0, dim.w, dim.h);
+      }
       ctx.filter = 'none';
-      if (comp.tipo === 'RESISTOR') desenharFaixasResistor(ctx, comp, dim, imagemRealista);
+      if (comp.tipo === 'RESISTOR' && imagemRealista) desenharFaixasResistor(ctx, comp, dim, imagemRealista);
       if (comp.tipo === 'CAPACITOR') desenharIndicadorDanoCapacitor(ctx, comp, dim);
     }
     ctx.restore();

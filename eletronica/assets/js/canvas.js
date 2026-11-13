@@ -4,7 +4,7 @@
  */
 
 import { desenharComponente, CORES } from './simbolos.js';
-import { CATALOGO } from './catalogo.js';
+import { CATALOGO, obterAreaSelecaoPersonalizada } from './catalogo.js';
 import { desenharFios, desenharFioFantasma, pinoEm } from './fios.js';
 import { desenharGrupos, desenharSelecaoRetangular, boundsDoComponente } from './grupos.js';
 import { obterProgressoEstiloRealista } from './visual.js';
@@ -305,10 +305,11 @@ export function criarCanvas(elemento, estado) {
       ctx.stroke();
     } else {
       const pinos = comp.pinos || CATALOGO[comp.tipo]?.pinos || [];
-      const minX = Math.min(-dim.w / 2, ...pinos.map((pino) => pino.x));
-      const minY = Math.min(-dim.h / 2, ...pinos.map((pino) => pino.y));
-      const maxX = Math.max(dim.w / 2, ...pinos.map((pino) => pino.x));
-      const maxY = Math.max(dim.h / 2, ...pinos.map((pino) => pino.y));
+      const area = obterAreaSelecaoPersonalizada(comp.tipo);
+      const minX = Math.min(area ? area.x - dim.w / 2 : -dim.w / 2, ...pinos.map((pino) => pino.x));
+      const minY = Math.min(area ? area.y - dim.h / 2 : -dim.h / 2, ...pinos.map((pino) => pino.y));
+      const maxX = Math.max(area ? area.x + area.largura - dim.w / 2 : dim.w / 2, ...pinos.map((pino) => pino.x));
+      const maxY = Math.max(area ? area.y + area.altura - dim.h / 2 : dim.h / 2, ...pinos.map((pino) => pino.y));
       const margem = 8;
       ctx.translate(centro.x, centro.y);
       ctx.rotate(((comp.rotacao || 0) * Math.PI) / 180);
@@ -492,13 +493,6 @@ export function criarCanvas(elemento, estado) {
     // Grupos primeiro (atrás de tudo)
     desenharGrupos(ctx, circuito, view, grupoSelecionadoId);
 
-    // Fios
-    desenharFios(ctx, circuito, view, fioSelecionadoId, dobraSelecionada);
-
-    // Guias visuais de alinhamento
-    desenharGuias(ctx);
-
-    // Componentes
     const coresPorComponente = new Map();
     for (const fio of circuito.fios) {
       for (const ponta of [fio.origem, fio.destino]) {
@@ -511,7 +505,29 @@ export function criarCanvas(elemento, estado) {
         if (!cores.includes(cor)) cores.push(cor);
       }
     }
+
+    // O barramento fica atrás dos fios para que eles não desapareçam sob o corpo.
     for (const comp of circuito.componentes) {
+      if (comp.tipo !== 'BARRAMENTO') continue;
+      const tela = mundoParaTela(comp.x, comp.y);
+      desenharComponente(ctx, comp, tela.x, tela.y, view.zoom, {
+        coresConexao: coresPorComponente.get(comp.id),
+        pinoEmHover,
+      });
+    }
+
+    // Fios
+    desenharFios(ctx, circuito, view, fioSelecionadoId, dobraSelecionada);
+
+    // Guias visuais de alinhamento
+    desenharGuias(ctx);
+
+    // Componentes
+    for (const comp of circuito.componentes) {
+      if (comp.tipo === 'BARRAMENTO') {
+        desenharNomeComponente(ctx, comp, view);
+        continue;
+      }
       const tela = mundoParaTela(comp.x, comp.y);
       desenharComponente(ctx, comp, tela.x, tela.y, view.zoom, {
         coresConexao: coresPorComponente.get(comp.id),

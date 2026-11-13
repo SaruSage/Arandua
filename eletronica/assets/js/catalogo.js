@@ -4,7 +4,14 @@
  * como o solver deve tratá-lo.
  */
 
-import { ARTES_REALISTAS, obterProgressoEstiloRealista } from './visual.js';
+import {
+  ARTES_REALISTAS,
+  ESPACAMENTO_FUROS_BARRAMENTO,
+  LARGURA_BARRAMENTO_REALISTA,
+  MARGEM_FUROS_BARRAMENTO,
+  obterProgressoEstiloRealista,
+} from './visual.js';
+import { obterDesignPersonalizado } from './designs-componentes.js';
 
 /**
  * Tipos de modelo de simulação:
@@ -138,6 +145,26 @@ export const CATALOGO = {
     dimensoes: { w: 128, h: 96 },
   },
 
+  TRANSFORMADOR_TOMADA: {
+    rotulo: 'Transformador 127/220 V · 12-0-12 V',
+    categoria: 'Passivos',
+    modelo: 'linear',
+    pinos: [
+      { id: 'p0', x: -64, y: -40, nome: '0 V' },
+      { id: 'p127', x: -64, y: 0, nome: '127 V' },
+      { id: 'p220', x: -64, y: 40, nome: '220 V' },
+      { id: 's12a', x: 64, y: -40, nome: '12 V' },
+      { id: 's0', x: 64, y: 0, nome: '0 V' },
+      { id: 's12b', x: 64, y: 40, nome: '12 V' },
+    ],
+    propriedades: {
+      espirasP0P127: { tipo: 'numero', valor: 635, min: 1, max: 10000, rotulo: 'Espiras: 0–127 V' },
+      espirasP127P220: { tipo: 'numero', valor: 465, min: 1, max: 10000, rotulo: 'Espiras: 127–220 V' },
+      espirasMeiaSecundaria: { tipo: 'numero', valor: 60, min: 1, max: 10000, rotulo: 'Espiras: cada meia-secundária' },
+    },
+    dimensoes: { w: 128, h: 112 },
+  },
+
   /**
    * Nó: ponto de junção passivo. Um único pino que aceita quantos fios o usuário
    * quiser. Não impõe nenhuma restrição elétrica (apenas une os fios no mesmo nó).
@@ -174,10 +201,10 @@ export const CATALOGO = {
     categoria: 'Conexões',
     modelo: 'barramento',
     pinos: [
-      { id: 'p1', x: -21, y: -36, nome: '1' },
-      { id: 'p2', x: -21, y: -12, nome: '2' },
-      { id: 'p3', x: -21, y: 12, nome: '3' },
-      { id: 'p4', x: -21, y: 36, nome: '4' },
+      { id: 'p1', x: 0, y: -18, nome: '1' },
+      { id: 'p2', x: 0, y: -6, nome: '2' },
+      { id: 'p3', x: 0, y: 6, nome: '3' },
+      { id: 'p4', x: 0, y: 18, nome: '4' },
     ],
     propriedades: {
       quantidadePinos: {
@@ -192,7 +219,7 @@ export const CATALOGO = {
         rotulo: 'Conectados internamente',
       },
     },
-    dimensoes: { w: 48, h: 112 },
+    dimensoes: { w: LARGURA_BARRAMENTO_REALISTA, h: 2 * MARGEM_FUROS_BARRAMENTO + 3 * ESPACAMENTO_FUROS_BARRAMENTO },
     semMontagem: true,
   },
 
@@ -281,15 +308,15 @@ export const CATALOGO = {
     categoria: 'Semicondutores',
     modelo: 'nao-linear',
     pinos: [
-      { id: 'b', x: -40, y: 0, nome: 'B' },
-      { id: 'c', x: 32, y: -32, nome: 'C' },
-      { id: 'e', x: 32, y: 32, nome: 'E' },
+      { id: 'b', x: -30, y: 0, nome: 'B' },
+      { id: 'c', x: 24, y: -24, nome: 'C' },
+      { id: 'e', x: 24, y: 24, nome: 'E' },
     ],
     propriedades: {
       ganho: { tipo: 'numero', valor: 100, min: 10, max: 1000, rotulo: 'β (hFE)' },
       tensaoBaseEmissor: { tipo: 'numero', valor: 0.7, min: 0.5, max: 0.9, step: 0.01, unidade: 'V', rotulo: 'Vbe' },
     },
-    dimensoes: { w: 72, h: 72 },
+    dimensoes: { w: 72 * 5 / 7, h: 72 * 5 / 7 },
   },
 
   TRANSISTOR_PNP: {
@@ -297,15 +324,15 @@ export const CATALOGO = {
     categoria: 'Semicondutores',
     modelo: 'nao-linear',
     pinos: [
-      { id: 'b', x: -40, y: 0, nome: 'B' },
-      { id: 'c', x: 32, y: 32, nome: 'C' },
-      { id: 'e', x: 32, y: -32, nome: 'E' },
+      { id: 'b', x: -30, y: 0, nome: 'B' },
+      { id: 'c', x: 24, y: 24, nome: 'C' },
+      { id: 'e', x: 24, y: -24, nome: 'E' },
     ],
     propriedades: {
       ganho: { tipo: 'numero', valor: 100, min: 10, max: 1000, rotulo: 'β (hFE)' },
       tensaoBaseEmissor: { tipo: 'numero', valor: -0.7, min: -0.9, max: -0.5, step: 0.01, unidade: 'V', rotulo: 'Vbe' },
     },
-    dimensoes: { w: 72, h: 72 },
+    dimensoes: { w: 72 * 5 / 7, h: 72 * 5 / 7 },
   },
 
   /* ===== FONTES E CHAVES ===== */
@@ -608,12 +635,20 @@ export const CATEGORIAS = [
 ];
 
 export function obterDimensoesComponente(tipo, propriedades = {}) {
+  const designPersonalizado = obterDesignPersonalizado(tipo);
+  if (designPersonalizado) {
+    return { w: designPersonalizado.largura, h: designPersonalizado.altura };
+  }
+
   let dimensoes;
   if (tipo === 'LED' && propriedades.estilo === 'Alternativo') {
     dimensoes = { w: 40, h: 48 };
   } else if (tipo === 'BARRAMENTO') {
     const quantidade = normalizarQuantidadePinos(propriedades.quantidadePinos);
-    dimensoes = { w: 48, h: (quantidade - 1) * 24 + 40 };
+    dimensoes = {
+      w: LARGURA_BARRAMENTO_REALISTA,
+      h: 2 * MARGEM_FUROS_BARRAMENTO + (quantidade - 1) * ESPACAMENTO_FUROS_BARRAMENTO,
+    };
   } else {
     dimensoes = CATALOGO[tipo]?.dimensoes || { w: 80, h: 60 };
   }
@@ -624,7 +659,8 @@ export function obterDimensoesComponente(tipo, propriedades = {}) {
   const dimensoesArte = tipo === 'BARRAMENTO'
     ? {
       w: arte.largura,
-      h: arte.largura * (541 + (normalizarQuantidadePinos(propriedades.quantidadePinos) - 4) * 118) / 177,
+      h: 2 * MARGEM_FUROS_BARRAMENTO
+        + (normalizarQuantidadePinos(propriedades.quantidadePinos) - 1) * ESPACAMENTO_FUROS_BARRAMENTO,
     }
     : { w: arte.largura, h: arte.altura };
   return {
@@ -641,19 +677,28 @@ function normalizarQuantidadePinos(valor) {
 }
 
 export function obterPinosComponente(tipo, propriedades = {}) {
+  const designPersonalizado = obterDesignPersonalizado(tipo);
   let pinos;
   if (tipo === 'BARRAMENTO') {
     const quantidade = normalizarQuantidadePinos(propriedades.quantidadePinos);
-    const espacamento = 24;
+    const espacamento = ESPACAMENTO_FUROS_BARRAMENTO;
     const inicioY = -((quantidade - 1) * espacamento) / 2;
     pinos = Array.from({ length: quantidade }, (_, indice) => ({
       id: `p${indice + 1}`,
-      x: -21,
+      x: 0,
       y: inicioY + indice * espacamento,
       nome: String(indice + 1),
     }));
   } else {
     pinos = (CATALOGO[tipo]?.pinos || []).map((pino) => ({ ...pino }));
+  }
+  if (designPersonalizado) {
+    return pinos.map((pino) => {
+      const posicao = designPersonalizado.pinos.find((item) => item.id === pino.id);
+      return posicao
+        ? { ...pino, x: posicao.x, y: posicao.y, nome: posicao.nome || pino.nome }
+        : pino;
+    });
   }
 
   const arte = ARTES_REALISTAS[tipo];
@@ -671,12 +716,14 @@ export function obterPinosComponente(tipo, propriedades = {}) {
 
   if (tipo === 'BARRAMENTO') {
     const quantidade = normalizarQuantidadePinos(propriedades.quantidadePinos);
-    const alturaArte = 541 + (quantidade - 4) * 118;
-    const alturaRealista = arte.largura * alturaArte / 177;
+    const alturaRealista = 2 * MARGEM_FUROS_BARRAMENTO
+      + (quantidade - 1) * ESPACAMENTO_FUROS_BARRAMENTO;
     return pinos.map((pino, indice) => {
       const alvo = {
-        x: 64.5 / 177 * arte.largura - arte.largura / 2,
-        y: (97 + indice * 118) / 177 * arte.largura - alturaRealista / 2,
+        x: 0,
+        y: MARGEM_FUROS_BARRAMENTO
+          + indice * ESPACAMENTO_FUROS_BARRAMENTO
+          - alturaRealista / 2,
       };
       return {
         ...pino,
@@ -699,6 +746,11 @@ export function obterPinosComponente(tipo, propriedades = {}) {
       nome: progresso >= 0.5 ? alvo.nome : pino.nome,
     };
   });
+}
+
+export function obterAreaSelecaoPersonalizada(tipo) {
+  const area = obterDesignPersonalizado(tipo)?.areaSelecao;
+  return area ? { ...area } : null;
 }
 
 /** Retorna os itens de uma categoria. */

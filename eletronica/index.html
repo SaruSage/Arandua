@@ -3,15 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Arandua</title>
-  <meta name="description" content="Simulador de circuitos eletrônicos com componentes técnicos — monte, conecte e simule.">
+  <meta name="description" content="Monte, conecte e simule circuitos eletrônicos com o Arandua.">
+  <title>Arandua — Simulador de circuitos</title>
   <link rel="stylesheet" href="assets/css/eletronica.css">
 </head>
-<body>
-  <div id="app"></div>
-  <script type="module" src="assets/js/construir.js"></script>
-  <script type="module" src="assets/js/montagem.js"></script>
-  <script type="module" src="assets/js/exemplos.js"></script>
-  <script type="module" src="assets/js/app.js"></script>
+<body class="landing">
+  <main class="landing-conteudo">
+    <section class="landing-apresentacao">
+      <img src="assets/img/logo-arandua.png?v=2" alt="Arandua">
+      <h1>Suas ideias, em circuito.</h1>
+      <p>Monte e simule circuitos eletrônicos diretamente no navegador.</p>
+      <a class="landing-entrar" href="simulador.html">Abrir simulador</a>
+      <p>Experimente sem conta ou entre para guardar seus projetos na nuvem.</p>
+    </section>
+    <section class="landing-conta">
+      <h2>Entre na sua conta</h2>
+      <div id="conta" aria-live="polite">Carregando conta...</div>
+    </section>
+  </main>
+  <script type="module" src="assets/js/landing.js"></script>
 </body>
 </html>

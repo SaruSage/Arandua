@@ -76,6 +76,28 @@ function evento(ponto, button) {
   return { clientX: ponto.x, clientY: ponto.y, button };
 }
 
+test('pinos técnicos de NPN e PNP terminam nas pontas do desenho reduzido', () => {
+  const progressoAnterior = obterProgressoEstiloRealista();
+  definirProgressoEstiloRealista(0);
+  try {
+    const npn = Object.fromEntries(obterPinosComponente('TRANSISTOR_NPN').map((pino) => [pino.id, pino]));
+    const pnp = Object.fromEntries(obterPinosComponente('TRANSISTOR_PNP').map((pino) => [pino.id, pino]));
+
+    assert.deepEqual(
+      [npn.b.x, npn.b.y, npn.c.x, npn.c.y, npn.e.x, npn.e.y],
+      [-30, 0, 24, -24, 24, 24]
+    );
+    assert.deepEqual(
+      [pnp.b.x, pnp.b.y, pnp.c.x, pnp.c.y, pnp.e.x, pnp.e.y],
+      [-30, 0, 24, 24, 24, -24]
+    );
+    assert.equal(CATALOGO.TRANSISTOR_NPN.dimensoes.w, 72 * 5 / 7);
+    assert.equal(CATALOGO.TRANSISTOR_PNP.dimensoes.w, 72 * 5 / 7);
+  } finally {
+    definirProgressoEstiloRealista(progressoAnterior);
+  }
+});
+
 test('artes realistas alinham terminais e rótulos de NPN e PNP', () => {
   const progressoAnterior = obterProgressoEstiloRealista();
   definirProgressoEstiloRealista(1);
@@ -83,13 +105,21 @@ test('artes realistas alinham terminais e rótulos de NPN e PNP', () => {
     const npn = Object.fromEntries(obterPinosComponente('TRANSISTOR_NPN').map((pino) => [pino.id, pino]));
     const pnp = Object.fromEntries(obterPinosComponente('TRANSISTOR_PNP').map((pino) => [pino.id, pino]));
 
+    assert.equal(CATALOGO.TRANSISTOR_NPN.dimensoes.w, 72 * 5 / 7);
+    assert.equal(CATALOGO.TRANSISTOR_NPN.dimensoes.h, 72 * 5 / 7);
+    assert.equal(CATALOGO.TRANSISTOR_PNP.dimensoes.w, 72 * 5 / 7);
+    assert.equal(CATALOGO.TRANSISTOR_PNP.dimensoes.h, 72 * 5 / 7);
     assert.deepEqual([npn.c.nome, npn.b.nome, npn.e.nome], ['C', 'B', 'E']);
     assert.ok(npn.c.x < npn.b.x && npn.b.x < npn.e.x);
     assert.deepEqual([pnp.e.nome, pnp.b.nome, pnp.c.nome], ['E', 'B', 'C']);
     assert.ok(pnp.e.x < pnp.b.x && pnp.b.x < pnp.c.x);
+    assert.ok(Math.abs(npn.c.x - (-18.17 * 5 / 7)) < 0.001);
+    assert.ok(Math.abs(pnp.e.x - (-16.84 * 5 / 7)) < 0.001);
 
     const dimensoesNpn = obterDimensoesComponente('TRANSISTOR_NPN');
     const dimensoesPnp = obterDimensoesComponente('TRANSISTOR_PNP');
+    assert.ok(Math.abs(dimensoesNpn.w - 64 * 5 / 7) < 0.001);
+    assert.ok(Math.abs(dimensoesPnp.w - (64 * 5 / 7 * 500 / 530)) < 0.001);
     assert.ok(Math.abs(dimensoesNpn.h - dimensoesPnp.h) < 0.001);
     assert.ok(Math.abs(npn.c.y - npn.b.y) < 1);
     assert.ok(Math.abs(pnp.e.y - pnp.b.y) < 1);

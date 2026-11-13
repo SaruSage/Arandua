@@ -19,7 +19,13 @@ import { simular } from '../assets/js/solver.js';
 import {
   ARTES_REALISTAS,
   definirProgressoEstiloRealista,
+  ESPACAMENTO_FUROS_BARRAMENTO,
+  LARGURA_BARRAMENTO_REALISTA,
+  MARGEM_FUROS_BARRAMENTO,
   obterProgressoEstiloRealista,
+  RAIO_BORDA_FURO_BARRAMENTO,
+  RAIO_CONEXAO_REALISTA,
+  RELACAO_FURO_BARRAMENTO,
 } from '../assets/js/visual.js';
 
 function criarCircuitoDeExemplo(exemplo, entradas = {}) {
@@ -401,7 +407,10 @@ test('barramento padrão tem quatro pinos e permite configurar até dezesseis', 
   const pinosMaximos = obterPinosComponente('BARRAMENTO', { quantidadePinos: 16 });
   assert.equal(pinosMaximos.length, 16);
   assert.equal(pinosMaximos[15].id, 'p16');
-  assert.deepEqual(obterDimensoesComponente('BARRAMENTO', { quantidadePinos: 16 }), { w: 48, h: 400 });
+  assert.deepEqual(obterDimensoesComponente('BARRAMENTO', { quantidadePinos: 16 }), {
+    w: LARGURA_BARRAMENTO_REALISTA,
+    h: 2 * MARGEM_FUROS_BARRAMENTO + 15 * ESPACAMENTO_FUROS_BARRAMENTO,
+  });
 });
 
 test('dimensões realistas são válidas para todas as artes', () => {
@@ -425,15 +434,88 @@ test('dimensões realistas são válidas para todas as artes', () => {
     const quantidadePinos = 16;
     const dimensoesBarramento = obterDimensoesComponente('BARRAMENTO', { quantidadePinos });
     const pinosBarramento = obterPinosComponente('BARRAMENTO', { quantidadePinos });
-    const alturaArteBarramento = 541 + (quantidadePinos - 4) * 118;
     for (const [indice, pino] of pinosBarramento.entries()) {
-      const yEsperado = (97 + indice * 118) / alturaArteBarramento * dimensoesBarramento.h
+      const yEsperado = MARGEM_FUROS_BARRAMENTO
+        + indice * ESPACAMENTO_FUROS_BARRAMENTO
         - dimensoesBarramento.h / 2;
       assert.ok(Math.abs(pino.y - yEsperado) < 0.5, `Barramento: pino ${pino.id} desalinhado`);
+    }
+    assert.ok(Math.abs(dimensoesBarramento.w - LARGURA_BARRAMENTO_REALISTA) < 0.001);
+    assert.ok(Math.abs(
+      dimensoesBarramento.h
+      - (2 * MARGEM_FUROS_BARRAMENTO + (quantidadePinos - 1) * ESPACAMENTO_FUROS_BARRAMENTO)
+    ) < 0.001);
+    assert.ok(pinosBarramento.every((pino) => Math.abs(pino.x) < 0.001));
+  } finally {
+    definirProgressoEstiloRealista(progressoAnterior);
+  }
+});
+
+test('transformador com derivações entrega as tensões nominais em 127, 220 e 24 V', () => {
+  for (const modo of [
+    { entrada: 'p127', tensao: 127, saida: 's0', esperado: 12 },
+    { entrada: 'p220', tensao: 220, saida: 's12b', esperado: 24 },
+  ]) {
+    const circuito = criarCircuito();
+    const fonte = adicionarComponente(circuito, 'FONTE_POSITIVA', 0, 0);
+    fonte.propriedades.tensao = modo.tensao;
+    const terra = adicionarComponente(circuito, 'GND', 100, 0);
+    const transformador = adicionarComponente(circuito, 'TRANSFORMADOR_TOMADA', 200, 0);
+    const carga = adicionarComponente(circuito, 'RESISTOR', 400, 0);
+    carga.propriedades.resistencia = 10000;
+    circuito.fios.push(
+      { id: 'primario-fonte', origem: { componente: fonte.id, pino: 'p' }, destino: { componente: transformador.id, pino: modo.entrada }, dobras: [] },
+      { id: 'primario-terra', origem: { componente: transformador.id, pino: 'p0' }, destino: { componente: terra.id, pino: 'p' }, dobras: [] },
+      { id: 'secundario-carga+', origem: { componente: transformador.id, pino: 's12a' }, destino: { componente: carga.id, pino: 'p1' }, dobras: [] },
+      { id: 'secundario-carga-', origem: { componente: carga.id, pino: 'p2' }, destino: { componente: transformador.id, pino: modo.saida }, dobras: [] },
+    );
+
+    const resultado = simular(circuito);
+    assert.equal(resultado.convergiu, true);
+    const tensaoSaida = resultado.tensoes[`${transformador.id}:s12a`]
+      - resultado.tensoes[`${transformador.id}:${modo.saida}`];
+    assert.ok(Math.abs(tensaoSaida - modo.esperado) < 1e-6, `${modo.tensao} V: saída de ${tensaoSaida} V`);
+    assert.ok(Math.abs(
+      resultado.tensoes[`${transformador.id}:s12a`]
+      - resultado.tensoes[`${transformador.id}:s0`] - 12
+    ) < 1e-6, `${modo.tensao} V: primeira meia-secundária`);
+    assert.ok(Math.abs(
+      resultado.tensoes[`${transformador.id}:s0`]
+      - resultado.tensoes[`${transformador.id}:s12b`] - 12
+    ) < 1e-6, `${modo.tensao} V: segunda meia-secundária`);
+  }
+});
+
+test('transformador derivado oferece seis terminais realistas alinhados com os fios da arte', () => {
+  const progressoAnterior = obterProgressoEstiloRealista();
+  definirProgressoEstiloRealista(1);
+  try {
+    const arte = ARTES_REALISTAS.TRANSFORMADOR_TOMADA;
+    const pinos = obterPinosComponente('TRANSFORMADOR_TOMADA');
+    assert.equal(CATALOGO.TRANSFORMADOR_TOMADA.categoria, 'Passivos');
+    assert.equal(arte.terminais.length, 6);
+    assert.deepEqual(
+      pinos.map(({ id }) => id),
+      ['p0', 'p127', 'p220', 's12a', 's0', 's12b']
+    );
+    for (const pino of pinos) {
+      assert.deepEqual(
+        { x: pino.x, y: pino.y, nome: pino.nome },
+        arte.pinos[pino.id],
+        `${pino.id}: pino desalinhado com a arte realista`
+      );
     }
   } finally {
     definirProgressoEstiloRealista(progressoAnterior);
   }
+});
+
+test('furos do barramento são um terço maiores que os conectores e tangenciam a barra', () => {
+  assert.equal(RELACAO_FURO_BARRAMENTO, 4 / 3);
+  assert.ok(Math.abs(
+    LARGURA_BARRAMENTO_REALISTA
+    - 2 * RAIO_CONEXAO_REALISTA * RELACAO_FURO_BARRAMENTO * RAIO_BORDA_FURO_BARRAMENTO
+  ) < 1e-9);
 });
 
 test('barramento só une os pinos quando a opção interna está ativada', () => {
